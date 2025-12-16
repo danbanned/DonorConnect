@@ -14,11 +14,11 @@ import {
   UserCircleIcon
 } from '@heroicons/react/24/outline'
 
-import DonorHeader from '@/components/donors/DonorHeader'
-import DonationHistory from '@/components/donors/DonationHistory'
+import DonorHeader from './components/donors/DonorHeader'
+import DonationHistory from './components/donors/DonationHistory'
 import PledgeBox from '@/components/donors/PledgeBox'
-import RelationshipNotes from '@/components/donors/RelationshipNotes'
-import SuggestedActions from '@/components/donors/SuggestedActions'
+import RelationshipNotes from './components/donors/RelationshipNotes'
+import SuggestedActions from './components/donors/SuggestedActions'
 
 import './DonorProfile.css'
 
