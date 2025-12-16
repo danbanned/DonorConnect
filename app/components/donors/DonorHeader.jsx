@@ -8,7 +8,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { formatCurrency } from '@/utils/formatCurrency'
 
-export default function DonorHeader({ donor, insights }) {
+export default function DonorHeafder({ donor, insights }) {
   const getRelationshipColor = (stage) => {
     const colors = {
       NEW: 'bg-gray-100 text-gray-800',
