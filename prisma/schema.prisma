@@ -1,0 +1,300 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String        @id @default(cuid())
+  email          String        @unique
+  name           String?
+  role           Role          @default(STAFF)
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  communications Communication[]
+}
+
+enum Role {
+  ADMIN
+  STAFF
+}
+
+model Organization {
+  id             String          @id @default(cuid())
+  name           String
+  slug           String          @unique
+  settings       Json?
+  users          User[]
+  donors         Donor[]
+  donations      Donation[]
+  campaigns      Campaign[]
+  communications Communication[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model Donor {
+  id               String           @id @default(cuid())
+  organizationId   String
+  organization     Organization     @relation(fields: [organizationId], references: [id])
+  firstName        String
+  lastName         String
+  email            String?
+  phone            String?
+  address          Json?
+  preferredContact PreferredContact @default(EMAIL)
+
+  // Relationship tracking
+  relationshipStage RelationshipStage @default(NEW)
+  lastContact       DateTime?
+  nextFollowUp      DateTime?
+  notes             String?
+
+  // Interests & Personal Info
+  interests     String[] // ["education", "arts", "sports"]
+  personalNotes Json? // Custom fields like "hobbies for kids"
+
+  // Giving history (computed via donations)
+  totalGiven    Float     @default(0)
+  firstGiftDate DateTime?
+  lastGiftDate  DateTime?
+  giftsCount    Int       @default(0)
+
+  // Pledge info
+  hasActivePledge Boolean          @default(false)
+  pledgeTotal     Float?           @default(0)
+  pledgePaid      Float?           @default(0)
+  pledgeStartDate DateTime?
+  pledgeEndDate   DateTime?
+  pledgeFrequency PledgeFrequency?
+
+  // Metadata
+  tags   String[]
+  status DonorStatus @default(ACTIVE)
+
+  // Relations
+  donations      Donation[]
+  communications Communication[]
+  softCredits    SoftCredit[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId, lastName])
+  @@index([organizationId, email])
+  @@index([organizationId, lastGiftDate])
+}
+
+model Donation {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  donorId        String
+  donor          Donor        @relation(fields: [donorId], references: [id])
+
+  // Donation details
+  amount        Float
+  currency      String        @default("USD")
+  date          DateTime      @default(now())
+  paymentMethod PaymentMethod
+  transactionId String?
+
+  // Categorization
+  campaignId  String?
+  campaign    Campaign?    @relation(fields: [campaignId], references: [id])
+  type        DonationType @default(ONE_TIME)
+  isRecurring Boolean      @default(false)
+  recurringId String?
+
+  // Tribute/Memorial
+  isTribute   Boolean      @default(false)
+  tributeName String?
+  tributeType TributeType?
+
+  // Processing
+  status    DonationStatus @default(COMPLETED)
+  fees      Float?         @default(0)
+  netAmount Float?
+
+  // Soft credits
+  softCredits SoftCredit[]
+
+  communications Communication[]
+
+  // Notes
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId, date])
+  @@index([donorId])
+  @@index([campaignId])
+}
+
+model SoftCredit {
+  id         String   @id @default(cuid())
+  donationId String
+  donation   Donation @relation(fields: [donationId], references: [id])
+  donorId    String
+  donor      Donor    @relation(fields: [donorId], references: [id])
+  amount     Float
+  reason     String? // "Spouse", "Employer Match", etc.
+  createdAt  DateTime @default(now())
+}
+
+model Campaign {
+  id             String         @id @default(cuid())
+  organizationId String
+  organization   Organization   @relation(fields: [organizationId], references: [id])
+  name           String
+  description    String?
+  goal           Float?
+  startDate      DateTime?
+  endDate        DateTime?
+  status         CampaignStatus @default(ACTIVE)
+
+  communications Communication[]
+  donations      Donation[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model Communication {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  donorId        String
+  donor          Donor        @relation(fields: [donorId], references: [id])
+
+  // Communication details
+  type      CommunicationType
+  direction Direction         @default(OUTBOUND)
+  subject   String?
+  content   String?
+  summary   String? // AI-generated summary
+
+  // Status & tracking
+  status    CommunicationStatus @default(SENT)
+  sentAt    DateTime?
+  openedAt  DateTime?
+  clickedAt DateTime?
+
+  // Related entities
+  relatedDonationId String?
+  relatedDonation   Donation? @relation(fields: [relatedDonationId], references: [id])
+  campaignId        String?
+  campaign          Campaign? @relation(fields: [campaignId], references: [id])
+
+  // Follow-up
+  requiresFollowUp Boolean   @default(false)
+  followUpDate     DateTime?
+
+  // Metadata
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([donorId, sentAt])
+  @@index([organizationId, type])
+}
+
+// Enums
+enum PreferredContact {
+  EMAIL
+  PHONE
+  MAIL
+  ANY
+}
+
+enum RelationshipStage {
+  NEW
+  CULTIVATION
+  ASK_READY
+  STEWARDSHIP
+  MAJOR_GIFT
+  LEGACY
+}
+
+enum PledgeFrequency {
+  MONTHLY
+  QUARTERLY
+  ANNUALLY
+  CUSTOM
+}
+
+enum DonorStatus {
+  ACTIVE
+  LAPSED
+  PROSPECT
+  INACTIVE
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  BANK_TRANSFER
+  CHECK
+  CASH
+  STOCK
+  OTHER
+}
+
+enum DonationType {
+  ONE_TIME
+  PLEDGE_PAYMENT
+  RECURRING
+  MATCHING
+}
+
+enum TributeType {
+  MEMORIAL
+  HONOR
+  CELEBRATION
+}
+
+enum DonationStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum CommunicationType {
+  EMAIL
+  PHONE_CALL
+  MEETING
+  THANK_YOU_NOTE
+  NEWSLETTER
+  EVENT_INVITATION
+  FOLLOW_UP
+}
+
+enum Direction {
+  INBOUND
+  OUTBOUND
+}
+
+enum CommunicationStatus {
+  DRAFT
+  SENT
+  DELIVERED
+  OPENED
+  CLICKED
+  BOUNCED
+  FAILED
+}
