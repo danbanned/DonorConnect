@@ -7,18 +7,19 @@ import {
   CurrencyDollarIcon
 } from '@heroicons/react/24/outline'
 import { formatCurrency } from '@/utils/formatCurrency'
+import './DonorHeader.css'
 
-export default function DonorHeafder({ donor, insights }) {
+export default function DonorHeader({ donor, insights }) {
   const getRelationshipColor = (stage) => {
     const colors = {
-      NEW: 'bg-gray-100 text-gray-800',
-      CULTIVATION: 'bg-blue-100 text-blue-800',
-      ASK_READY: 'bg-yellow-100 text-yellow-800',
-      STEWARDSHIP: 'bg-green-100 text-green-800',
-      MAJOR_GIFT: 'bg-purple-100 text-purple-800',
-      LEGACY: 'bg-indigo-100 text-indigo-800',
+      NEW: 'donor-stage-new',
+      CULTIVATION: 'donor-stage-cultivation',
+      ASK_READY: 'donor-stage-ask-ready',
+      STEWARDSHIP: 'donor-stage-stewardship',
+      MAJOR_GIFT: 'donor-stage-major-gift',
+      LEGACY: 'donor-stage-legacy',
     }
-    return colors[stage] || colors.NEW
+    return colors[stage] || 'donor-stage-new'
   }
 
   const getDonorLevel = (totalGiven) => {
@@ -29,28 +30,28 @@ export default function DonorHeafder({ donor, insights }) {
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
+    <div className="donor-header-card">
+      <div className="donor-header-content">
         {/* Left: Donor Info */}
-        <div className="flex-1">
-          <div className="flex items-start justify-between">
+        <div className="donor-header-info">
+          <div className="donor-header-top">
             <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-3xl font-bold text-gray-900">
+              <div className="donor-header-name-section">
+                <h1 className="donor-header-name">
                   {donor.firstName} {donor.lastName}
                 </h1>
-                <span className={`badge ${getRelationshipColor(donor.relationshipStage)}`}>
+                <span className={`donor-stage-badge ${getRelationshipColor(donor.relationshipStage)}`}>
                   {donor.relationshipStage.replace('_', ' ')}
                 </span>
               </div>
               
-              <div className="flex items-center gap-4 mt-2">
-                <div className="flex items-center gap-2 text-gray-600">
-                  <StarIcon className="h-5 w-5 text-yellow-500" />
-                  <span className="font-medium">{getDonorLevel(donor.totalGiven)}</span>
+              <div className="donor-header-meta">
+                <div className="donor-level">
+                  <StarIcon className="donor-level-icon" />
+                  <span className="donor-level-text">{getDonorLevel(donor.totalGiven)}</span>
                 </div>
-                <div className="flex items-center gap-2 text-gray-600">
-                  <CalendarIcon className="h-5 w-5" />
+                <div className="donor-member-since">
+                  <CalendarIcon className="donor-member-icon" />
                   <span>Member since {new Date(donor.firstGiftDate).getFullYear()}</span>
                 </div>
               </div>
@@ -58,15 +59,15 @@ export default function DonorHeafder({ donor, insights }) {
           </div>
 
           {/* Contact Info */}
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="donor-contact-grid">
             {donor.email && (
-              <div className="flex items-center gap-3">
-                <EnvelopeIcon className="h-5 w-5 text-gray-400" />
+              <div className="donor-contact-item">
+                <EnvelopeIcon className="donor-contact-icon" />
                 <div>
-                  <p className="text-sm text-gray-600">Email</p>
+                  <p className="donor-contact-label">Email</p>
                   <a 
                     href={`mailto:${donor.email}`}
-                    className="text-gray-900 hover:text-blue-600"
+                    className="donor-contact-value"
                   >
                     {donor.email}
                   </a>
@@ -75,13 +76,13 @@ export default function DonorHeafder({ donor, insights }) {
             )}
             
             {donor.phone && (
-              <div className="flex items-center gap-3">
-                <PhoneIcon className="h-5 w-5 text-gray-400" />
+              <div className="donor-contact-item">
+                <PhoneIcon className="donor-contact-icon" />
                 <div>
-                  <p className="text-sm text-gray-600">Phone</p>
+                  <p className="donor-contact-label">Phone</p>
                   <a 
                     href={`tel:${donor.phone}`}
-                    className="text-gray-900 hover:text-blue-600"
+                    className="donor-contact-value"
                   >
                     {donor.phone}
                   </a>
@@ -90,11 +91,11 @@ export default function DonorHeafder({ donor, insights }) {
             )}
             
             {donor.address && (
-              <div className="flex items-center gap-3">
-                <MapPinIcon className="h-5 w-5 text-gray-400" />
+              <div className="donor-contact-item">
+                <MapPinIcon className="donor-contact-icon" />
                 <div>
-                  <p className="text-sm text-gray-600">Address</p>
-                  <p className="text-gray-900">
+                  <p className="donor-contact-label">Address</p>
+                  <p className="donor-contact-value">
                     {donor.address.street}, {donor.address.city}
                   </p>
                 </div>
@@ -103,15 +104,15 @@ export default function DonorHeafder({ donor, insights }) {
           </div>
 
           {/* Tags & Interests */}
-          <div className="mt-6">
+          <div className="donor-tags-section">
             {donor.interests && donor.interests.length > 0 && (
-              <div className="mb-4">
-                <p className="text-sm font-medium text-gray-700 mb-2">Interests</p>
-                <div className="flex flex-wrap gap-2">
+              <div className="donor-interests">
+                <p className="donor-tags-label">Interests</p>
+                <div className="donor-tags-container">
                   {donor.interests.map((interest, index) => (
                     <span
                       key={index}
-                      className="px-3 py-1 bg-blue-50 text-blue-700 text-sm rounded-full"
+                      className="donor-interest-tag"
                     >
                       {interest}
                     </span>
@@ -121,13 +122,13 @@ export default function DonorHeafder({ donor, insights }) {
             )}
             
             {donor.tags && donor.tags.length > 0 && (
-              <div>
-                <p className="text-sm font-medium text-gray-700 mb-2">Tags</p>
-                <div className="flex flex-wrap gap-2">
+              <div className="donor-tags">
+                <p className="donor-tags-label">Tags</p>
+                <div className="donor-tags-container">
                   {donor.tags.map((tag, index) => (
                     <span
                       key={index}
-                      className="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full"
+                      className="donor-tag"
                     >
                       {tag}
                     </span>
@@ -139,18 +140,18 @@ export default function DonorHeafder({ donor, insights }) {
         </div>
 
         {/* Right: Stats */}
-        <div className="lg:w-96 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-gray-50 rounded-lg p-4">
-              <p className="text-sm text-gray-600">Total Given</p>
-              <p className="text-2xl font-bold text-gray-900">
+        <div className="donor-stats-section">
+          <div className="donor-stats-grid">
+            <div className="donor-stat-card">
+              <p className="donor-stat-label">Total Given</p>
+              <p className="donor-stat-value">
                 {formatCurrency(donor.totalGiven)}
               </p>
             </div>
             
-            <div className="bg-gray-50 rounded-lg p-4">
-              <p className="text-sm text-gray-600">Gifts</p>
-              <p className="text-2xl font-bold text-gray-900">
+            <div className="donor-stat-card">
+              <p className="donor-stat-label">Gifts</p>
+              <p className="donor-stat-value">
                 {donor.giftsCount}
               </p>
             </div>
@@ -158,23 +159,23 @@ export default function DonorHeafder({ donor, insights }) {
 
           {/* Engagement Score */}
           {insights && (
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-gray-700">Engagement Score</p>
-                <span className={`badge ${
-                  insights.status.engagementScore >= 75 ? 'badge-success' :
-                  insights.status.engagementScore >= 50 ? 'badge-warning' : 'badge-danger'
+            <div className="donor-engagement-card">
+              <div className="donor-engagement-header">
+                <p className="donor-engagement-label">Engagement Score</p>
+                <span className={`donor-engagement-level ${
+                  insights.status.engagementScore >= 75 ? 'engagement-high' :
+                  insights.status.engagementScore >= 50 ? 'engagement-medium' : 'engagement-low'
                 }`}>
                   {insights.status.engagementLevel}
                 </span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="donor-engagement-bar-container">
                 <div 
-                  className="bg-blue-600 h-2 rounded-full"
+                  className="donor-engagement-bar"
                   style={{ width: `${insights.status.engagementScore}%` }}
                 />
               </div>
-              <p className="text-xs text-gray-600 mt-2">
+              <p className="donor-engagement-description">
                 Based on giving history and communication patterns
               </p>
             </div>
@@ -182,15 +183,15 @@ export default function DonorHeafder({ donor, insights }) {
 
           {/* Last Gift */}
           {donor.lastGiftDate && (
-            <div className="bg-green-50 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-1">
-                <CurrencyDollarIcon className="h-5 w-5 text-green-600" />
-                <p className="text-sm font-medium text-green-800">Last Gift</p>
+            <div className="donor-last-gift-card">
+              <div className="donor-last-gift-header">
+                <CurrencyDollarIcon className="donor-last-gift-icon" />
+                <p className="donor-last-gift-label">Last Gift</p>
               </div>
-              <p className="text-lg font-bold text-green-900">
+              <p className="donor-last-gift-amount">
                 {formatCurrency(donor.lastDonation?.amount || 0)}
               </p>
-              <p className="text-sm text-green-700">
+              <p className="donor-last-gift-date">
                 {new Date(donor.lastGiftDate).toLocaleDateString()}
               </p>
             </div>

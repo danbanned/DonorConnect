@@ -1,0 +1,345 @@
+.card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: bold;
+  color: #111827;
+}
+
+.description {
+  font-size: 14px;
+  color: #4b5563;
+  margin-top: 4px;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.noteCount {
+  font-size: 14px;
+  color: #4b5563;
+}
+
+.addNoteContainer {
+  margin-bottom: 32px;
+  padding: 16px;
+  background-color: #eff6ff;
+  border-radius: 8px;
+  border: 1px solid #dbeafe;
+}
+
+.addNoteHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.addNoteIcon {
+  height: 20px;
+  width: 20px;
+  color: #2563eb;
+}
+
+.addNoteTitle {
+  font-weight: 500;
+  color: #1e3a8a;
+}
+
+.textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+@media (min-width: 768px) {
+  .formGrid {
+    grid-template-columns: 1fr 2fr;
+  }
+}
+
+.label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 4px;
+}
+
+.select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.addButton {
+  width: 100%;
+  background-color: #2563eb;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.addButton:hover:not(:disabled) {
+  background-color: #1d4ed8;
+}
+
+.addButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.notesList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.noteCard {
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  transition: border-color 0.2s;
+}
+
+.noteCard:hover {
+  border-color: #d1d5db;
+}
+
+.noteHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.noteAuthor {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.authorIcon {
+  width: 32px;
+  height: 32px;
+  background-color: #f3f4f6;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.userIcon {
+  height: 20px;
+  width: 20px;
+  color: #4b5563;
+}
+
+.authorName {
+  font-weight: 500;
+  color: #111827;
+}
+
+.authorRole {
+  font-size: 14px;
+  color: #4b5563;
+}
+
+.noteMeta {
+  text-align: right;
+}
+
+.noteDate {
+  font-size: 14px;
+  color: #4b5563;
+}
+
+.categoryBadge {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 12px;
+  background-color: #f3f4f6;
+  color: #374151;
+  border-radius: 9999px;
+  margin-top: 4px;
+}
+
+.noteContent {
+  margin-top: 12px;
+}
+
+.contentText {
+  color: #374151;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.tagsList {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag {
+  padding: 4px 8px;
+  background-color: #dbeafe;
+  color: #1e40af;
+  font-size: 12px;
+  border-radius: 4px;
+}
+
+.noteActions {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.editAction,
+.deleteAction {
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.editAction {
+  color: #2563eb;
+}
+
+.editAction:hover {
+  background-color: #eff6ff;
+}
+
+.deleteAction {
+  color: #dc2626;
+}
+
+.deleteAction:hover {
+  background-color: #fef2f2;
+}
+
+.actionIcon {
+  height: 16px;
+  width: 16px;
+}
+
+.editContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.editTextarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.editButtons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cancelButton,
+.saveButton {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+}
+
+.cancelButton {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.saveButton {
+  background-color: #2563eb;
+  color: white;
+}
+
+.buttonIcon {
+  height: 16px;
+  width: 16px;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 32px 0;
+}
+
+.emptyIcon {
+  height: 48px;
+  width: 48px;
+  color: #9ca3af;
+  margin: 0 auto;
+}
+
+.emptyText {
+  color: #6b7280;
+  margin-top: 8px;
+}

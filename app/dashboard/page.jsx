@@ -155,8 +155,10 @@ export default function DashboardPage() {
         <div className="quick-actions-card">
           <h2 className="quick-actions-title">Quick Actions</h2>
           <div className="quick-actions-list">
+          
+
             <Link
-              href="/donations/new"
+              href={`/recorddonorpage`}
               className="quick-action-link quick-action-link-blue"
             >
               <CurrencyDollarIcon className="quick-action-icon quick-action-icon-blue" />
@@ -183,6 +185,7 @@ export default function DashboardPage() {
               <CalendarIcon className="quick-action-icon quick-action-icon-purple" />
               <span className="quick-action-text">Schedule Meeting</span>
             </Link>
+            
           </div>
         </div>
       </div>

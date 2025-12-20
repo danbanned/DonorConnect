@@ -7,17 +7,85 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/////////////////////////////////////////////////
+// USERS & ORGANIZATIONS
+/////////////////////////////////////////////////
+
 model User {
   id             String        @id @default(cuid())
   email          String        @unique
   name           String?
+  password       String?       // Hashed password
   role           Role          @default(STAFF)
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id])
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
 
+  sessions       Session[]
   communications Communication[]
+  auditLogs      AuditLog[]
+  passwordResetTokens PasswordResetToken[]
+  meetings       Meeting[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+}
+
+model Session {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+
+  token          String   @unique
+  refreshToken   String?  @unique
+  userAgent      String?
+  ipAddress      String?
+
+  expiresAt      DateTime
+  lastActivityAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+model AuditLog {
+  id             String        @id @default(cuid())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  userId         String?
+  user           User?         @relation(fields: [userId], references: [id])
+
+  action     String
+  entityType String?
+  entityId   String?
+  details    Json?
+  ipAddress  String?
+  userAgent  String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, action])
+  @@index([organizationId, createdAt])
+}
+
+model PasswordResetToken {
+  id        String @id @default(cuid())
+  userId    String
+  user      User   @relation(fields: [userId], references: [id])
+
+  token     String @unique
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
 }
 
 enum Role {
@@ -26,108 +94,175 @@ enum Role {
 }
 
 model Organization {
-  id             String          @id @default(cuid())
-  name           String
-  slug           String          @unique
-  settings       Json?
+  id       String @id @default(cuid())
+  name     String
+  slug     String @unique
+  settings Json?
+
   users          User[]
   donors         Donor[]
   donations      Donation[]
   campaigns      Campaign[]
   communications Communication[]
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  pledges        Pledge[]
+  auditLogs      AuditLog[]
+  meetings       Meeting[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
+/////////////////////////////////////////////////
+// DONORS
+/////////////////////////////////////////////////
+
 model Donor {
-  id               String           @id @default(cuid())
-  organizationId   String
-  organization     Organization     @relation(fields: [organizationId], references: [id])
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
   firstName        String
   lastName         String
   email            String?
   phone            String?
-  address          Json?
   preferredContact PreferredContact @default(EMAIL)
 
-  // Relationship tracking
   relationshipStage RelationshipStage @default(NEW)
-  lastContact       DateTime?
-  nextFollowUp      DateTime?
-  notes             String?
+  status            DonorStatus       @default(ACTIVE)
 
-  // Interests & Personal Info
-  interests     String[] // ["education", "arts", "sports"]
-  personalNotes Json? // Custom fields like "hobbies for kids"
+  notes         String?
+  personalNotes Json?
 
-  // Giving history (computed via donations)
-  totalGiven    Float     @default(0)
-  firstGiftDate DateTime?
-  lastGiftDate  DateTime?
-  giftsCount    Int       @default(0)
-
-  // Pledge info
-  hasActivePledge Boolean          @default(false)
-  pledgeTotal     Float?           @default(0)
-  pledgePaid      Float?           @default(0)
-  pledgeStartDate DateTime?
-  pledgeEndDate   DateTime?
-  pledgeFrequency PledgeFrequency?
-
-  // Metadata
-  tags   String[]
-  status DonorStatus @default(ACTIVE)
-
-  // Relations
+  address        Address?
   donations      Donation[]
+  pledges        Pledge[]
+  interests      DonorInterest[]
+  tags           DonorTag[]
   communications Communication[]
   softCredits    SoftCredit[]
+  meetings       Meeting[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([organizationId, lastName])
   @@index([organizationId, email])
-  @@index([organizationId, lastGiftDate])
 }
 
-model Donation {
-  id             String       @id @default(cuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  donorId        String
-  donor          Donor        @relation(fields: [donorId], references: [id])
+model Address {
+  id      String  @id @default(cuid())
+  street  String?
+  city    String?
+  state   String?
+  zipCode String?
 
-  // Donation details
+  donorId String @unique
+  donor   Donor  @relation(fields: [donorId], references: [id])
+}
+
+/////////////////////////////////////////////////
+// INTERESTS & TAGS
+/////////////////////////////////////////////////
+
+model Interest {
+  id   String @id @default(cuid())
+  name String @unique
+
+  donors DonorInterest[]
+}
+
+model DonorInterest {
+  donorId    String
+  interestId String
+
+  donor    Donor    @relation(fields: [donorId], references: [id])
+  interest Interest @relation(fields: [interestId], references: [id])
+
+  @@id([donorId, interestId])
+}
+
+model Tag {
+  id   String @id @default(cuid())
+  name String @unique
+
+  donors DonorTag[]
+}
+
+model DonorTag {
+  donorId String
+  tagId   String
+
+  donor Donor @relation(fields: [donorId], references: [id])
+  tag   Tag   @relation(fields: [tagId], references: [id])
+
+  @@id([donorId, tagId])
+}
+
+/////////////////////////////////////////////////
+// PLEDGES
+/////////////////////////////////////////////////
+
+model Pledge {
+  id             String @id @default(cuid())
+  organizationId String
+  donorId        String
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  donor        Donor        @relation(fields: [donorId], references: [id])
+
+  totalAmount Float
+  amountPaid  Float           @default(0)
+  frequency   PledgeFrequency
+  startDate   DateTime
+  endDate     DateTime?
+  status      PledgeStatus    @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum PledgeStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+/////////////////////////////////////////////////
+// DONATIONS
+/////////////////////////////////////////////////
+
+model Donation {
+  id             String @id @default(cuid())
+  organizationId String
+  donorId        String
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  donor        Donor        @relation(fields: [donorId], references: [id])
+
   amount        Float
   currency      String        @default("USD")
   date          DateTime      @default(now())
   paymentMethod PaymentMethod
   transactionId String?
 
-  // Categorization
-  campaignId  String?
-  campaign    Campaign?    @relation(fields: [campaignId], references: [id])
+  campaignId String?
+  campaign   Campaign? @relation(fields: [campaignId], references: [id])
+
   type        DonationType @default(ONE_TIME)
   isRecurring Boolean      @default(false)
   recurringId String?
 
-  // Tribute/Memorial
   isTribute   Boolean      @default(false)
   tributeName String?
   tributeType TributeType?
 
-  // Processing
   status    DonationStatus @default(COMPLETED)
   fees      Float?         @default(0)
   netAmount Float?
 
-  // Soft credits
-  softCredits SoftCredit[]
-
+  softCredits    SoftCredit[]
   communications Communication[]
 
-  // Notes
   notes String?
 
   createdAt DateTime @default(now())
@@ -139,66 +274,80 @@ model Donation {
 }
 
 model SoftCredit {
-  id         String   @id @default(cuid())
+  id         String @id @default(cuid())
   donationId String
-  donation   Donation @relation(fields: [donationId], references: [id])
   donorId    String
-  donor      Donor    @relation(fields: [donorId], references: [id])
-  amount     Float
-  reason     String? // "Spouse", "Employer Match", etc.
-  createdAt  DateTime @default(now())
+
+  donation Donation @relation(fields: [donationId], references: [id])
+  donor    Donor    @relation(fields: [donorId], references: [id])
+
+  amount Float
+  reason String?
+
+  createdAt DateTime @default(now())
 }
+
+/////////////////////////////////////////////////
+// CAMPAIGNS
+/////////////////////////////////////////////////
 
 model Campaign {
-  id             String         @id @default(cuid())
-  organizationId String
-  organization   Organization   @relation(fields: [organizationId], references: [id])
-  name           String
-  description    String?
-  goal           Float?
-  startDate      DateTime?
-  endDate        DateTime?
-  status         CampaignStatus @default(ACTIVE)
-
-  communications Communication[]
-  donations      Donation[]
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-}
-
-model Communication {
   id             String       @id @default(cuid())
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
+
+  name        String
+  description String?
+  goal        Float?
+  startDate   DateTime?
+  endDate     DateTime?
+  status      CampaignStatus @default(ACTIVE)
+
+  donations      Donation[]
+  communications Communication[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/////////////////////////////////////////////////
+// COMMUNICATIONS
+/////////////////////////////////////////////////
+
+model Communication {
+  id             String @id @default(cuid())
+  organizationId String
   donorId        String
-  donor          Donor        @relation(fields: [donorId], references: [id])
 
-  // Communication details
+  organization Organization @relation(fields: [organizationId], references: [id])
+  donor        Donor        @relation(fields: [donorId], references: [id])
+
   type      CommunicationType
-  direction Direction         @default(OUTBOUND)
-  subject   String?
-  content   String?
-  summary   String? // AI-generated summary
+  direction Direction @default(OUTBOUND)
 
-  // Status & tracking
+  subject String?
+  content String?
+  summary String?
+  meetingUrl String?
+
   status    CommunicationStatus @default(SENT)
   sentAt    DateTime?
   openedAt  DateTime?
   clickedAt DateTime?
 
-  // Related entities
   relatedDonationId String?
   relatedDonation   Donation? @relation(fields: [relatedDonationId], references: [id])
-  campaignId        String?
-  campaign          Campaign? @relation(fields: [campaignId], references: [id])
 
-  // Follow-up
-  requiresFollowUp Boolean   @default(false)
+  campaignId String?
+  campaign   Campaign? @relation(fields: [campaignId], references: [id])
+
+  requiresFollowUp Boolean @default(false)
   followUpDate     DateTime?
 
-  // Metadata
   userId String?
-  user   User?   @relation(fields: [userId], references: [id])
+  user   User? @relation(fields: [userId], references: [id])
+
+  meeting Meeting?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -207,7 +356,52 @@ model Communication {
   @@index([organizationId, type])
 }
 
-// Enums
+/////////////////////////////////////////////////
+// MEETINGS
+/////////////////////////////////////////////////
+
+model Meeting {
+  id             String @id @default(cuid())
+  organizationId String
+  donorId        String
+  userId         String
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  donor        Donor        @relation(fields: [donorId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
+
+  title       String
+  description String?
+
+  zoomMeetingId String? @unique
+  zoomJoinUrl   String?
+  zoomStartUrl  String?
+  zoomPassword  String?
+
+  startTime DateTime
+  endTime   DateTime
+  duration  Int
+
+  status MeetingStatus @default(SCHEDULED)
+
+  communication Communication? @relation(fields: [communicationId], references: [id])
+  communicationId String? @unique
+
+  notes  String?
+  agenda Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([donorId])
+  @@index([userId])
+  @@index([organizationId, startTime])
+}
+
+/////////////////////////////////////////////////
+// ENUMS
+/////////////////////////////////////////////////
+
 enum PreferredContact {
   EMAIL
   PHONE
@@ -297,4 +491,11 @@ enum CommunicationStatus {
   CLICKED
   BOUNCED
   FAILED
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
 }

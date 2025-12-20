@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { 
   PlusIcon,
@@ -9,32 +9,13 @@ import {
   ChartBarIcon,
   ReceiptPercentIcon
 } from '@heroicons/react/24/outline'
-import { getDonations, getDonationSummary } from '@/lib/donations'
+import { useDonations } from '@/lib/api/hooks/usedonation'
 import styles from './donations.module.css'
 
 export default function DonationsPage() {
-  const [donations, setDonations] = useState([])
-  const [summary, setSummary] = useState(null)
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [timeframe, setTimeframe] = useState('30days')
-
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const donationsData = await getDonations(timeframe)
-        setDonations(donationsData)
-        
-        const summaryData = await getDonationSummary()
-        setSummary(summaryData)
-      } catch (error) {
-        console.error('Failed to load donations:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-    loadData()
-  }, [timeframe])
+  const { donations, summary, pagination, loading, error } = useDonations({ timeframe })
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
@@ -52,13 +33,17 @@ export default function DonationsPage() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className={styles.loadingContainer}>
-        <div className={styles.loadingSpinner}></div>
-      </div>
-    )
-  }
+  if (loading) return (
+    <div className={styles.loadingContainer}>
+      <div className={styles.loadingSpinner}></div>
+    </div>
+  )
+
+  if (error) return (
+    <div className={styles.errorMessage}>
+      <p>Error loading donations: {error}</p>
+    </div>
+  )
 
   return (
     <div className={styles.donationsPage}>
@@ -71,17 +56,11 @@ export default function DonationsPage() {
           </p>
         </div>
         <div className={styles.headerActions}>
-          <Link
-            href="/donations/new"
-            className={styles.primaryButton}
-          >
+          <Link href="/recorddonorpage" className={styles.primaryButton}>
             <PlusIcon className={styles.buttonIcon} />
             Record Donation
           </Link>
-          <Link
-            href="/donations/reports"
-            className={styles.secondaryButton}
-          >
+          <Link href="/donations/reports" className={styles.secondaryButton}>
             <ChartBarIcon className={styles.buttonIcon} />
             Reports
           </Link>
@@ -237,10 +216,7 @@ export default function DonationsPage() {
             <p className={styles.emptyDescription}>
               Record your first donation to get started
             </p>
-            <Link
-              href="/donations/new"
-              className={styles.primaryButton}
-            >
+            <Link href="/recorddonorpage" className={styles.primaryButton}>
               <PlusIcon className={styles.buttonIcon} />
               Record First Donation
             </Link>

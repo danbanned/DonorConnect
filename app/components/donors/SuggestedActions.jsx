@@ -8,23 +8,42 @@ import {
   ClockIcon
 } from '@heroicons/react/24/outline'
 import { formatCurrency } from '@/utils/formatCurrency'
+import './SuggestedActions.css'
 
 export default function SuggestedActions({ donor, insights }) {
-  const getPriorityColor = (priority) => {
+  const getPriorityClass = (priority) => {
     switch (priority) {
-      case 'high': return 'bg-red-50 border-red-200'
-      case 'medium': return 'bg-yellow-50 border-yellow-200'
-      case 'low': return 'bg-blue-50 border-blue-200'
-      default: return 'bg-gray-50 border-gray-200'
+      case 'high': return 'action-item high'
+      case 'medium': return 'action-item medium'
+      case 'low': return 'action-item low'
+      default: return 'action-item default'
+    }
+  }
+
+  const getIconContainerClass = (priority) => {
+    switch (priority) {
+      case 'high': return 'action-icon-container high'
+      case 'medium': return 'action-icon-container medium'
+      case 'low': return 'action-icon-container low'
+      default: return 'action-icon-container default'
+    }
+  }
+
+  const getIconClass = (priority) => {
+    switch (priority) {
+      case 'high': return 'action-icon high'
+      case 'medium': return 'action-icon medium'
+      case 'low': return 'action-icon low'
+      default: return 'action-icon default'
     }
   }
 
   const getPriorityIcon = (priority) => {
     switch (priority) {
-      case 'high': return <ExclamationTriangleIcon className="h-5 w-5 text-red-600" />
-      case 'medium': return <ClockIcon className="h-5 w-5 text-yellow-600" />
-      case 'low': return <CheckCircleIcon className="h-5 w-5 text-blue-600" />
-      default: return <CheckCircleIcon className="h-5 w-5 text-gray-600" />
+      case 'high': return <ExclamationTriangleIcon className="action-icon high" />
+      case 'medium': return <ClockIcon className="action-icon medium" />
+      case 'low': return <CheckCircleIcon className="action-icon low" />
+      default: return <CheckCircleIcon className="action-icon default" />
     }
   }
 
@@ -32,7 +51,7 @@ export default function SuggestedActions({ donor, insights }) {
     if (!donor.lastGiftDate) return new Date()
     const lastGift = new Date(donor.lastGiftDate)
     const nextAsk = new Date(lastGift)
-    nextAsk.setMonth(nextAsk.getMonth() + 6) // Suggest follow-up 6 months after last gift
+    nextAsk.setMonth(nextAsk.getMonth() + 6)
     return nextAsk
   }
 
@@ -61,7 +80,6 @@ export default function SuggestedActions({ donor, insights }) {
     },
   ]
 
-  // Add LYBUNT action if applicable
   if (insights?.status?.isLybunt) {
     suggestedActions.unshift({
       id: 0,
@@ -72,7 +90,6 @@ export default function SuggestedActions({ donor, insights }) {
     })
   }
 
-  // Add ask amount suggestion
   if (insights?.suggestedAsk) {
     suggestedActions.unshift({
       id: -1,
@@ -96,54 +113,50 @@ export default function SuggestedActions({ donor, insights }) {
   }
 
   return (
-    <div className="card">
-      <div className="flex items-center justify-between mb-6">
+    <div className="suggested-actions-card">
+      <div className="suggested-actions-header">
         <div>
-          <h3 className="text-lg font-bold text-gray-900">Suggested Actions</h3>
-          <p className="text-sm text-gray-600 mt-1">
+          <h3 className="suggested-actions-title">Suggested Actions</h3>
+          <p className="suggested-actions-subtitle">
             Smart recommendations for this donor
           </p>
         </div>
-        <span className="badge badge-info">
+        <span className="suggested-actions-badge">
           {suggestedActions.length} actions
         </span>
       </div>
 
-      <div className="space-y-3">
+      <div className="suggested-actions-list">
         {suggestedActions.map((action) => {
           const Icon = action.icon
           return (
             <div
               key={action.id}
-              className={`p-4 rounded-lg border ${getPriorityColor(action.priority)}`}
+              className={getPriorityClass(action.priority)}
             >
-              <div className="flex items-start justify-between">
-                <div className="flex items-start gap-3">
-                  <div className={`p-2 rounded-lg ${
-                    action.priority === 'high' ? 'bg-red-100' :
-                    action.priority === 'medium' ? 'bg-yellow-100' :
-                    action.priority === 'low' ? 'bg-blue-100' : 'bg-gray-100'
-                  }`}>
+              <div className="action-content">
+                <div className="action-main">
+                  <div className={getIconContainerClass(action.priority)}>
                     {action.amount ? (
-                      <span className="font-bold text-gray-900">
+                      <span className="amount-text">
                         {formatCurrency(action.amount, 0).replace('$', '')}
                       </span>
                     ) : (
-                      <Icon className="h-5 w-5" />
+                      <Icon className={getIconClass(action.priority)} />
                     )}
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-bold text-gray-900">{action.title}</h4>
+                  <div className="action-details">
+                    <div className="action-header">
+                      <h4 className="action-title">{action.title}</h4>
                       {getPriorityIcon(action.priority)}
                     </div>
-                    <p className="text-sm text-gray-600 mt-1">{action.description}</p>
+                    <p className="action-description">{action.description}</p>
                     
                     {action.suggestedDate && (
-                      <div className="flex items-center gap-1 text-sm text-gray-600 mt-2">
-                        <CalendarIcon className="h-4 w-4" />
+                      <div className="action-date">
+                        <CalendarIcon className="action-date-icon" />
                         <span>{formatActionDate(action.suggestedDate)}</span>
-                        <span className="text-gray-400">•</span>
+                        <span className="action-divider">•</span>
                         <span>
                           {action.suggestedDate.toLocaleDateString('en-US', { 
                             month: 'short', 
@@ -156,22 +169,22 @@ export default function SuggestedActions({ donor, insights }) {
                 </div>
               </div>
 
-              <div className="mt-4 flex gap-2">
+              <div className="action-buttons">
                 {action.amount ? (
                   <>
-                    <button className="flex-1 btn-primary">
+                    <button className="btn-primary">
                       Request Donation
                     </button>
-                    <button className="px-4 py-2 text-gray-600 hover:text-gray-900">
+                    <button className="btn-secondary">
                       Adjust Amount
                     </button>
                   </>
                 ) : (
                   <>
-                    <button className="flex-1 btn-primary">
+                    <button className="btn-primary">
                       Take Action
                     </button>
-                    <button className="px-4 py-2 text-gray-600 hover:text-gray-900">
+                    <button className="btn-secondary">
                       Dismiss
                     </button>
                   </>
@@ -182,30 +195,24 @@ export default function SuggestedActions({ donor, insights }) {
         })}
       </div>
 
-      {/* Quick Stats */}
-      <div className="mt-6 pt-6 border-t border-gray-200">
-        <div className="grid grid-cols-2 gap-4">
-          <div className="text-center p-3 bg-gray-50 rounded-lg">
-            <p className="text-2xl font-bold text-gray-900">
-              {donor.giftsCount || 0}
-            </p>
-            <p className="text-sm text-gray-600">Total Gifts</p>
+      <div className="quick-stats">
+        <div className="stats-grid">
+          <div className="stat-box">
+            <p className="stat-value">{donor.giftsCount || 0}</p>
+            <p className="stat-label">Total Gifts</p>
           </div>
-          <div className="text-center p-3 bg-gray-50 rounded-lg">
-            <p className="text-2xl font-bold text-gray-900">
-              {insights?.metrics?.daysSinceLastGift || 'N/A'}
-            </p>
-            <p className="text-sm text-gray-600">Days Since Last Gift</p>
+          <div className="stat-box">
+            <p className="stat-value">{insights?.metrics?.daysSinceLastGift || 'N/A'}</p>
+            <p className="stat-label">Days Since Last Gift</p>
           </div>
         </div>
       </div>
 
-      {/* Meeting Prep Link */}
-      <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
-        <div className="flex items-center justify-between">
+      <div className="meeting-prep">
+        <div className="meeting-prep-content">
           <div>
-            <p className="font-medium text-blue-900">Need Meeting Prep?</p>
-            <p className="text-sm text-blue-700">
+            <p className="meeting-prep-title">Need Meeting Prep?</p>
+            <p className="meeting-prep-description">
               Generate a comprehensive donor brief
             </p>
           </div>

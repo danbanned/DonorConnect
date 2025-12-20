@@ -1,6 +1,7 @@
 import { CalendarIcon, CurrencyDollarIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
 import { formatCurrency } from '@/utils/formatCurrency'
-import { dateHelpers } from '@/utils/dateHelpers'
+import  dateHelpers  from '@/utils/dateHelpers'
+import styles from './PledgeBox.module.css'
 
 export default function PledgeBox({ pledge }) {
   const getFrequencyText = (frequency) => {
@@ -34,81 +35,81 @@ export default function PledgeBox({ pledge }) {
   const remaining = pledge.pledgeTotal - pledge.pledgePaid
 
   return (
-    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-            <CurrencyDollarIcon className="h-6 w-6 text-blue-600" />
+    <div className={styles.pledgeBox}>
+      <div className={styles.header}>
+        <div className={styles.titleContainer}>
+          <div className={styles.iconContainer}>
+            <CurrencyDollarIcon className={styles.currencyIcon} />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-gray-900">Active Pledge</h3>
-            <p className="text-sm text-gray-600">
+            <h3 className={styles.title}>Active Pledge</h3>
+            <p className={styles.subtitle}>
               {getFrequencyText(pledge.pledgeFrequency)} payments
             </p>
           </div>
         </div>
-        <span className="badge badge-info">Pledge Active</span>
+        <span className={styles.badge}>Pledge Active</span>
       </div>
 
       {/* Progress Bar */}
-      <div className="mb-6">
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-sm font-medium text-gray-700">Progress</span>
-          <span className="text-sm font-bold text-blue-700">
+      <div className={styles.progressSection}>
+        <div className={styles.progressHeader}>
+          <span className={styles.progressLabel}>Progress</span>
+          <span className={styles.progressAmount}>
             {formatCurrency(pledge.pledgePaid)} of {formatCurrency(pledge.pledgeTotal)}
           </span>
         </div>
-        <div className="w-full bg-blue-100 rounded-full h-3">
+        <div className={styles.progressBar}>
           <div 
-            className="bg-blue-600 h-3 rounded-full transition-all duration-300"
+            className={styles.progressFill}
             style={{ width: `${progress}%` }}
           />
         </div>
-        <div className="flex justify-between text-xs text-gray-500 mt-1">
+        <div className={styles.progressDetails}>
           <span>{progress.toFixed(1)}% complete</span>
           <span>{formatCurrency(remaining)} remaining</span>
         </div>
       </div>
 
       {/* Pledge Details */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <CurrencyDollarIcon className="h-5 w-5 text-green-600" />
-            <p className="text-sm font-medium text-gray-700">Payment Schedule</p>
+      <div className={styles.detailsGrid}>
+        <div className={styles.detailCard}>
+          <div className={styles.detailHeader}>
+            <CurrencyDollarIcon className={`${styles.detailIcon} ${styles.greenIcon}`} />
+            <p className={styles.detailTitle}>Payment Schedule</p>
           </div>
-          <p className="text-lg font-bold text-gray-900">
+          <p className={styles.detailValue}>
             {getFrequencyText(pledge.pledgeFrequency)}
           </p>
-          <p className="text-sm text-gray-600">
+          <p className={styles.detailSubtitle}>
             {pledge.pledgePaidCount || '0'} of {pledge.pledgeTotalCount || '?'} payments made
           </p>
         </div>
 
-        <div className="bg-white rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <CalendarIcon className="h-5 w-5 text-blue-600" />
-            <p className="text-sm font-medium text-gray-700">Timeline</p>
+        <div className={styles.detailCard}>
+          <div className={styles.detailHeader}>
+            <CalendarIcon className={`${styles.detailIcon} ${styles.blueIcon}`} />
+            <p className={styles.detailTitle}>Timeline</p>
           </div>
-          <p className="text-lg font-bold text-gray-900">
+          <p className={styles.detailValue}>
             {dateHelpers.formatDate(pledge.pledgeStartDate, 'MMM yyyy')}
           </p>
-          <p className="text-sm text-gray-600">
+          <p className={styles.detailSubtitle}>
             to {dateHelpers.formatDate(pledge.pledgeEndDate, 'MMM yyyy')}
           </p>
         </div>
 
-        <div className="bg-white rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <CheckCircleIcon className="h-5 w-5 text-green-600" />
-            <p className="text-sm font-medium text-gray-700">Next Payment</p>
+        <div className={styles.detailCard}>
+          <div className={styles.detailHeader}>
+            <CheckCircleIcon className={`${styles.detailIcon} ${styles.greenIcon}`} />
+            <p className={styles.detailTitle}>Next Payment</p>
           </div>
           {daysUntilNext !== null && (
             <>
-              <p className="text-lg font-bold text-gray-900">
+              <p className={styles.detailValue}>
                 In {daysUntilNext} days
               </p>
-              <p className="text-sm text-gray-600">
+              <p className={styles.detailSubtitle}>
                 Due ~{dateHelpers.addDays(new Date(), daysUntilNext).toLocaleDateString()}
               </p>
             </>
@@ -117,14 +118,14 @@ export default function PledgeBox({ pledge }) {
       </div>
 
       {/* Action Buttons */}
-      <div className="mt-6 flex gap-3">
-        <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200">
+      <div className={styles.actions}>
+        <button className={styles.primaryButton}>
           Record Payment
         </button>
-        <button className="flex-1 bg-white hover:bg-gray-50 text-gray-700 font-medium py-2 px-4 rounded-lg border border-gray-300 transition-colors duration-200">
+        <button className={styles.secondaryButton}>
           View All Payments
         </button>
-        <button className="px-4 py-2 text-blue-600 hover:text-blue-800 font-medium">
+        <button className={styles.textButton}>
           Edit Pledge
         </button>
       </div>

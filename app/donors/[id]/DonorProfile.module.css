@@ -1,0 +1,26 @@
+/* Responsive */
+@media (max-width: 768px) {
+  .donorProfilePage {
+    padding: 1rem;
+  }
+  
+  .quickActions {
+    flex-direction: column;
+  }
+  
+  .btnPrimary,
+  .btnSecondary {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .tabs {
+    overflow-x: auto;
+    padding: 0;
+  }
+  
+  .tab {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+}

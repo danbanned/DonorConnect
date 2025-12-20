@@ -1442,3 +1442,26 @@ When generating code, please:
 5. What safeguards prevent staff from missing critical donor communications?
 
 Start by creating the basic project structure, then implement donor profiles first, as this is the foundation of the entire system.
+
+
+Signup form
+ → POST /api/auth/signup
+ → Hash password
+ → Create User (role = STAFF by default)
+ → Create session / JWT
+ → Redirect to dashboard
+
+
+
+Login form
+ → POST /api/auth/login
+ → Find user by email
+ → Compare password (bcrypt)
+ → Create session / JWT
+ → Redirect based on role
+
+
+Page load
+ → Read session / JWT
+ → If not logged in → redirect /login
+ → If role mismatch → 403 / redirect

@@ -9,7 +9,7 @@ import {
   CurrencyDollarIcon,
   CalendarIcon
 } from '@heroicons/react/24/outline'
-import { getDonors, calculateLYBUNT } from '@/lib/donors'
+import { getDonors, getLYBUNTDonors } from '@/lib/api/donors'
 import styles from './donors.module.css'
 
 const filters = [
@@ -33,7 +33,7 @@ export default function DonorsPage() {
         const data = await getDonors()
         setDonors(data)
         
-        const lybunt = await calculateLYBUNT()
+        const lybunt = await getLYBUNTDonors()
         setLybuntDonors(lybunt)
       } catch (error) {
         console.error('Failed to load donors:', error)

@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { 
   HomeIcon,
   UserGroupIcon,
@@ -25,9 +25,38 @@ const navigation = [
 ]
 
 export default function Navbar() {
+  const router = useRouter()
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const menuRef = useRef(null)
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setUserMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const handleLogout = async () => {
+    try {
+      const res = await fetch('/api/auth/logout', { method: 'POST' })
+      if (res.ok) {
+        localStorage.removeItem('auth_token')
+        localStorage.removeItem('user')
+        router.push('/login')
+      } else {
+        console.error('Logout failed')
+      }
+    } catch (err) {
+      console.error('Logout error:', err)
+    }
+  }
 
   const notifications = [
     { id: 1, message: 'LYBUNT alert: 5 donors haven\'t given this year', time: '2 hours ago', type: 'warning' },
@@ -111,14 +140,31 @@ export default function Navbar() {
             </div>
 
             {/* User profile */}
-            <div className="navbar-user-profile">
-              <div className="navbar-user-info">
+            <div className="navbar-user-profile" ref={menuRef}>
+              <div className="navbar-user-info" onClick={() => setUserMenuOpen(!userMenuOpen)}>
                 <p className="navbar-user-name">John Smith</p>
                 <p className="navbar-user-role">Development Director</p>
               </div>
-              <div className="navbar-user-avatar">
-                <UserCircleIcon />
+              <div className="navbar-user-avatar" onClick={() => setUserMenuOpen(!userMenuOpen)}>
+                <UserCircleIcon className="h-8 w-8 text-gray-700 hover:text-gray-900" />
               </div>
+
+              {userMenuOpen && (
+                <div className="absolute right-0 mt-2 w-40 bg-white border rounded shadow-lg z-50">
+                  <button
+                    className="w-full px-4 py-2 text-left hover:bg-gray-100"
+                    onClick={() => router.push('/settings')}
+                  >
+                    Settings
+                  </button>
+                  <button
+                    className="w-full px-4 py-2 text-left hover:bg-gray-100"
+                    onClick={handleLogout}
+                  >
+                    Logout
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Mobile menu button */}

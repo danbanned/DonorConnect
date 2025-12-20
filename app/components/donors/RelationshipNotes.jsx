@@ -9,7 +9,8 @@ import {
   UserCircleIcon,
   ChatBubbleLeftRightIcon
 } from '@heroicons/react/24/outline'
-import { dateHelpers } from '@/utils/dateHelpers'
+import dateHelpers from '@/utils/dateHelpers'
+import styles from './RelationshipNotes.module.css'
 
 const initialNotes = [
   {
@@ -87,43 +88,43 @@ export default function RelationshipNotes({ donorId }) {
   const categories = ['General', 'Meeting', 'Phone Call', 'Email', 'Event', 'Personal']
 
   return (
-    <div className="card">
-      <div className="flex items-center justify-between mb-6">
+    <div className={styles.card}>
+      <div className={styles.header}>
         <div>
-          <h3 className="text-lg font-bold text-gray-900">Relationship Notes</h3>
-          <p className="text-sm text-gray-600 mt-1">
+          <h3 className={styles.title}>Relationship Notes</h3>
+          <p className={styles.description}>
             Track interactions and personal details
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600">{notes.length} notes</span>
+        <div className={styles.headerRight}>
+          <span className={styles.noteCount}>{notes.length} notes</span>
         </div>
       </div>
 
       {/* Add New Note */}
-      <div className="mb-8 p-4 bg-blue-50 rounded-lg border border-blue-100">
-        <div className="flex items-center gap-2 mb-3">
-          <ChatBubbleLeftRightIcon className="h-5 w-5 text-blue-600" />
-          <p className="font-medium text-blue-900">Add New Note</p>
+      <div className={styles.addNoteContainer}>
+        <div className={styles.addNoteHeader}>
+          <ChatBubbleLeftRightIcon className={styles.addNoteIcon} />
+          <p className={styles.addNoteTitle}>Add New Note</p>
         </div>
         
         <textarea
           value={newNote}
           onChange={(e) => setNewNote(e.target.value)}
           placeholder="Add a note about this donor (interests, conversations, follow-ups needed...)"
-          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-3"
+          className={styles.textarea}
           rows="3"
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+        <div className={styles.formGrid}>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className={styles.label}>
               Category
             </label>
             <select
               value={newCategory}
               onChange={(e) => setNewCategory(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-lg"
+              className={styles.select}
             >
               {categories.map(category => (
                 <option key={category} value={category}>{category}</option>
@@ -131,8 +132,8 @@ export default function RelationshipNotes({ donorId }) {
             </select>
           </div>
           
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+          <div className={styles.tagsContainer}>
+            <label className={styles.label}>
               Tags (comma separated)
             </label>
             <input
@@ -140,7 +141,7 @@ export default function RelationshipNotes({ donorId }) {
               value={newTags}
               onChange={(e) => setNewTags(e.target.value)}
               placeholder="scholarship, follow-up, meeting"
-              className="w-full p-2 border border-gray-300 rounded-lg"
+              className={styles.input}
             />
           </div>
         </div>
@@ -148,76 +149,76 @@ export default function RelationshipNotes({ donorId }) {
         <button
           onClick={handleAddNote}
           disabled={!newNote.trim()}
-          className="btn-primary w-full"
+          className={styles.addButton}
         >
           Add Note
         </button>
       </div>
 
       {/* Notes List */}
-      <div className="space-y-4">
+      <div className={styles.notesList}>
         {notes.map((note) => (
           <div
             key={note.id}
-            className="p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors duration-200"
+            className={styles.noteCard}
           >
             {editingNote?.id === note.id ? (
-              <div className="space-y-3">
+              <div className={styles.editContainer}>
                 <textarea
                   value={editingNote.content}
                   onChange={(e) => setEditingNote({...editingNote, content: e.target.value})}
-                  className="w-full p-3 border border-gray-300 rounded-lg"
+                  className={styles.editTextarea}
                   rows="3"
                 />
-                <div className="flex justify-end gap-2">
+                <div className={styles.editButtons}>
                   <button
                     onClick={() => setEditingNote(null)}
-                    className="btn-secondary"
+                    className={styles.cancelButton}
                   >
-                    <XMarkIcon className="h-4 w-4" />
+                    <XMarkIcon className={styles.buttonIcon} />
                     Cancel
                   </button>
                   <button
                     onClick={handleSaveEdit}
-                    className="btn-primary"
+                    className={styles.saveButton}
                   >
-                    <CheckIcon className="h-4 w-4" />
+                    <CheckIcon className={styles.buttonIcon} />
                     Save
                   </button>
                 </div>
               </div>
             ) : (
               <>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-                      <UserCircleIcon className="h-5 w-5 text-gray-600" />
+                <div className={styles.noteHeader}>
+                  <div className={styles.noteAuthor}>
+                    <div className={styles.authorIcon}>
+                      <UserCircleIcon className={styles.userIcon} />
                     </div>
                     <div>
-                      <p className="font-medium text-gray-900">{note.author}</p>
-                      <p className="text-sm text-gray-600">{note.role}</p>
+                      <p className={styles.authorName}>{note.author}</p>
+                      <p className={styles.authorRole}>{note.role}</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm text-gray-600">
+                  <div className={styles.noteMeta}>
+                    <p className={styles.noteDate}>
                       {dateHelpers.formatDate(note.date, 'MMM d, yyyy')}
                     </p>
-                    <span className="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded mt-1">
+                    <span className={styles.categoryBadge}>
                       {note.category}
                     </span>
                   </div>
                 </div>
 
-                <div className="mt-3">
-                  <p className="text-gray-700 whitespace-pre-wrap">{note.content}</p>
+                <div className={styles.noteContent}>
+                  <p className={styles.contentText}>{note.content}</p>
                 </div>
 
                 {note.tags && note.tags.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-2">
+                  <div className={styles.tagsList}>
                     {note.tags.map((tag, index) => (
                       <span
                         key={index}
-                        className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded"
+                        className={styles.tag}
                       >
                         {tag}
                       </span>
@@ -225,19 +226,19 @@ export default function RelationshipNotes({ donorId }) {
                   </div>
                 )}
 
-                <div className="mt-4 flex justify-end gap-2">
+                <div className={styles.noteActions}>
                   <button
                     onClick={() => handleEditNote(note)}
-                    className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1"
+                    className={styles.editAction}
                   >
-                    <PencilIcon className="h-4 w-4" />
+                    <PencilIcon className={styles.actionIcon} />
                     Edit
                   </button>
                   <button
                     onClick={() => handleDeleteNote(note.id)}
-                    className="text-red-600 hover:text-red-800 text-sm flex items-center gap-1"
+                    className={styles.deleteAction}
                   >
-                    <TrashIcon className="h-4 w-4" />
+                    <TrashIcon className={styles.actionIcon} />
                     Delete
                   </button>
                 </div>
@@ -247,9 +248,9 @@ export default function RelationshipNotes({ donorId }) {
         ))}
 
         {notes.length === 0 && (
-          <div className="text-center py-8">
-            <ChatBubbleLeftRightIcon className="h-12 w-12 text-gray-400 mx-auto" />
-            <p className="text-gray-600 mt-2">No notes yet. Add your first note above.</p>
+          <div className={styles.emptyState}>
+            <ChatBubbleLeftRightIcon className={styles.emptyIcon} />
+            <p className={styles.emptyText}>No notes yet. Add your first note above.</p>
           </div>
         )}
       </div>
