@@ -4,22 +4,24 @@ import { useState } from 'react'
 import { PlusIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import styles from './AddDonorForm.module.css'
 
+
 // Function to create a new donor
 async function createDonor(donorData) {
   try {
     const response = await fetch('/api/donors', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(donorData),
     })
     
+
+    const result = await response.json()
     if (!response.ok) {
-      throw new Error('Failed to create donor')
+      console.error('API error:', result)
+      throw new Error(result.error || 'Failed to create donor')
     }
-    
-    return await response.json()
+
+    return result
   } catch (error) {
     console.error('Error creating donor:', error)
     throw error
@@ -41,14 +43,13 @@ export default function AddDonorForm({ onSuccess, onCancel, organizationId }) {
     notes: '',
     tags: []
   })
-  
+
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
-    
     if (type === 'checkbox') {
       if (name === 'interests') {
         setFormData(prev => ({
@@ -66,10 +67,7 @@ export default function AddDonorForm({ onSuccess, onCancel, organizationId }) {
         }))
       }
     } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: value
-      }))
+      setFormData(prev => ({ ...prev, [name]: value }))
     }
   }
 
@@ -87,36 +85,37 @@ export default function AddDonorForm({ onSuccess, onCancel, organizationId }) {
         throw new Error('Email is required')
       }
 
-      // Map form data to Prisma donor schema
-      const donorPayload = {
+      // Build payload
+     const donorPayload = {
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
         phone: formData.phone || null,
-        address: formData.address || null,
-        city: formData.city || null,
-        state: formData.state || null,
-        zipCode: formData.zipCode || null,
         preferredContact: formData.preferredCommunication?.toUpperCase() || 'EMAIL',
-        interests: formData.interests || [],
-        personalNotes: formData.notes ? { notes: formData.notes } : {},
-        totalGiven: 0,
-        giftsCount: 0,
-        hasActivePledge: false,
-        pledgeTotal: 0,
-        pledgePaid: 0,
-        pledgeFrequency: null,
+        relationshipStage: 'NEW',
         status: 'ACTIVE',
-        tags: formData.tags || [],
-        organizationId, // Pass from parent or context
-      }
+        personalNotes: formData.notes ? { notes: formData.notes } : null,
+
+        // Nested create for address
+        address:
+          formData.address || formData.city || formData.state || formData.zipCode
+            ? {
+                street: formData.address || null,
+                city: formData.city || null,
+                state: formData.state || null,
+                zipCode: formData.zipCode || null,
+              }
+            : undefined,
+
+      interests: formData.interests, // ✅ array of strings
+      tags: formData.tags,           // ✅ array of strings
+}
+      
+
 
       const newDonor = await createDonor(donorPayload)
       setSuccess('Donor created successfully!')
-
-      setTimeout(() => {
-        if (onSuccess) onSuccess(newDonor.id)
-      }, 1000)
+      setTimeout(() => onSuccess?.(newDonor.id), 1000)
     } catch (err) {
       setError(err.message || 'Failed to create donor')
     } finally {
@@ -124,24 +123,16 @@ export default function AddDonorForm({ onSuccess, onCancel, organizationId }) {
     }
   }
 
-  const interestOptions = [
-    'Education', 'Arts', 'Healthcare', 'Environment', 'Youth Programs',
-    'Community Development', 'Scholarships', 'Technology'
-  ]
-
-  const tagOptions = [
-    'Major Donor', 'Recurring', 'Volunteer', 'Board Member', 'Alumni', 'Parent', 'Community Partner'
-  ]
+  const interestOptions = ['Education','Arts','Healthcare','Environment','Youth Programs','Community Development','Scholarships','Technology']
+  const tagOptions = ['Major Donor','Recurring','Volunteer','Board Member','Alumni','Parent','Community Partner']
 
   return (
     <div className={styles.addDonorForm}>
       <h2 className={styles.formTitle}>Add New Donor</h2>
-
       {error && <div className={styles.errorMessage}>{error}</div>}
       {success && <div className={styles.successMessage}>{success}</div>}
 
       <form onSubmit={handleSubmit}>
-        {/* Name & Contact */}
         <div className={styles.formGrid}>
           {['firstName','lastName','email','phone','address','city','state','zipCode'].map(field => (
             <div key={field} className={styles.formGroup}>
@@ -162,7 +153,6 @@ export default function AddDonorForm({ onSuccess, onCancel, organizationId }) {
           ))}
         </div>
 
-        {/* Communication */}
         <div className={styles.formGroup}>
           <label className={styles.formLabel}>Preferred Communication</label>
           <select
@@ -175,7 +165,7 @@ export default function AddDonorForm({ onSuccess, onCancel, organizationId }) {
             <option value="email">Email</option>
             <option value="phone">Phone</option>
             <option value="mail">Mail</option>
-            <option value="text">Text Message</option>
+            <option value="ANY">Text Message</option>
           </select>
         </div>
 
@@ -237,24 +227,11 @@ export default function AddDonorForm({ onSuccess, onCancel, organizationId }) {
         </div>
 
         <div className={styles.formActions}>
-          <button
-            type="button"
-            onClick={onCancel}
-            className={styles.cancelButton}
-            disabled={loading}
-          >
+          <button type="button" onClick={onCancel} className={styles.cancelButton} disabled={loading}>
             <XMarkIcon className={styles.btnIcon} /> Cancel
           </button>
           <button type="submit" className={styles.btnPrimary} disabled={loading}>
-            {loading ? (
-              <>
-                <div className={styles.spinner} /> Creating...
-              </>
-            ) : (
-              <>
-                <PlusIcon className={styles.btnIcon} /> Create Donor
-              </>
-            )}
+            {loading ? <div className={styles.spinner} /> : <><PlusIcon className={styles.btnIcon} /> Create Donor</>}
           </button>
         </div>
       </form>

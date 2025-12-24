@@ -1,4 +1,9 @@
 /* app/settings/SettingsPage.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
 
 .settings-page {
   min-height: 100vh;

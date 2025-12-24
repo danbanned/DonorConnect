@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
-import ScheduleMeetingForm from '@/app/components/communications/ScheduleMeetingForm'
+import ScheduleMeetingForm from '@/app/components/communications/ScheduleMeetingForm.jsx';
 
 export default function ScheduleMeetingPage() {
   const router = useRouter()

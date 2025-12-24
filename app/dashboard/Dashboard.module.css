@@ -1,0 +1,778 @@
+/* Main Dashboard Styles */
+.dashboard {
+  padding: 1.5rem;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.dashboardHeader {
+  margin-bottom: 2rem;
+}
+
+.dashboardTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 0.5rem 0;
+}
+
+.dashboardSubtitle {
+  color: #6b7280;
+  font-size: 1rem;
+}
+
+/* Stats Grid */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+@media (min-width: 640px) {
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .statsGrid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.statCard {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  transition: all 0.2s;
+}
+
+.statCard:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.statCardContent {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.statText {
+  flex: 1;
+}
+
+.statName {
+  color: #6b7280;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin: 0 0 0.5rem 0;
+}
+
+.statValue {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 0.25rem 0;
+}
+
+.statChange {
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.statChangePositive {
+  color: #059669;
+}
+
+.statChangeNegative {
+  color: #dc2626;
+}
+
+.statIcon {
+  height: 2rem;
+  width: 2rem;
+  color: #9ca3af;
+}
+
+/* Charts Grid */
+.chartsGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+@media (min-width: 1024px) {
+  .chartsGrid {
+    grid-template-columns: 2fr 1fr;
+  }
+}
+
+.chartContainer {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+}
+
+.chartTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 1rem 0;
+}
+
+.chartWrapper {
+  height: 250px;
+  position: relative;
+}
+
+/* Bar Chart */
+.barChart {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 100%;
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 0.375rem;
+}
+
+.bar {
+  flex: 1;
+  margin: 0 0.25rem;
+  background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
+  border-radius: 0.25rem 0.25rem 0 0;
+  min-height: 10px;
+  position: relative;
+  transition: height 0.3s ease;
+}
+
+.bar:hover {
+  opacity: 0.9;
+}
+
+.barLabel {
+  position: absolute;
+  bottom: -1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.75rem;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+/* Donut Chart */
+.donutChart {
+  position: relative;
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  background: conic-gradient(
+    #3b82f6 0% 15%,
+    #10b981 15% 47%,
+    #f59e0b 47% 75%,
+    #8b5cf6 75% 100%
+  );
+  margin: 0 auto;
+}
+
+.donutCenter {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 75px;
+  height: 75px;
+  background: white;
+  border-radius: 50%;
+}
+
+.donutLegend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+}
+
+.donutLegendItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.donutLegendColor {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+.donutLegendColorMajorDonors {
+  background-color: #3b82f6;
+}
+
+.donutLegendColorRecurring {
+  background-color: #10b981;
+}
+
+.donutLegendColorSingleGift {
+  background-color: #f59e0b;
+}
+
+.donutLegendColorLYBUNT {
+  background-color: #8b5cf6;
+}
+
+/* Main Grid - Recent Activity & Quick Actions */
+.dashboardMainGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+  .dashboardMainGrid {
+    grid-template-columns: 2fr 1fr;
+  }
+}
+
+/* Recent Activity Card */
+.recentActivityCard {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+}
+
+.recentActivityTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 1rem 0;
+}
+
+.recentActivityList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.activityItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.activityItem:last-child {
+  border-bottom: none;
+}
+
+.activityInfo {
+  flex: 1;
+}
+
+.activityDonor {
+  font-weight: 500;
+  color: #111827;
+  margin: 0 0 0.25rem 0;
+}
+
+.activityAction {
+  color: #6b7280;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.activityDetails {
+  text-align: right;
+}
+
+.activityAmount {
+  font-weight: 600;
+  color: #059669;
+  margin: 0 0 0.25rem 0;
+}
+
+.activityTime {
+  color: #9ca3af;
+  font-size: 0.75rem;
+  margin: 0;
+}
+
+.recentActivityLink {
+  display: inline-block;
+  color: #3b82f6;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.recentActivityLink:hover {
+  color: #1d4ed8;
+}
+
+/* Quick Actions Card */
+.quickActionsCard {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+}
+
+.quickActionsTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 1rem 0;
+}
+
+/* Donor Selection Section */
+.donorSelectionSection {
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+
+.donorSearchContainer {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.donorSearchInputWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 12px;
+  height: 20px;
+  width: 20px;
+  color: #9ca3af;
+}
+
+.donorSearchInput {
+  width: 100%;
+  padding: 10px 40px 10px 40px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.2s;
+}
+
+.donorSearchInput:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.clearSelectionBtn {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: #9ca3af;
+  transition: color 0.2s;
+}
+
+.clearSelectionBtn:hover {
+  color: #6b7280;
+}
+
+.clearIcon {
+  height: 16px;
+  width: 16px;
+}
+
+/* Filter Buttons */
+.filterButtonsContainer {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.filterButton {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 6px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  color: #6b7280;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.filterButton:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.filterButton.active {
+  background: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+
+.filterIcon {
+  height: 14px;
+  width: 14px;
+}
+
+/* Selected Donor Display */
+.selectedDonorDisplay {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 2px solid #3b82f6;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  animation: slideIn 0.3s ease;
+}
+
+.selectedDonorInfo {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.selectedDonorAvatar {
+  height: 48px;
+  width: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.selectedDonorDetails {
+  flex: 1;
+}
+
+.selectedDonorName {
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 0.25rem 0;
+}
+
+.selectedDonorEmail {
+  color: #6b7280;
+  font-size: 14px;
+  margin: 0 0 0.5rem 0;
+}
+
+.selectedDonorStats {
+  display: flex;
+  gap: 1rem;
+}
+
+.donorStat {
+  font-size: 13px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: #e5e7eb;
+  color: #4b5563;
+}
+
+.lybuntBadge {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+/* Donor Dropdown */
+.donorDropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  z-index: 50;
+  max-height: 400px;
+  overflow-y: auto;
+  animation: fadeIn 0.2s ease;
+}
+
+.donorDropdownHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+  position: sticky;
+  top: 0;
+}
+
+.dropdownTitle {
+  font-weight: 600;
+  color: #374151;
+}
+
+.closeDropdownBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: #6b7280;
+}
+
+.closeIcon {
+  height: 20px;
+  width: 20px;
+}
+
+.donorDropdownList {
+  padding: 0.5rem;
+}
+
+.donorDropdownItem {
+  width: 100%;
+  padding: 0.75rem;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+}
+
+.donorDropdownItem:hover {
+  background: #f3f4f6;
+}
+
+.donorItemAvatar {
+  height: 40px;
+  width: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.donorItemInfo {
+  flex: 1;
+}
+
+.donorItemName {
+  font-weight: 500;
+  color: #1f2937;
+  margin: 0 0 0.125rem 0;
+}
+
+.donorItemEmail {
+  color: #6b7280;
+  font-size: 13px;
+  margin: 0 0 0.25rem 0;
+}
+
+.donorItemStats {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 12px;
+}
+
+.donorItemTotal {
+  color: #059669;
+  font-weight: 500;
+}
+
+.donorItemLybunt {
+  color: #92400e;
+  background: #fef3c7;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+/* Quick Action Buttons */
+.quickActionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.quickActionButton {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.quickActionButton.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.quickActionButton:not(.disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.quickActionButtonBlue {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: white;
+}
+
+.quickActionButtonGreen {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+}
+
+.quickActionButtonPurple {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: white;
+}
+
+.quickActionButtonGray {
+  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+  color: white;
+}
+
+.quickActionIcon {
+  height: 20px;
+  width: 20px;
+}
+
+.quickActionText {
+  flex: 1;
+}
+
+.quickActionLink {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border-radius: 8px;
+  background: #f3f4f6;
+  color: #374151;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.quickActionLink:hover {
+  background: #e5e7eb;
+  transform: translateY(-2px);
+}
+
+.quickActionLinkYellow {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.quickActionLinkYellow:hover {
+  background: #fde68a;
+}
+
+/* Selection Hint */
+.selectionHint {
+  text-align: center;
+  padding: 1rem;
+  background: #f0f9ff;
+  border-radius: 8px;
+  margin-top: 1rem;
+  color: #0369a1;
+  font-size: 14px;
+}
+
+/* Loading State */
+.loadingContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+}
+
+.loadingSpinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e5e7eb;
+  border-top: 4px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Animations */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .filterButtonsContainer {
+    flex-direction: column;
+  }
+  
+  .filterButton {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .selectedDonorInfo {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .selectedDonorStats {
+    justify-content: center;
+  }
+}

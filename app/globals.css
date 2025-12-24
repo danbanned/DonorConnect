@@ -1,4 +1,7 @@
 /* globals.css - Base styles without Tailwind */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* ===== CSS RESET & BASE STYLES ===== */
 * {

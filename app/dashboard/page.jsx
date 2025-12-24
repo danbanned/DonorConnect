@@ -1,16 +1,23 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { 
   CurrencyDollarIcon, 
   UserGroupIcon, 
   ArrowTrendingUpIcon, 
   ExclamationTriangleIcon,
   CalendarIcon,
-  EnvelopeIcon
+  EnvelopeIcon,
+  MagnifyingGlassIcon,
+  ChevronDownIcon,
+  FunnelIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline'
 import Link from 'next/link'
-import './Dashboard.css'
+import styles from './Dashboard.module.css'
+import { useRouter } from 'next/navigation'
+
+
 
 // Static data for charts
 const chartdata = [
@@ -44,11 +51,29 @@ const recentActivity = [
   { id: 5, donor: 'David Wilson', action: 'Updated contact info', amount: '', time: '3 days ago' },
 ]
 
+// Mock donor data for the dropdown
+const mockDonors = [
+  { id: '1', name: 'John Smith', email: 'john.smith@email.com', totalDonations: 125000, lastDonationDate: '2024-01-15', isLYBUNT: false },
+  { id: '2', name: 'Sarah Johnson', email: 'sarah.j@email.com', totalDonations: 85000, lastDonationDate: '2024-02-01', isLYBUNT: false },
+  { id: '3', name: 'Robert Chen', email: 'robert.chen@email.com', totalDonations: 45000, lastDonationDate: '2023-12-20', isLYBUNT: true },
+  { id: '4', name: 'Maria Garcia', email: 'maria.g@email.com', totalDonations: 275000, lastDonationDate: '2024-01-10', isLYBUNT: false },
+  { id: '5', name: 'David Wilson', email: 'david.wilson@email.com', totalDonations: 32000, lastDonationDate: '2023-11-15', isLYBUNT: true },
+  { id: '6', name: 'Emily Davis', email: 'emily.davis@email.com', totalDonations: 68000, lastDonationDate: '2024-02-05', isLYBUNT: false },
+  { id: '7', name: 'Michael Brown', email: 'michael.b@email.com', totalDonations: 92000, lastDonationDate: '2024-01-25', isLYBUNT: false },
+  { id: '8', name: 'Jennifer Lee', email: 'jennifer.lee@email.com', totalDonations: 21000, lastDonationDate: '2023-10-30', isLYBUNT: true },
+]
+
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
+  const [selectedDonor, setSelectedDonor] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filterType, setFilterType] = useState('all')
+  const [showDonorDropdown, setShowDonorDropdown] = useState(false)
+  const [filteredDonors, setFilteredDonors] = useState(mockDonors)
+  const router = useRouter()
+
 
   useEffect(() => {
-    // Simulate data loading
     const timer = setTimeout(() => {
       setLoading(false)
     }, 1000)
@@ -56,36 +81,103 @@ export default function DashboardPage() {
     return () => clearTimeout(timer)
   }, [])
 
+  // Filter donors based on search and filter type
+  useEffect(() => {
+    let results = [...mockDonors]
+
+    // Apply search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      results = results.filter(donor =>
+        donor.name.toLowerCase().includes(query) ||
+        donor.email.toLowerCase().includes(query)
+      )
+    }
+
+    // Apply filter type
+    if (filterType === 'highest') {
+      results.sort((a, b) => b.totalDonations - a.totalDonations)
+    } else if (filterType === 'lybunt') {
+      results = results.filter(donor => donor.isLYBUNT)
+    }
+
+    setFilteredDonors(results)
+  }, [searchQuery, filterType])
+
+  const handleDonorSelect = (donor) => {
+    setSelectedDonor(donor)
+    setShowDonorDropdown(false)
+    setSearchQuery('')
+  }
+
+  const handleClearSelection = () => {
+    setSelectedDonor(null)
+    setSearchQuery('')
+  }
+
+  const handleQuickAction = (action) => {
+    if (!selectedDonor) {
+      alert('Please select a donor first')
+      return
+    }
+
+    switch(action) {
+      case 'record':
+        window.location.href = `/recorddonorpage/`
+        break
+      case 'thank-you':
+        window.location.href = `/communications/new`
+        break
+      case 'meeting':
+        window.location.href = `/communications/schedule?donorId=${selectedDonor.id}`
+        break
+      case 'view':
+        router.push(`/donors/${selectedDonor.id}`)
+        break
+      default:
+        break
+    }
+  }
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount)
+  }
+
   if (loading) {
     return (
-      <div className="loading-container">
-        <div className="loading-spinner"></div>
+      <div className={styles.loadingContainer}>
+        <div className={styles.loadingSpinner}></div>
       </div>
     )
   }
 
   return (
-    <div className="dashboard">
-      <div className="dashboard-header">
-        <h1 className="dashboard-title">Dashboard</h1>
-        <p className="dashboard-subtitle">Welcome back! Here's what's happening with your donors.</p>
+    <div className={styles.dashboard}>
+      <div className={styles.dashboardHeader}>
+        <h1 className={styles.dashboardTitle}>Dashboard</h1>
+        <p className={styles.dashboardSubtitle}>Welcome back! Here's what's happening with your donors.</p>
       </div>
 
       {/* Stats Grid */}
-      <div className="stats-grid">
+      <div className={styles.statsGrid}>
         {stats.map((stat) => {
           const Icon = stat.icon
           return (
-            <div key={stat.name} className="stat-card">
-              <div className="stat-card-content">
-                <div className="stat-text">
-                  <p className="stat-name">{stat.name}</p>
-                  <p className="stat-value">{stat.value}</p>
-                  <p className={`stat-change ${stat.change.startsWith('+') ? 'stat-change-positive' : 'stat-change-negative'}`}>
+            <div key={stat.name} className={styles.statCard}>
+              <div className={styles.statCardContent}>
+                <div className={styles.statText}>
+                  <p className={styles.statName}>{stat.name}</p>
+                  <p className={styles.statValue}>{stat.value}</p>
+                  <p className={`${styles.statChange} ${stat.change.startsWith('+') ? styles.statChangePositive : styles.statChangeNegative}`}>
                     {stat.change} from last month
                   </p>
                 </div>
-                <Icon className="stat-icon" />
+                <Icon className={styles.statIcon} />
               </div>
             </div>
           )
@@ -93,17 +185,17 @@ export default function DashboardPage() {
       </div>
 
       {/* Charts */}
-      <div className="charts-grid">
-        <div className="chart-container">
-          <h2 className="chart-title">Donations Over Time</h2>
-          <div className="chart-wrapper">
-            <div className="bar-chart">
+      <div className={styles.chartsGrid}>
+        <div className={styles.chartContainer}>
+          <h2 className={styles.chartTitle}>Donations Over Time</h2>
+          <div className={styles.chartWrapper}>
+            <div className={styles.barChart}>
               {chartdata.map((item, index) => {
                 const maxAmount = Math.max(...chartdata.map(d => d.amount))
                 const height = (item.amount / maxAmount) * 100
                 return (
-                  <div key={index} className="bar" style={{ height: `${height}%` }}>
-                    <span className="bar-label">{item.month}</span>
+                  <div key={index} className={styles.bar} style={{ height: `${height}%` }}>
+                    <span className={styles.barLabel}>{item.month}</span>
                   </div>
                 )
               })}
@@ -111,16 +203,18 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="chart-container">
-          <h2 className="chart-title">Donor Composition</h2>
-          <div className="chart-wrapper">
-            <div className="donut-chart">
-              <div className="donut-center"></div>
+        <div className={styles.chartContainer}>
+          <h2 className={styles.chartTitle}>Donor Composition</h2>
+          <div className={styles.chartWrapper}>
+            <div className={styles.donutChart}>
+              <div className={styles.donutCenter}></div>
             </div>
-            <div className="donut-legend">
+            <div className={styles.donutLegend}>
               {donorData.map((item, index) => (
-                <div key={index} className="donut-legend-item">
-                  <div className={`donut-legend-color donut-legend-color-${item.category.toLowerCase().replace(' ', '-')}`}></div>
+                <div key={index} className={styles.donutLegendItem}>
+                  <div className={`${styles.donutLegendColor} ${
+                    styles[`donutLegendColor${item.category.replace(/\s+/g, '')}`]
+                  }`}></div>
                   <span>{item.category}: {item.value}%</span>
                 </div>
               ))}
@@ -130,63 +224,193 @@ export default function DashboardPage() {
       </div>
 
       {/* Recent Activity & Quick Actions */}
-      <div className="dashboard-main-grid">
-        <div className="recent-activity-card">
-          <h2 className="recent-activity-title">Recent Activity</h2>
-          <div className="recent-activity-list">
+      <div className={styles.dashboardMainGrid}>
+        <div className={styles.recentActivityCard}>
+          <h2 className={styles.recentActivityTitle}>Recent Activity</h2>
+          <div className={styles.recentActivityList}>
             {recentActivity.map((activity) => (
-              <div key={activity.id} className="activity-item">
-                <div className="activity-info">
-                  <p className="activity-donor">{activity.donor}</p>
-                  <p className="activity-action">{activity.action}</p>
+              <div key={activity.id} className={styles.activityItem}>
+                <div className={styles.activityInfo}>
+                  <p className={styles.activityDonor}>{activity.donor}</p>
+                  <p className={styles.activityAction}>{activity.action}</p>
                 </div>
-                <div className="activity-details">
-                  {activity.amount && <p className="activity-amount">{activity.amount}</p>}
-                  <p className="activity-time">{activity.time}</p>
+                <div className={styles.activityDetails}>
+                  {activity.amount && <p className={styles.activityAmount}>{activity.amount}</p>}
+                  <p className={styles.activityTime}>{activity.time}</p>
                 </div>
               </div>
             ))}
           </div>
-          <Link href="/communications" className="recent-activity-link">
+          <Link href="/communications" className={styles.recentActivityLink}>
             View all activity →
           </Link>
         </div>
 
-        <div className="quick-actions-card">
-          <h2 className="quick-actions-title">Quick Actions</h2>
-          <div className="quick-actions-list">
+        <div className={styles.quickActionsCard}>
+          <h2 className={styles.quickActionsTitle}>Quick Actions</h2>
           
+          {/* Donor Selection Section */}
+          <div className={styles.donorSelectionSection}>
+            <div className={styles.donorSearchContainer}>
+              <div className={styles.donorSearchInputWrapper}>
+                <MagnifyingGlassIcon className={styles.searchIcon} />
+                <input
+                  type="text"
+                  placeholder="Search donors by name or email..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setShowDonorDropdown(true)}
+                  className={styles.donorSearchInput}
+                />
+                {selectedDonor && (
+                  <button onClick={handleClearSelection} className={styles.clearSelectionBtn}>
+                    <XMarkIcon className={styles.clearIcon} />
+                  </button>
+                )}
+              </div>
+              
+              {/* Filter Buttons */}
+              <div className={styles.filterButtonsContainer}>
+                <button
+                  className={`${styles.filterButton} ${filterType === 'all' ? styles.active : ''}`}
+                  onClick={() => setFilterType('all')}
+                >
+                  All Donors
+                </button>
+                <button
+                  className={`${styles.filterButton} ${filterType === 'highest' ? styles.active : ''}`}
+                  onClick={() => setFilterType('highest')}
+                >
+                  <CurrencyDollarIcon className={styles.filterIcon} />
+                  Highest Donors
+                </button>
+                <button
+                  className={`${styles.filterButton} ${filterType === 'lybunt' ? styles.active : ''}`}
+                  onClick={() => setFilterType('lybunt')}
+                >
+                  <ExclamationTriangleIcon className={styles.filterIcon} />
+                  LYBUNT
+                </button>
+              </div>
+            </div>
 
-            <Link
-              href={`/recorddonorpage`}
-              className="quick-action-link quick-action-link-blue"
+            {/* Selected Donor Display */}
+            {selectedDonor && (
+              <div className={styles.selectedDonorDisplay}>
+                <div className={styles.selectedDonorInfo}>
+                  <div className={styles.selectedDonorAvatar}>
+                    {selectedDonor.name.split(' ').map(n => n[0]).join('')}
+                  </div>
+                  <div className={styles.selectedDonorDetails}>
+                    <p className={styles.selectedDonorName}>{selectedDonor.name}</p>
+                    <p className={styles.selectedDonorEmail}>{selectedDonor.email}</p>
+                    <div className={styles.selectedDonorStats}>
+                      <span className={styles.donorStat}>
+                        Total: {formatCurrency(selectedDonor.totalDonations)}
+                      </span>
+                      <span className={`${styles.donorStat} ${selectedDonor.isLYBUNT ? styles.lybuntBadge : ''}`}>
+                        {selectedDonor.isLYBUNT ? 'LYBUNT' : 'Current Donor'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Donor Dropdown */}
+            {showDonorDropdown && filteredDonors.length > 0 && (
+              <div className={styles.donorDropdown}>
+                <div className={styles.donorDropdownHeader}>
+                  <span className={styles.dropdownTitle}>Select a Donor</span>
+                  <button 
+                    onClick={() => setShowDonorDropdown(false)}
+                    className={styles.closeDropdownBtn}
+                  >
+                    <XMarkIcon className={styles.closeIcon} />
+                  </button>
+                </div>
+                <div className={styles.donorDropdownList}>
+                  {filteredDonors.map((donor) => (
+                    <button
+                      key={donor.id}
+                      className={styles.donorDropdownItem}
+                      onClick={() => handleDonorSelect(donor)}
+                    >
+                      <div className={styles.donorItemAvatar}>
+                        {donor.name.split(' ').map(n => n[0]).join('')}
+                      </div>
+                      <div className={styles.donorItemInfo}>
+                        <p className={styles.donorItemName}>{donor.name}</p>
+                        <p className={styles.donorItemEmail}>{donor.email}</p>
+                        <div className={styles.donorItemStats}>
+                          <span className={styles.donorItemTotal}>
+                            {formatCurrency(donor.totalDonations)}
+                          </span>
+                          {donor.isLYBUNT && (
+                            <span className={styles.donorItemLybunt}>LYBUNT</span>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Quick Action Buttons */}
+          <div className={styles.quickActionsList}>
+            <button
+              onClick={() => handleQuickAction('record')}
+              className={`${styles.quickActionButton} ${!selectedDonor ? styles.disabled : ''} ${styles.quickActionButtonBlue}`}
+              disabled={!selectedDonor}
             >
-              <CurrencyDollarIcon className="quick-action-icon quick-action-icon-blue" />
-              <span className="quick-action-text">Record Donation</span>
-            </Link>
-            <Link
-              href="/communications/new"
-              className="quick-action-link quick-action-link-green"
+              <CurrencyDollarIcon className={styles.quickActionIcon} />
+              <span className={styles.quickActionText}>Record Donation</span>
+            </button>
+            
+            <button
+              onClick={() => handleQuickAction('thank-you')}
+              className={`${styles.quickActionButton} ${!selectedDonor ? styles.disabled : ''} ${styles.quickActionButtonGreen}`}
+              disabled={!selectedDonor}
             >
-              <EnvelopeIcon className="quick-action-icon quick-action-icon-green" />
-              <span className="quick-action-text">Send Thank You</span>
-            </Link>
+              <EnvelopeIcon className={styles.quickActionIcon} />
+              <span className={styles.quickActionText}>Send Thank You</span>
+            </button>
+            
+            <button
+              onClick={() => handleQuickAction('meeting')}
+              className={`${styles.quickActionButton} ${!selectedDonor ? styles.disabled : ''} ${styles.quickActionButtonPurple}`}
+              disabled={!selectedDonor}
+            >
+              <CalendarIcon className={styles.quickActionIcon} />
+              <span className={styles.quickActionText}>Schedule Meeting</span>
+            </button>
+            
+            <button
+              onClick={() => handleQuickAction('view')}
+              className={`${styles.quickActionButton} ${!selectedDonor ? styles.disabled : ''} ${styles.quickActionButtonGray}`}
+              disabled={!selectedDonor}
+            >
+              <UserGroupIcon className={styles.quickActionIcon} />
+              <span className={styles.quickActionText}>View Donor Profile</span>
+            </button>
+            
             <Link
               href="/donors?filter=lybunt"
-              className="quick-action-link quick-action-link-yellow"
+              className={`${styles.quickActionLink} ${styles.quickActionLinkYellow}`}
             >
-              <ExclamationTriangleIcon className="quick-action-icon quick-action-icon-yellow" />
-              <span className="quick-action-text">Review LYBUNT Donors</span>
+              <ExclamationTriangleIcon className={styles.quickActionIcon} />
+              <span className={styles.quickActionText}>Review All LYBUNT Donors</span>
             </Link>
-            <Link
-              href="/communications/schedule"
-              className="quick-action-link quick-action-link-purple"
-            >
-              <CalendarIcon className="quick-action-icon quick-action-icon-purple" />
-              <span className="quick-action-text">Schedule Meeting</span>
-            </Link>
-            
           </div>
+
+          {/* Hint for selecting donor */}
+          {!selectedDonor && (
+            <div className={styles.selectionHint}>
+              <p>Please select a donor from the search above to enable quick actions.</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
