@@ -4,6 +4,14 @@
 @tailwind utilities;
 
 /* ===== CSS RESET & BASE STYLES ===== */
+:root {
+  --color-green: #10b981;
+  --color-red: #ef4444;
+  --color-yellow: #f59e0b;
+  --color-gray: #6b7280;
+  --color-blue: #3b82f6;
+  --color-indigo: #6366f1;
+}
 * {
   margin: 0;
   padding: 0;

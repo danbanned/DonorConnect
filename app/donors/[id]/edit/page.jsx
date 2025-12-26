@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
-//import EditDonorForm from '@/app/components/donors/EditDonorForm'
+import EditDonorForm from '../../../components/donors/EditDonorForm'
 import { getDonorById } from '@/lib/api/donors'
 
 export default function EditDonorPage() {
