@@ -51,6 +51,7 @@ export async function POST(req) {
             relationshipStage: 'NEW',
             personalNotes: body.personalNotes || null,
             organizationId,
+            
 
             address: body.address
               ? { create: body.address }

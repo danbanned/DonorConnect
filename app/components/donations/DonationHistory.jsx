@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { ChevronRightIcon, CalendarIcon, TagIcon } from '@heroicons/react/24/outline'
 import { formatCurrency } from '@/utils/formatCurrency'
 import dateHelpers from '@/utils/dateHelpers'
-import { useDonations } from '@/lib/api/hooks/usedonation'
+import { useDonations } from '@/app/hooks/usedonation'
 import './DonationHistory.css'
 
 export default function DonationHistory({ donorId }) {

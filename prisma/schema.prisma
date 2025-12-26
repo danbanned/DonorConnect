@@ -15,16 +15,16 @@ model User {
   id             String        @id @default(cuid())
   email          String        @unique
   name           String?
-  password       String?       // Hashed password
+  password       String? // Hashed password
   role           Role          @default(STAFF)
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id])
 
-  sessions       Session[]
-  communications Communication[]
-  auditLogs      AuditLog[]
+  sessions            Session[]
+  communications      Communication[]
+  auditLogs           AuditLog[]
   passwordResetTokens PasswordResetToken[]
-  meetings       Meeting[]
+  meetings            Meeting[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -33,14 +33,14 @@ model User {
 }
 
 model Session {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id])
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 
-  token          String   @unique
-  refreshToken   String?  @unique
-  userAgent      String?
-  ipAddress      String?
+  token        String  @unique
+  refreshToken String? @unique
+  userAgent    String?
+  ipAddress    String?
 
   expiresAt      DateTime
   lastActivityAt DateTime @default(now())
@@ -74,11 +74,11 @@ model AuditLog {
 }
 
 model PasswordResetToken {
-  id        String @id @default(cuid())
-  userId    String
-  user      User   @relation(fields: [userId], references: [id])
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 
-  token     String @unique
+  token     String   @unique
   expiresAt DateTime
 
   createdAt DateTime @default(now())
@@ -117,7 +117,7 @@ model Organization {
 /////////////////////////////////////////////////
 
 model Donor {
-  id             String       @id @default(cuid())
+  id             String        @id @default(cuid())
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id])
 
@@ -141,6 +141,7 @@ model Donor {
   communications Communication[]
   softCredits    SoftCredit[]
   meetings       Meeting[]
+  activities     DonorActivity[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -323,17 +324,19 @@ model Communication {
   donor        Donor        @relation(fields: [donorId], references: [id])
 
   type      CommunicationType
-  direction Direction @default(OUTBOUND)
+  direction Direction         @default(OUTBOUND)
 
-  subject String?
-  content String?
-  summary String?
+  subject    String?
+  content    String?
+  summary    String?
   meetingUrl String?
 
   status    CommunicationStatus @default(SENT)
   sentAt    DateTime?
   openedAt  DateTime?
   clickedAt DateTime?
+  templateId      String? 
+
 
   relatedDonationId String?
   relatedDonation   Donation? @relation(fields: [relatedDonationId], references: [id])
@@ -341,11 +344,11 @@ model Communication {
   campaignId String?
   campaign   Campaign? @relation(fields: [campaignId], references: [id])
 
-  requiresFollowUp Boolean @default(false)
+  requiresFollowUp Boolean   @default(false)
   followUpDate     DateTime?
 
   userId String?
-  user   User? @relation(fields: [userId], references: [id])
+  user   User?   @relation(fields: [userId], references: [id])
 
   meeting Meeting?
 
@@ -354,6 +357,21 @@ model Communication {
 
   @@index([donorId, sentAt])
   @@index([organizationId, type])
+}
+
+/////////////////////////////////////////////////
+// Updatdes
+/////////////////////////////////////////////////
+
+model DonorActivity {
+  id        String   @id @default(cuid())
+  donorId   String
+  action    String // e.g., "donation_created", "info_updated"
+  amount    Float? // optional, e.g., donation amount
+  details   Json? // optional extra info
+  createdAt DateTime @default(now())
+
+  donor Donor @relation(fields: [donorId], references: [id])
 }
 
 /////////////////////////////////////////////////
@@ -378,15 +396,15 @@ model Meeting {
   zoomStartUrl  String?
   zoomPassword  String?
 
-  startTime DateTime
-  endTime   DateTime
-  duration  Int
-  meetingType String?   // optional field
+  startTime   DateTime
+  endTime     DateTime
+  duration    Int
+  meetingType String? // optional field
 
   status MeetingStatus @default(SCHEDULED)
 
-  communication Communication? @relation(fields: [communicationId], references: [id])
-  communicationId String? @unique
+  communication   Communication? @relation(fields: [communicationId], references: [id])
+  communicationId String?        @unique
 
   notes  String?
   agenda Json?

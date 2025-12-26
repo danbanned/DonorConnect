@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { 
   CurrencyDollarIcon, 
   UserGroupIcon, 
@@ -9,100 +9,235 @@ import {
   CalendarIcon,
   EnvelopeIcon,
   MagnifyingGlassIcon,
-  ChevronDownIcon,
-  FunnelIcon,
-  XMarkIcon
+  XMarkIcon,
+  UserCircleIcon,
+  ChartBarIcon,
+  ReceiptPercentIcon
 } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import styles from './Dashboard.module.css'
 import { useRouter } from 'next/navigation'
-
-
-
-// Static data for charts
-const chartdata = [
-  { month: 'Jan', amount: 40250 },
-  { month: 'Feb', amount: 38920 },
-  { month: 'Mar', amount: 45670 },
-  { month: 'Apr', amount: 51230 },
-  { month: 'May', amount: 48910 },
-  { month: 'Jun', amount: 56780 },
-]
-
-const donorData = [
-  { category: 'Major Donors', value: 15 },
-  { category: 'Recurring', value: 32 },
-  { category: 'Single Gift', value: 28 },
-  { category: 'LYBUNT', value: 25 },
-]
-
-const stats = [
-  { name: 'Total Donors', value: '1,234', change: '+12%', icon: UserGroupIcon },
-  { name: 'Year to Date', value: '$245,231', change: '+8.2%', icon: CurrencyDollarIcon },
-  { name: 'LYBUNT Donors', value: '47', change: '-3.2%', icon: ExclamationTriangleIcon },
-  { name: 'Avg Gift Size', value: '$421', change: '+5.1%', icon: ArrowTrendingUpIcon },
-]
-
-const recentActivity = [
-  { id: 1, donor: 'John Smith', action: 'Made a donation', amount: '$10,000', time: '2 hours ago' },
-  { id: 2, donor: 'Sarah Johnson', action: 'Meeting scheduled', amount: '', time: '4 hours ago' },
-  { id: 3, donor: 'Robert Chen', action: 'Thank you note sent', amount: '', time: '1 day ago' },
-  { id: 4, donor: 'Maria Garcia', action: 'Made a donation', amount: '$500', time: '2 days ago' },
-  { id: 5, donor: 'David Wilson', action: 'Updated contact info', amount: '', time: '3 days ago' },
-]
-
-// Mock donor data for the dropdown
-const mockDonors = [
-  { id: '1', name: 'John Smith', email: 'john.smith@email.com', totalDonations: 125000, lastDonationDate: '2024-01-15', isLYBUNT: false },
-  { id: '2', name: 'Sarah Johnson', email: 'sarah.j@email.com', totalDonations: 85000, lastDonationDate: '2024-02-01', isLYBUNT: false },
-  { id: '3', name: 'Robert Chen', email: 'robert.chen@email.com', totalDonations: 45000, lastDonationDate: '2023-12-20', isLYBUNT: true },
-  { id: '4', name: 'Maria Garcia', email: 'maria.g@email.com', totalDonations: 275000, lastDonationDate: '2024-01-10', isLYBUNT: false },
-  { id: '5', name: 'David Wilson', email: 'david.wilson@email.com', totalDonations: 32000, lastDonationDate: '2023-11-15', isLYBUNT: true },
-  { id: '6', name: 'Emily Davis', email: 'emily.davis@email.com', totalDonations: 68000, lastDonationDate: '2024-02-05', isLYBUNT: false },
-  { id: '7', name: 'Michael Brown', email: 'michael.b@email.com', totalDonations: 92000, lastDonationDate: '2024-01-25', isLYBUNT: false },
-  { id: '8', name: 'Jennifer Lee', email: 'jennifer.lee@email.com', totalDonations: 21000, lastDonationDate: '2023-10-30', isLYBUNT: true },
-]
+import {useDonors} from '../hooks/useDonor'
+import { useDonations } from '@/app/hooks/usedonation'
 
 export default function DashboardPage() {
-  const [loading, setLoading] = useState(true)
+  const router = useRouter()
   const [selectedDonor, setSelectedDonor] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterType, setFilterType] = useState('all')
   const [showDonorDropdown, setShowDonorDropdown] = useState(false)
-  const [filteredDonors, setFilteredDonors] = useState(mockDonors)
-  const router = useRouter()
+  const [timeframe, setTimeframe] = useState('year') // For donation stats
+  
+  // Real data hooks
+  const { donors, loading: donorsLoading, error: donorsError } = useDonors()
+  const { donations, summary, loading: donationsLoading, error: donationsError } = useDonations({ 
+    timeframe,
+    limit: 1000 // Get more donations for better stats
+  })
+  
+ 
+  const isLoading = donorsLoading || donationsLoading
 
+  // Process real donor data
+  const processedDonors = useMemo(() => {
+    if (!donors || donors.length === 0) return []
+    
+    return donors.map((donor) => {
+      // Calculate donor stats from their donations
+      const donorDonations = donations?.filter(d => d.donorId === donor.id) || []
+      const totalGiven = donorDonations.reduce((sum, d) => sum + (d.amount || 0), 0)
+      const lastDonation = donorDonations.length > 0 
+        ? donorDonations.sort((a, b) => new Date(b.date) - new Date(a.date))[0]
+        : null
+        
+      return {
+        id: donor.id,
+        name: `${donor.firstName} ${donor.lastName}`,
+        email: donor.email || '',
+        firstName: donor.firstName,
+        lastName: donor.lastName,
+        phone: donor.phone || '',
+        totalDonations: totalGiven,
+        lastDonationDate: lastDonation ? new Date(lastDonation.date) : null,
+        isLYBUNT: donor.relationshipStage === 'LYBUNT',
+        status: donor.status || 'ACTIVE',
+        relationshipStage: donor.relationshipStage || 'NEW',
+        notes: donor.notes || donor.personalNotes?.notes || '',
+        organizationId: donor.organizationId,
+        createdAt: donor.createdAt ? new Date(donor.createdAt) : new Date(),
+        updatedAt: donor.updatedAt ? new Date(donor.updatedAt) : new Date()
+      }
+    })
+  }, [donors, donations])
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false)
-    }, 1000)
+   console.log(processedDonors,'butter')
 
-    return () => clearTimeout(timer)
-  }, [])
+  // Process donation statistics
+  const donationStats = useMemo(() => {
+    if (!donations || donations.length === 0) return {
+      totalDonors: 0,
+      yearToDate: 0,
+      lybuntDonors: 0,
+      avgGiftSize: 0,
+      growth: 0,
+      recentDonations: []
+    }
+
+    // Calculate YTD donations (current year)
+    const currentYear = new Date().getFullYear()
+    const ytdDonations = donations.filter(d => {
+      const donationYear = new Date(d.date).getFullYear()
+      return donationYear === currentYear
+    })
+    const ytdTotal = ytdDonations.reduce((sum, d) => sum + (d.amount || 0), 0)
+    
+    // Calculate LY BUNT donors (simplified)
+    const lybuntCount = processedDonors.filter(donor => donor.isLYBUNT).length
+    
+    // Calculate average gift
+    const avgGift = donations.length > 0 
+      ? donations.reduce((sum, d) => sum + d.amount, 0) / donations.length 
+      : 0
+    
+    // Get recent donations (last 5)
+    const recentDonations = [...donations]
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .slice(0, 5)
+      .map(donation => {
+        const donor = processedDonors.find(d => d.id === donation.donorId)
+        return {
+          id: donation.id,
+          donor: donor ? `${donor.firstName} ${donor.lastName}` : 'Unknown Donor',
+          action: 'Made a donation',
+          amount: `$${donation.amount.toFixed(0)}`,
+          time: formatTimeAgo(new Date(donation.date))
+        }
+      })
+
+    return {
+      totalDonors: processedDonors.length,
+      yearToDate: ytdTotal,
+      lybuntDonors: lybuntCount,
+      avgGiftSize: avgGift,
+      growth: 8.2, // Mock growth percentage for now
+      recentDonations
+    }
+  }, [donations, processedDonors])
 
   // Filter donors based on search and filter type
-  useEffect(() => {
-    let results = [...mockDonors]
+  const filteredDonors = useMemo(() => {
+    let results = [...processedDonors]
 
-    // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
       results = results.filter(donor =>
         donor.name.toLowerCase().includes(query) ||
-        donor.email.toLowerCase().includes(query)
+        donor.email.toLowerCase().includes(query) ||
+        donor.phone.toLowerCase().includes(query)
       )
     }
 
-    // Apply filter type
     if (filterType === 'highest') {
       results.sort((a, b) => b.totalDonations - a.totalDonations)
-    } else if (filterType === 'lybunt') {
+    }
+
+    if (filterType === 'lybunt') {
       results = results.filter(donor => donor.isLYBUNT)
     }
 
-    setFilteredDonors(results)
-  }, [searchQuery, filterType])
+    return results
+  }, [processedDonors, searchQuery, filterType])
+
+  // Static chart data (enhanced with real data if available)
+  const chartData = useMemo(() => {
+    // Create monthly donation data
+    const monthlyData = Array(12).fill(0).map((_, i) => ({
+      month: new Date(2024, i, 1).toLocaleDateString('en-US', { month: 'short' }),
+      amount: 0
+    }))
+
+    // Fill with real data if available
+    if (donations && donations.length > 0) {
+      donations.forEach(donation => {
+        const date = new Date(donation.date)
+        const month = date.getMonth()
+        const year = date.getFullYear()
+        
+        if (year === 2024 && month >= 0 && month < 12) {
+          monthlyData[month].amount += donation.amount
+        }
+      })
+    } else {
+      // Use mock data if no real data
+      const mockAmounts = [40250, 38920, 45670, 51230, 48910, 56780, 52100, 49870, 54320, 58910, 61230, 59870]
+      monthlyData.forEach((item, index) => {
+        item.amount = mockAmounts[index] || 45000
+      })
+    }
+
+    return monthlyData
+  }, [donations])
+
+  // Donor composition data
+  const donorComposition = useMemo(() => {
+    if (processedDonors.length === 0) {
+      return [
+        { category: 'Major Donors', value: 15 },
+        { category: 'Recurring', value: 32 },
+        { category: 'Single Gift', value: 28 },
+        { category: 'LYBUNT', value: 25 },
+      ]
+    }
+
+    const majorDonors = processedDonors.filter(d => d.totalDonations >= 10000).length
+    const lybuntDonors = processedDonors.filter(d => d.isLYBUNT).length
+    const recurringDonors = processedDonors.filter(d => 
+      donations?.some(donation => donation.donorId === d.id && donation.isRecurring)
+    ).length
+    const singleGiftDonors = processedDonors.length - (majorDonors + lybuntDonors + recurringDonors)
+    console.log(majorDonors,'mjjjjjj')
+
+    return [
+      { 
+        category: 'Major Donors', 
+        value: Math.round((majorDonors / processedDonors.length) * 100) 
+      },
+      { 
+        category: 'Recurring', 
+        value: Math.round((recurringDonors / processedDonors.length) * 100) 
+      },
+      { 
+        category: 'Single Gift', 
+        value: Math.round((singleGiftDonors / processedDonors.length) * 100) 
+      },
+      { 
+        category: 'LYBUNT', 
+        value: Math.round((lybuntDonors / processedDonors.length) * 100) 
+      },
+    ]
+  }, [processedDonors, donations])
+
+  // Format currency
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount)
+  }
+
+  // Format time ago
+  function formatTimeAgo(date) {
+    const now = new Date()
+    const diffInSeconds = Math.floor((now - date) / 1000)
+    
+    if (diffInSeconds < 60) return 'just now'
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`
+    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} days ago`
+    return `${Math.floor(diffInSeconds / 604800)} weeks ago`
+  }
 
   const handleDonorSelect = (donor) => {
     setSelectedDonor(donor)
@@ -123,13 +258,13 @@ export default function DashboardPage() {
 
     switch(action) {
       case 'record':
-        window.location.href = `/recorddonorpage/`
+        router.push(`/recorddonorpage/${selectedDonor.id}`)
         break
       case 'thank-you':
-        window.location.href = `/communications/new`
+        router.push(`/communications/new?donorId=${selectedDonor.id}`)
         break
       case 'meeting':
-        window.location.href = `/communications/schedule?donorId=${selectedDonor.id}`
+        router.push(`/communications/schedule?donorId=${selectedDonor.id}`)
         break
       case 'view':
         router.push(`/donors/${selectedDonor.id}`)
@@ -139,29 +274,65 @@ export default function DashboardPage() {
     }
   }
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount)
-  }
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className={styles.loadingContainer}>
         <div className={styles.loadingSpinner}></div>
+        <p>Loading dashboard data...</p>
       </div>
     )
   }
+
+  // Stats data - mix of real and calculated
+  const stats = [
+    { 
+      name: 'Total Donors', 
+      value: donationStats.totalDonors.toLocaleString(), 
+      change: '+12%', 
+      icon: UserGroupIcon 
+    },
+    { 
+      name: 'Year to Date', 
+      value: formatCurrency(donationStats.yearToDate), 
+      change: '+8.2%', 
+      icon: CurrencyDollarIcon 
+    },
+    { 
+      name: 'LYBUNT Donors', 
+      value: donationStats.lybuntDonors.toString(), 
+      change: donationStats.lybuntDonors > 0 ? '-3.2%' : '0%', 
+      icon: ExclamationTriangleIcon 
+    },
+    { 
+      name: 'Avg Gift Size', 
+      value: formatCurrency(donationStats.avgGiftSize), 
+      change: '+5.1%', 
+      icon: ArrowTrendingUpIcon 
+    },
+  ]
 
   return (
     <div className={styles.dashboard}>
       <div className={styles.dashboardHeader}>
         <h1 className={styles.dashboardTitle}>Dashboard</h1>
-        <p className={styles.dashboardSubtitle}>Welcome back! Here's what's happening with your donors.</p>
+        <p className={styles.dashboardSubtitle}>
+          Welcome back! {donationStats.recentDonations.length > 0 
+            ? `You have ${donationStats.totalDonors} donors and received ${formatCurrency(donationStats.yearToDate)} this year.`
+            : 'Welcome to your donor management system.'}
+        </p>
       </div>
+
+      {/* Error messages */}
+      {donorsError && (
+        <div className={styles.errorMessage}>
+          <p>Error loading donors: {donorsError}</p>
+        </div>
+      )}
+      {donationsError && (
+        <div className={styles.errorMessage}>
+          <p>Error loading donations: {donationsError}</p>
+        </div>
+      )}
 
       {/* Stats Grid */}
       <div className={styles.statsGrid}>
@@ -187,14 +358,31 @@ export default function DashboardPage() {
       {/* Charts */}
       <div className={styles.chartsGrid}>
         <div className={styles.chartContainer}>
-          <h2 className={styles.chartTitle}>Donations Over Time</h2>
+          <div className={styles.chartHeader}>
+            <h2 className={styles.chartTitle}>Donations Over Time</h2>
+            <div className={styles.chartTimeframe}>
+              <select 
+                value={timeframe}
+                onChange={(e) => setTimeframe(e.target.value)}
+                className={styles.timeframeSelect}
+              >
+                <option value="30days">Last 30 days</option>
+                <option value="90days">Last 90 days</option>
+                <option value="year">This Year</option>
+                <option value="all">All Time</option>
+              </select>
+            </div>
+          </div>
           <div className={styles.chartWrapper}>
             <div className={styles.barChart}>
-              {chartdata.map((item, index) => {
-                const maxAmount = Math.max(...chartdata.map(d => d.amount))
-                const height = (item.amount / maxAmount) * 100
+              {chartData.map((item, index) => {
+                const maxAmount = Math.max(...chartData.map(d => d.amount))
+                const height = maxAmount > 0 ? (item.amount / maxAmount) * 100 : 0
                 return (
-                  <div key={index} className={styles.bar} style={{ height: `${height}%` }}>
+                  <div key={index} className={styles.barContainer}>
+                    <div className={styles.bar} style={{ height: `${height}%` }}>
+                      <div className={styles.barAmount}>{formatCurrency(item.amount)}</div>
+                    </div>
                     <span className={styles.barLabel}>{item.month}</span>
                   </div>
                 )
@@ -207,10 +395,15 @@ export default function DashboardPage() {
           <h2 className={styles.chartTitle}>Donor Composition</h2>
           <div className={styles.chartWrapper}>
             <div className={styles.donutChart}>
-              <div className={styles.donutCenter}></div>
+              <div className={styles.donutCenter}>
+                <span className={styles.donutCenterValue}>
+                  {processedDonors.length}
+                </span>
+                <span className={styles.donutCenterLabel}>Total Donors</span>
+              </div>
             </div>
             <div className={styles.donutLegend}>
-              {donorData.map((item, index) => (
+              {donorComposition.map((item, index) => (
                 <div key={index} className={styles.donutLegendItem}>
                   <div className={`${styles.donutLegendColor} ${
                     styles[`donutLegendColor${item.category.replace(/\s+/g, '')}`]
@@ -226,24 +419,49 @@ export default function DashboardPage() {
       {/* Recent Activity & Quick Actions */}
       <div className={styles.dashboardMainGrid}>
         <div className={styles.recentActivityCard}>
-          <h2 className={styles.recentActivityTitle}>Recent Activity</h2>
-          <div className={styles.recentActivityList}>
-            {recentActivity.map((activity) => (
-              <div key={activity.id} className={styles.activityItem}>
-                <div className={styles.activityInfo}>
-                  <p className={styles.activityDonor}>{activity.donor}</p>
-                  <p className={styles.activityAction}>{activity.action}</p>
-                </div>
-                <div className={styles.activityDetails}>
-                  {activity.amount && <p className={styles.activityAmount}>{activity.amount}</p>}
-                  <p className={styles.activityTime}>{activity.time}</p>
-                </div>
-              </div>
-            ))}
+          <div className={styles.recentActivityHeader}>
+            <h2 className={styles.recentActivityTitle}>Recent Activity</h2>
+            <Link href="/donations" className={styles.viewAllLink}>
+              View All →
+            </Link>
           </div>
-          <Link href="/communications" className={styles.recentActivityLink}>
-            View all activity →
-          </Link>
+          <div className={styles.recentActivityList}>
+            {donationStats.recentDonations.length > 0 ? (
+              donationStats.recentDonations.map((activity) => (
+                <div key={activity.id} className={styles.activityItem}>
+                  <UserCircleIcon className={styles.activityIcon} />
+                  <div className={styles.activityInfo}>
+                    <p className={styles.activityDonor}>{activity.donor}</p>
+                    <p className={styles.activityAction}>{activity.action}</p>
+                  </div>
+                  <div className={styles.activityDetails}>
+                    {activity.amount && <p className={styles.activityAmount}>{activity.amount}</p>}
+                    <p className={styles.activityTime}>{activity.time}</p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <>
+                {[
+                  { id: 1, donor: 'John Smith', action: 'Made a donation', amount: '$10,000', time: '2 hours ago' },
+                  { id: 2, donor: 'Sarah Johnson', action: 'Meeting scheduled', amount: '', time: '4 hours ago' },
+                  { id: 3, donor: 'Robert Chen', action: 'Thank you note sent', amount: '', time: '1 day ago' },
+                ].map((activity) => (
+                  <div key={activity.id} className={styles.activityItem}>
+                    <UserCircleIcon className={styles.activityIcon} />
+                    <div className={styles.activityInfo}>
+                      <p className={styles.activityDonor}>{activity.donor}</p>
+                      <p className={styles.activityAction}>{activity.action}</p>
+                    </div>
+                    <div className={styles.activityDetails}>
+                      {activity.amount && <p className={styles.activityAmount}>{activity.amount}</p>}
+                      <p className={styles.activityTime}>{activity.time}</p>
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
         </div>
 
         <div className={styles.quickActionsCard}>
@@ -256,11 +474,12 @@ export default function DashboardPage() {
                 <MagnifyingGlassIcon className={styles.searchIcon} />
                 <input
                   type="text"
-                  placeholder="Search donors by name or email..."
+                  placeholder={processedDonors.length > 0 ? "Search donors by name or email..." : "No donors available"}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onFocus={() => setShowDonorDropdown(true)}
                   className={styles.donorSearchInput}
+                  disabled={processedDonors.length === 0}
                 />
                 {selectedDonor && (
                   <button onClick={handleClearSelection} className={styles.clearSelectionBtn}>
@@ -274,12 +493,14 @@ export default function DashboardPage() {
                 <button
                   className={`${styles.filterButton} ${filterType === 'all' ? styles.active : ''}`}
                   onClick={() => setFilterType('all')}
+                  disabled={processedDonors.length === 0}
                 >
-                  All Donors
+                  All Donors ({processedDonors.length})
                 </button>
                 <button
                   className={`${styles.filterButton} ${filterType === 'highest' ? styles.active : ''}`}
                   onClick={() => setFilterType('highest')}
+                  disabled={processedDonors.length === 0}
                 >
                   <CurrencyDollarIcon className={styles.filterIcon} />
                   Highest Donors
@@ -287,9 +508,10 @@ export default function DashboardPage() {
                 <button
                   className={`${styles.filterButton} ${filterType === 'lybunt' ? styles.active : ''}`}
                   onClick={() => setFilterType('lybunt')}
+                  disabled={processedDonors.length === 0}
                 >
                   <ExclamationTriangleIcon className={styles.filterIcon} />
-                  LYBUNT
+                  LYBUNT ({donationStats.lybuntDonors})
                 </button>
               </div>
             </div>
@@ -321,7 +543,9 @@ export default function DashboardPage() {
             {showDonorDropdown && filteredDonors.length > 0 && (
               <div className={styles.donorDropdown}>
                 <div className={styles.donorDropdownHeader}>
-                  <span className={styles.dropdownTitle}>Select a Donor</span>
+                  <span className={styles.dropdownTitle}>
+                    {filteredDonors.length} donor{filteredDonors.length !== 1 ? 's' : ''} found
+                  </span>
                   <button 
                     onClick={() => setShowDonorDropdown(false)}
                     className={styles.closeDropdownBtn}
@@ -349,11 +573,25 @@ export default function DashboardPage() {
                           {donor.isLYBUNT && (
                             <span className={styles.donorItemLybunt}>LYBUNT</span>
                           )}
+                          {donor.totalDonations >= 10000 && (
+                            <span className={styles.donorItemMajor}>Major</span>
+                          )}
                         </div>
                       </div>
                     </button>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Empty state for donors */}
+            {processedDonors.length === 0 && (
+              <div className={styles.noDonorsMessage}>
+                <UserGroupIcon className={styles.noDonorsIcon} />
+                <p>No donors found. Add your first donor to get started.</p>
+                <Link href="/donors/new" className={styles.addDonorButton}>
+                  Add First Donor
+                </Link>
               </div>
             )}
           </div>
@@ -392,23 +630,31 @@ export default function DashboardPage() {
               className={`${styles.quickActionButton} ${!selectedDonor ? styles.disabled : ''} ${styles.quickActionButtonGray}`}
               disabled={!selectedDonor}
             >
-              <UserGroupIcon className={styles.quickActionIcon} />
+              <UserCircleIcon className={styles.quickActionIcon} />
               <span className={styles.quickActionText}>View Donor Profile</span>
             </button>
             
             <Link
-              href="/donors?filter=lybunt"
+              href="/donors"
               className={`${styles.quickActionLink} ${styles.quickActionLinkYellow}`}
             >
-              <ExclamationTriangleIcon className={styles.quickActionIcon} />
-              <span className={styles.quickActionText}>Review All LYBUNT Donors</span>
+              <UserGroupIcon className={styles.quickActionIcon} />
+              <span className={styles.quickActionText}>View All Donors</span>
+            </Link>
+            
+            <Link
+              href="/recorddonorpage"
+              className={`${styles.quickActionLink} ${styles.quickActionLinkBlue}`}
+            >
+              <ReceiptPercentIcon className={styles.quickActionIcon} />
+              <span className={styles.quickActionText}>Record Quick Donation</span>
             </Link>
           </div>
 
           {/* Hint for selecting donor */}
-          {!selectedDonor && (
+          {!selectedDonor && processedDonors.length > 0 && (
             <div className={styles.selectionHint}>
-              <p>Please select a donor from the search above to enable quick actions.</p>
+              <p>Select a donor from the search above to enable quick actions.</p>
             </div>
           )}
         </div>

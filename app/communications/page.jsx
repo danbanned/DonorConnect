@@ -20,9 +20,13 @@ import {
   ArrowLeftIcon,
   UserGroupIcon,
   TrashIcon,
-  DocumentTextIcon
+  DocumentTextIcon,
+  DocumentDuplicateIcon
 } from '@heroicons/react/24/outline'
 import './communications.css'
+import TemplatesSection from '@/app/components/communications/TemplatesSection'
+import { templates as templateLibrary } from '@/lib/templates'
+
 
 const communicationTypes = [
   { id: 'all', name: 'All Communications', icon: ChatBubbleLeftRightIcon },
@@ -30,6 +34,16 @@ const communicationTypes = [
   { id: 'phone', name: 'Phone Calls', icon: PhoneIcon },
   { id: 'meeting', name: 'Meetings', icon: CalendarIcon },
   { id: 'thankyou', name: 'Thank You Notes', icon: CheckCircleIcon },
+]
+
+// Template categories for quick access
+const templateCategories = [
+  { id: 'thank_you', name: 'Thank You', description: 'Express gratitude for donations', count: 5 },
+  { id: 'follow_up', name: 'Follow Up', description: 'Follow up on recent interactions', count: 3 },
+  { id: 'recurring', name: 'Recurring Giving', description: 'Manage recurring donations', count: 2 },
+  { id: 'event', name: 'Event Invitations', description: 'Invite donors to events', count: 4 },
+  { id: 'year_end', name: 'Year-End Giving', description: 'End of year campaigns', count: 3 },
+  { id: 'acknowledgment', name: 'Acknowledgments', description: 'Receipts and tax letters', count: 6 },
 ]
 
 export default function CommunicationsPage() {
@@ -42,8 +56,15 @@ export default function CommunicationsPage() {
   const [donors, setDonors] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [filteredDonors, setFilteredDonors] = useState([])
+  const [activeTab, setActiveTab] = useState('communications') // 'communications', 'templates', 'history'
   
-  // Modal states
+  // Template modal states
+  const [showTemplateModal, setShowTemplateModal] = useState(false)
+  const [selectedTemplateCategory, setSelectedTemplateCategory] = useState('thank_you')
+  const [templates, setTemplates] = useState([])
+  const [templateSearch, setTemplateSearch] = useState('')
+  
+  // Existing modal states (keeping these)
   const [showChatModal, setShowChatModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showMeetingModal, setShowMeetingModal] = useState(false)
@@ -86,13 +107,11 @@ export default function CommunicationsPage() {
           setDonors(donorsData)
           setFilteredDonors(donorsData.slice(0, 10)) // Show first 10
         }
+
+        setTemplates(templateLibrary)
+
         
-        // Fetch communications
-        const commsRes = await fetch(`/api/communications?timeframe=${timeframe}`)
-        if (commsRes.ok) {
-          const commsData = await commsRes.json()
-          setCommunications(commsData || [])
-        }
+   
       } catch (error) {
         console.error('Failed to load data:', error)
       } finally {
@@ -324,6 +343,87 @@ export default function CommunicationsPage() {
     })
   }
 
+  // Template functions
+  const handleUseTemplate = (template) => {
+    if (!selectedDonor) {
+      alert('Please select a donor first to use a template')
+      return
+    }
+    
+    // Pre-fill the chat modal with template content
+    const filledContent = template.content
+      .replace(/{{firstName}}/g, selectedDonor.firstName || '[Donor First Name]')
+      .replace(/{{lastName}}/g, selectedDonor.lastName || '[Donor Last Name]')
+      .replace(/{{fullName}}/g, `${selectedDonor.firstName} ${selectedDonor.lastName}` || '[Donor Name]')
+      .replace(/{{amount}}/g, selectedDonor.lastDonationAmount ? `$${selectedDonor.lastDonationAmount}` : '$[Amount]')
+      .replace(/{{date}}/g, new Date().toLocaleDateString())
+    
+    setNewMessage(filledContent)
+    setShowChatModal(true)
+    setShowTemplateModal(false)
+  }
+
+  const handleSendWithTemplate = async (template) => {
+    if (!selectedDonor) {
+      alert('Please select a donor first')
+      return
+    }
+
+    const filledContent = template.content
+      .replace(/{{firstName}}/g, selectedDonor.firstName || '[Donor First Name]')
+      .replace(/{{lastName}}/g, selectedDonor.lastName || '[Donor Last Name]')
+      .replace(/{{fullName}}/g, `${selectedDonor.firstName} ${selectedDonor.lastName}` || '[Donor Name]')
+      .replace(/{{amount}}/g, selectedDonor.lastDonationAmount ? `$${selectedDonor.lastDonationAmount}` : '$[Amount]')
+      .replace(/{{date}}/g, new Date().toLocaleDateString())
+
+    try {
+      const response = await fetch('/api/communications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          donorId: selectedDonor.id,
+          content: filledContent,
+          type: 'EMAIL',
+          direction: 'OUTBOUND',
+          subject: template.subject || `Message from your organization`,
+          templateId: template.id
+        })
+      })
+
+      if (response.ok) {
+        alert('Message sent successfully using template!')
+        // Refresh communications
+        const commsRes = await fetch(`/api/communications?/${timeframe}`)
+        if (commsRes.ok) {
+          setCommunications(await commsRes.json())
+        }
+      }
+    } catch (error) {
+      console.error('Error sending template message:', error)
+      alert('Failed to send message')
+    }
+  }
+
+  const getTemplatesByCategory = (categoryId) => {
+    return templates.filter(template => 
+      template.category === categoryId.toUpperCase()
+    ).slice(0, 3) // Show only 3 templates per category in modal
+  }
+
+  const filteredTemplates = templates.filter(template => {
+  const name = template.name?.toLowerCase() ?? ''
+  const content = template.content?.toLowerCase() ?? ''
+  const category = template.category?.toLowerCase() ?? ''
+  const search = templateSearch.toLowerCase()
+
+  return (
+    name.includes(search) ||
+    content.includes(search) ||
+    category.includes(search)
+  )
+})
+
+
   if (loading) {
     return (
       <div className="loading-container">
@@ -353,10 +453,13 @@ export default function CommunicationsPage() {
             New Communication
           </button>
 
-          <Link href="/communications/templates" className="btn-secondary">
-            <DocumentTextIcon className="icon" />
-            Templates
-          </Link>
+          <button 
+            onClick={() => setShowTemplateModal(true)}
+            className="btn-secondary"
+          >
+            <DocumentDuplicateIcon className="icon" />
+            Use Template
+          </button>
         </div>
       </div>
 
@@ -436,111 +539,351 @@ export default function CommunicationsPage() {
           )}
         </div>
 
-        {/* Right Column - Communications List */}
+        {/* Right Column - Main Content with Tabs */}
         <div className="communications-main">
-          {/* Filters */}
-          <div className="filters-section">
-            <div className="type-filters">
-              {communicationTypes.map(type => {
-                const Icon = type.icon
-                const isActive = selectedType === type.id
-
-                return (
-                  <button
-                    key={type.id}
-                    onClick={() => setSelectedType(type.id)}
-                    className={`type-filter ${isActive ? 'active' : ''}`}
-                  >
-                    <Icon className="icon" />
-                    {type.name}
-                  </button>
-                )
-              })}
-            </div>
-
-            <select 
-              className="timeframe-select"
-              value={timeframe} 
-              onChange={e => setTimeframe(e.target.value)}
+          {/* Main Content Tabs */}
+          <div className="main-content-tabs">
+            <button 
+              className={`content-tab ${activeTab === 'communications' ? 'active' : ''}`}
+              onClick={() => setActiveTab('communications')}
             >
-              <option value="7days">Last 7 days</option>
-              <option value="30days">Last 30 days</option>
-              <option value="90days">Last 90 days</option>
-              <option value="year">This year</option>
-            </select>
+              <ChatBubbleLeftRightIcon className="icon" />
+              Communications
+            </button>
+            <button 
+              className={`content-tab ${activeTab === 'templates' ? 'active' : ''}`}
+              onClick={() => setActiveTab('templates')}
+            >
+              <DocumentDuplicateIcon className="icon" />
+              Email & Message Templates
+            </button>
+            <button 
+              className={`content-tab ${activeTab === 'history' ? 'active' : ''}`}
+              onClick={() => setActiveTab('history')}
+            >
+              <ClockIcon className="icon" />
+              Sent History
+            </button>
           </div>
 
-          {/* Communications List */}
-          <div className="communications-list">
-            {(Array.isArray(communications) ? communications : [])
-              .filter(comm => selectedType === 'all' || comm.type === selectedType.toUpperCase())
-              .map(comm => {
-                const Icon = getTypeIcon(comm.type)
-                const sentDate = comm.sentAt
-                  ? new Date(comm.sentAt).toLocaleDateString()
-                  : 'Draft'
+          {/* Tab Content */}
+          {activeTab === 'communications' && (
+            <div className="tab-content">
+              {/* Filters */}
+              <div className="filters-section">
+                <div className="type-filters">
+                  {communicationTypes.map(type => {
+                    const Icon = type.icon
+                    const isActive = selectedType === type.id
 
-                return (
-                  <div key={comm.id} className="communication-card">
-                    <div className="comm-header">
-                      <div className="comm-type">
-                        <Icon className="icon" />
-                        <span className={`status-badge ${getStatusClass(comm.status)}`}>
-                          {comm.status}
-                        </span>
-                      </div>
-                      <span className="comm-date">{sentDate}</span>
-                    </div>
-
-                    <div className="comm-content">
-                      <h3>{comm.subject || 'No Subject'}</h3>
-                      <p className="comm-donor">
-                        With {comm.donor?.firstName} {comm.donor?.lastName}
-                      </p>
-                      {comm.content && (
-                        <p className="comm-preview">{comm.content.substring(0, 150)}...</p>
-                      )}
-                    </div>
-
-                    <div className="comm-actions">
-                      <button 
-                        onClick={() => router.push(`/communications/${comm.id}`)}
-                        className="action-link"
+                    return (
+                      <button
+                        key={type.id}
+                        onClick={() => setSelectedType(type.id)}
+                        className={`type-filter ${isActive ? 'active' : ''}`}
                       >
-                        View Details →
+                        <Icon className="icon" />
+                        {type.name}
                       </button>
-                      
-                      {comm.requiresFollowUp && comm.followUpDate && (
-                        <span className="follow-up">
-                          <ClockIcon className="icon" />
-                          Follow up by {new Date(comm.followUpDate).toLocaleDateString()}
-                        </span>
-                      )}
+                    )
+                  })}
+                </div>
+
+                <select 
+                  className="timeframe-select"
+                  value={timeframe} 
+                  onChange={e => setTimeframe(e.target.value)}
+                >
+                  <option value="7days">Last 7 days</option>
+                  <option value="30days">Last 30 days</option>
+                  <option value="90days">Last 90 days</option>
+                  <option value="year">This year</option>
+                </select>
+              </div>
+
+              {/* Communications List */}
+              <div className="communications-list">
+                {(Array.isArray(communications) ? communications : [])
+                  .filter(comm => selectedType === 'all' || comm.type === selectedType.toUpperCase())
+                  .map(comm => {
+                    const Icon = getTypeIcon(comm.type)
+                    const sentDate = comm.sentAt
+                      ? new Date(comm.sentAt).toLocaleDateString()
+                      : 'Draft'
+
+                    return (
+                      <div key={comm.id} className="communication-card">
+                        <div className="comm-header">
+                          <div className="comm-type">
+                            <Icon className="icon" />
+                            <span className={`status-badge ${getStatusClass(comm.status)}`}>
+                              {comm.status}
+                            </span>
+                          </div>
+                          <span className="comm-date">{sentDate}</span>
+                        </div>
+
+                        <div className="comm-content">
+                          <h3>{comm.subject || 'No Subject'}</h3>
+                          <p className="comm-donor">
+                            With {comm.donor?.firstName} {comm.donor?.lastName}
+                          </p>
+                          {comm.content && (
+                            <p className="comm-preview">{comm.content.substring(0, 150)}...</p>
+                          )}
+                        </div>
+
+                        <div className="comm-actions">
+                          <button 
+                            onClick={() => router.push(`/communications/${comm.id}`)}
+                            className="action-link"
+                          >
+                            View Details →
+                          </button>
+                          
+                          {comm.requiresFollowUp && comm.followUpDate && (
+                            <span className="follow-up">
+                              <ClockIcon className="icon" />
+                              Follow up by {new Date(comm.followUpDate).toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+
+                {/* Empty State */}
+                {communications.length === 0 && (
+                  <div className="empty-state">
+                    <ChatBubbleLeftRightIcon className="empty-icon" />
+                    <h3>No communications found</h3>
+                    <p>Start building relationships by reaching out to donors</p>
+                    <button 
+                      onClick={() => router.push('/communications/new')}
+                      className="btn-primary"
+                    >
+                      <PlusIcon className="icon" />
+                      Send First Message
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'templates' && (
+            <div className="tab-content">
+              {selectedDonor ? (
+                <div className="templates-section-wrapper">
+                  <div className="donor-context-banner">
+                    <UserCircleIcon className="icon" />
+                    <div>
+                      <strong>Templates for:</strong> {selectedDonor.firstName} {selectedDonor.lastName}
+                      {selectedDonor.email && ` • ${selectedDonor.email}`}
+                      <small>Placeholders will auto-fill with donor info</small>
                     </div>
                   </div>
-                )
-              })}
+                  
+                  <TemplatesSection 
+                    donorId={selectedDonor.id}
+                    donorInfo={{
+                      id: selectedDonor.id,
+                      firstName: selectedDonor.firstName,
+                      lastName: selectedDonor.lastName,
+                      email: selectedDonor.email,
+                      phone: selectedDonor.phone,
+                      lastDonationAmount: selectedDonor.lastDonationAmount,
+                      lastDonationDate: selectedDonor.lastDonationDate
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="no-donor-selected">
+                  <DocumentDuplicateIcon className="empty-icon" />
+                  <h3>Select a donor to use templates</h3>
+                  <p>Choose a donor from the left panel to see and use email templates</p>
+                  <div className="template-categories-preview">
+                    <h4>Available Template Categories:</h4>
+                    <div className="categories-grid">
+                      {templateCategories.map(category => (
+                        <div key={category.id} className="category-card">
+                          <h5>{category.name}</h5>
+                          <p>{category.description}</p>
+                          <span className="template-count">{category.count} templates</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
-            {/* Empty State */}
-            {communications.length === 0 && (
-              <div className="empty-state">
-                <ChatBubbleLeftRightIcon className="empty-icon" />
-                <h3>No communications found</h3>
-                <p>Start building relationships by reaching out to donors</p>
-                <button 
-                  onClick={() => router.push('/communications/new')}
-                  className="btn-primary"
-                >
-                  <PlusIcon className="icon" />
-                  Send First Message
-                </button>
+          {activeTab === 'history' && (
+            <div className="tab-content">
+              <div className="sent-history">
+                <h3>Recently Sent Communications</h3>
+                <div className="history-filters">
+                  <input
+                    type="text"
+                    placeholder="Search sent communications..."
+                    className="search-input"
+                  />
+                  <select className="timeframe-select">
+                    <option value="7days">Last 7 days</option>
+                    <option value="30days">Last 30 days</option>
+                    <option value="90days">Last 90 days</option>
+                  </select>
+                </div>
+                
+                <div className="history-list">
+                  {communications
+                    .filter(comm => comm.status === 'SENT')
+                    .slice(0, 10)
+                    .map(comm => {
+                      const Icon = getTypeIcon(comm.type)
+                      return (
+                        <div key={comm.id} className="history-item">
+                          <Icon className="icon" />
+                          <div className="history-details">
+                            <h4>{comm.subject || 'No Subject'}</h4>
+                            <p>To: {comm.donor?.firstName} {comm.donor?.lastName}</p>
+                            <span className="history-date">
+                              {new Date(comm.sentAt).toLocaleString()}
+                            </span>
+                          </div>
+                          <button 
+                            className="btn-secondary btn-sm"
+                            onClick={() => router.push(`/communications/${comm.id}`)}
+                          >
+                            View
+                          </button>
+                        </div>
+                      )
+                    })}
+                </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Chat Modal */}
+      {/* Quick Templates Modal */}
+      {showTemplateModal && (
+        <div className="modal-overlay">
+          <div className="template-modal">
+            <div className="modal-header">
+              <h2>Email & Message Templates</h2>
+              <button 
+                onClick={() => setShowTemplateModal(false)}
+                className="close-button"
+              >
+                <XMarkIcon className="icon" />
+              </button>
+            </div>
+
+            <div className="template-modal-content">
+              <div className="template-search">
+                <input
+                  type="text"
+                  placeholder="Search templates..."
+                  className="search-input"
+                  value={templateSearch}
+                  onChange={(e) => setTemplateSearch(e.target.value)}
+                />
+              </div>
+
+              <div className="template-categories-tabs">
+                {templateCategories.map(category => (
+                  <button
+                    key={category.id}
+                    className={`category-tab ${selectedTemplateCategory === category.id ? 'active' : ''}`}
+                    onClick={() => setSelectedTemplateCategory(category.id)}
+                  >
+                    {category.name}
+                    <span className="tab-count">{category.count}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="templates-grid">
+                {filteredTemplates
+                  .filter(template => template.category === selectedTemplateCategory.toUpperCase())
+                  .map(template => (
+                    <div key={template.id} className="template-card">
+                      <div className="template-header">
+                        <h4>{template.name}</h4>
+                        <span className="template-category">{template.category}</span>
+                      </div>
+                      <p className="template-preview">
+                        {template.content.substring(0, 100)}...
+                      </p>
+                      <div className="template-actions">
+                        {selectedDonor ? (
+                          <>
+                            <button 
+                              className="btn-primary btn-sm"
+                              onClick={() => handleUseTemplate(template)}
+                            >
+                              <EnvelopeIcon className="icon" />
+                              Use for {selectedDonor.firstName}
+                            </button>
+                            <button 
+                              className="btn-secondary btn-sm"
+                              onClick={() => handleSendWithTemplate(template)}
+                            >
+                              <PaperAirplaneIcon className="icon" />
+                              Send Now
+                            </button>
+                          </>
+                        ) : (
+                          <p className="select-donor-message">
+                            Select a donor from the left panel to use this template
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+
+              {selectedDonor && (
+                <div className="quick-send-section">
+                  <h4>Quick Send to {selectedDonor.firstName}:</h4>
+                  <div className="quick-send-buttons">
+                    <button 
+                      className="btn-primary"
+                      onClick={() => {
+                        const thankYouTemplate = templates.find(t => t.name.includes('Thank You'))
+                        if (thankYouTemplate) handleSendWithTemplate(thankYouTemplate)
+                      }}
+                    >
+                      Send Thank You
+                    </button>
+                    <button 
+                      className="btn-secondary"
+                      onClick={() => {
+                        const followUpTemplate = templates.find(t => t.name.includes('Follow Up'))
+                        if (followUpTemplate) handleUseTemplate(followUpTemplate)
+                      }}
+                    >
+                      Follow Up Message
+                    </button>
+                    <button 
+                      className="btn-secondary"
+                      onClick={() => setActiveTab('templates')}
+                    >
+                      <DocumentDuplicateIcon className="icon" />
+                      See All Templates
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Chat Modal (existing) */}
       {showChatModal && selectedDonor && (
         <div className="modal-overlay">
           <div className="chat-modal">
@@ -605,7 +948,7 @@ export default function CommunicationsPage() {
         </div>
       )}
 
-      {/* Edit Profile Modal */}
+      {/* Edit Profile Modal (existing) */}
       {showEditModal && selectedDonor && (
         <div className="modal-overlay">
           <div className="edit-modal">
@@ -724,7 +1067,7 @@ export default function CommunicationsPage() {
         </div>
       )}
 
-      {/* Schedule Meeting Modal */}
+      {/* Schedule Meeting Modal (existing) */}
       {showMeetingModal && selectedDonor && (
         <div className="modal-overlay">
           <div className="meeting-modal">

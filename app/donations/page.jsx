@@ -1,228 +1,316 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
-import { 
-  PlusIcon,
+import {
   MagnifyingGlassIcon,
-  FunnelIcon,
-  ChartBarIcon,
-  ReceiptPercentIcon
+  PlusIcon,
+  UserCircleIcon,
+  CurrencyDollarIcon,
+  CalendarIcon,
 } from '@heroicons/react/24/outline'
-import { useDonations } from '@/lib/api/hooks/usedonation'
+
+import { getDonors, getLYBUNTDonors } from '@/lib/api/donors'
+import { useDonations } from '@/app/hooks/usedonation'
 import styles from './donations.module.css'
 
-export default function DonationsPage() {
-  const [search, setSearch] = useState('')
-  const [timeframe, setTimeframe] = useState('30days')
-  const { donations, summary, pagination, loading, error } = useDonations({ timeframe })
+const filters = [
+  { id: 'all', name: 'All Donors' },
+  { id: 'active', name: 'Active' },
+  { id: 'lybunt', name: 'LYBUNT' },
+  { id: 'major', name: 'Major Donors' },
+]
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
+export default function DonorsPage() {
+  const [donors, setDonors] = useState([])
+  const [lybuntDonors, setLybuntDonors] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [selectedFilter, setSelectedFilter] = useState('all')
+
+  // 1️⃣ Load donors
+  useEffect(() => {
+    async function load() {
+      try {
+        const donorData = await getDonors()
+        const lybunt = await getLYBUNTDonors()
+        setDonors(donorData)
+        setLybuntDonors(lybunt)
+      } catch (err) {
+        console.error('Failed to load donors:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [])
+
+  // 2️⃣ Batch donation hook - use donorIds parameter
+  const donorIds = useMemo(() => donors.map(d => d.id), [donors])
+  const { donationsByDonor, loading: donationsLoading } = useDonations({ 
+    donorIds,
+    timeframe: 'all' // Get all donations for accurate totals
+  })
+
+  // 3️⃣ Attach derived stats
+  const donorsWithStats = useMemo(() => {
+    return donors.map((donor) => {
+      const donations = donationsByDonor?.[donor.id] || []
+
+      const totalGiven = donations.reduce(
+        (sum, d) => sum + (d.amount || 0),
+        0
+      )
+
+      const giftsCount = donations.length
+
+      const lastGiftDate =
+        donations.length > 0
+          ? new Date(
+              Math.max(...donations.map(d => new Date(d.date)))
+            )
+          : null
+
+      const lastGiftAmount = donations.length > 0
+        ? donations.sort((a, b) => new Date(b.date) - new Date(a.date))[0]?.amount || 0
+        : 0
+
+      const averageGift = giftsCount > 0 ? totalGiven / giftsCount : 0
+
+      return {
+        ...donor,
+        totalGiven,
+        giftsCount,
+        lastGiftDate,
+        lastGiftAmount,
+        averageGift,
+        isLYBUNT: lybuntDonors.some(d => d.id === donor.id),
+      }
+    })
+  }, [donors, donationsByDonor, lybuntDonors])
+
+  // 4️⃣ Filtering
+  const filteredDonors = donorsWithStats.filter((donor) => {
+    const searchLower = search.toLowerCase()
+
+    if (search) {
+      const match =
+        donor.firstName?.toLowerCase().includes(searchLower) ||
+        donor.lastName?.toLowerCase().includes(searchLower) ||
+        donor.email?.toLowerCase().includes(searchLower) ||
+        donor.phone?.toLowerCase().includes(searchLower)
+
+      if (!match) return false
+    }
+
+    switch (selectedFilter) {
+      case 'active':
+        return donor.status === 'ACTIVE'
+      case 'lybunt':
+        return donor.isLYBUNT
+      case 'major':
+        return donor.totalGiven >= 10000
+      default:
+        return true
+    }
+  })
+
+  // 5️⃣ Sort by total given (highest first)
+  const sortedDonors = [...filteredDonors].sort((a, b) => b.totalGiven - a.totalGiven)
+
+  const formatCurrency = (amount = 0) =>
+    new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
+      maximumFractionDigits: 0,
     }).format(amount)
+
+  const formatDate = (date) => {
+    if (!date) return 'Never'
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    })
   }
 
-  const getStatusClass = (status) => {
-    switch (status) {
-      case 'COMPLETED': return styles.statusCompleted
-      case 'PENDING': return styles.statusPending
-      case 'FAILED': return styles.statusFailed
-      default: return styles.statusDefault
-    }
+  if (loading || donationsLoading) {
+    return (
+      <div className={styles.loadingContainer}>
+        <div className={styles.loadingSpinner} />
+        <p>Loading donors...</p>
+      </div>
+    )
   }
-
-  if (loading) return (
-    <div className={styles.loadingContainer}>
-      <div className={styles.loadingSpinner}></div>
-    </div>
-  )
-
-  if (error) return (
-    <div className={styles.errorMessage}>
-      <p>Error loading donations: {error}</p>
-    </div>
-  )
 
   return (
-    <div className={styles.donationsPage}>
-      {/* Header */}
-      <div className={styles.donationsHeader}>
+    <div className={styles.donorsContainer}>
+      <div className={styles.pageHeader}>
         <div>
-          <h1 className={styles.donationsTitle}>Donations</h1>
-          <p className={styles.donationsDescription}>
-            Track and manage all donations {summary && `(${formatCurrency(summary.total)})`}
+          <h1 className={styles.pageTitle}>Donations</h1>
+          <p className={styles.pageDescription}>
+            Managing {filteredDonors.length} {filteredDonors.length === 1 ? 'donor' : 'donors'}
           </p>
         </div>
-        <div className={styles.headerActions}>
-          <Link href="/recorddonorpage" className={styles.primaryButton}>
-            <PlusIcon className={styles.buttonIcon} />
-            Record Donation
-          </Link>
-          <Link href="/donations/reports" className={styles.secondaryButton}>
-            <ChartBarIcon className={styles.buttonIcon} />
-            Reports
-          </Link>
+
+        <Link href="/donors/new" className={styles.addDonorButton}>
+          <PlusIcon className={styles.addDonorIcon} />
+          Add Donor
+        </Link>
+      </div>
+
+      {/* Search and Filters */}
+      <div className={styles.filtersCard}>
+        <div className={styles.searchContainer}>
+          <MagnifyingGlassIcon className={styles.searchIcon} />
+          <input
+            className={styles.searchInput}
+            placeholder="Search donors by name, email, or phone..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        
+        <div className={styles.filterButtons}>
+          {filters.map((filter) => (
+            <button
+              key={filter.id}
+              className={`${styles.filterButton} ${
+                selectedFilter === filter.id ? styles.filterButtonActive : ''
+              }`}
+              onClick={() => setSelectedFilter(filter.id)}
+            >
+              {filter.name}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* Summary Stats */}
-      {summary && (
-        <div className={styles.summaryStats}>
-          <div className={styles.statCard}>
-            <p className={styles.statLabel}>Total Received</p>
-            <p className={styles.statValue}>
-              {formatCurrency(summary.total)}
-            </p>
-            <p className={`${styles.statGrowth} ${styles.positive}`}>
-              +{summary.growth}% from last period
-            </p>
+      <div className={styles.statsSummary}>
+        <div className={styles.statItem}>
+          <div className={styles.statNumber}>
+            {formatCurrency(donorsWithStats.reduce((sum, donor) => sum + donor.totalGiven, 0))}
           </div>
-          <div className={styles.statCard}>
-            <p className={styles.statLabel}>Average Gift</p>
-            <p className={styles.statValue}>
-              {formatCurrency(summary.average)}
-            </p>
-            <p className={`${styles.statGrowth} ${styles.neutral}`}>
-              {summary.count} total gifts
-            </p>
+          <div className={styles.statLabel}>Total Given</div>
+        </div>
+        <div className={styles.statItem}>
+          <div className={styles.statNumber}>
+            {donorsWithStats.reduce((sum, donor) => sum + donor.giftsCount, 0)}
           </div>
-          <div className={styles.statCard}>
-            <p className={styles.statLabel}>Recurring</p>
-            <p className={styles.statValue}>
-              {formatCurrency(summary.recurring)}
-            </p>
-            <p className={`${styles.statGrowth} ${styles.neutral}`}>
-              {summary.recurringCount} active subscriptions
-            </p>
+          <div className={styles.statLabel}>Total Gifts</div>
+        </div>
+        <div className={styles.statItem}>
+          <div className={styles.statNumber}>
+            {lybuntDonors.length}
           </div>
-          <div className={styles.statCard}>
-            <p className={styles.statLabel}>LYBUNT Impact</p>
-            <p className={styles.statValue}>
-              {formatCurrency(summary.lybuntValue)}
-            </p>
-            <p className={`${styles.statGrowth} ${styles.negative}`}>
-              {summary.lybuntCount} at-risk donors
-            </p>
+          <div className={styles.statLabel}>LYBUNT Donors</div>
+        </div>
+        <div className={styles.statItem}>
+          <div className={styles.statNumber}>
+            {donorsWithStats.filter(d => d.totalGiven >= 10000).length}
           </div>
+          <div className={styles.statLabel}>Major Donors</div>
+        </div>
+      </div>
+
+      {/* Donor Grid */}
+      <div className={styles.donorsGrid}>
+        {sortedDonors.map((donor) => (
+          <Link
+            key={donor.id}
+            href={`/donors/${donor.id}`}
+            className={styles.donorCard}
+          >
+            <div className={styles.donorHeader}>
+              <div className={styles.avatarContainer}>
+                <UserCircleIcon className={styles.avatarIcon} />
+                {donor.totalGiven >= 10000 && (
+                  <div className={styles.majorDonorBadge}>Major Donor</div>
+                )}
+                {donor.isLYBUNT && (
+                  <div className={styles.lybuntBadge}>LYBUNT</div>
+                )}
+              </div>
+              <div className={styles.donorInfo}>
+                <h3 className={styles.donorName}>
+                  {donor.firstName} {donor.lastName}
+                </h3>
+                <p className={styles.donorEmail}>{donor.email}</p>
+                {donor.phone && (
+                  <p className={styles.donorPhone}>{donor.phone}</p>
+                )}
+                <div className={styles.donorStatus}>
+                  <span className={`${styles.statusBadge} ${
+                    donor.status === 'ACTIVE' ? styles.statusActive : styles.statusInactive
+                  }`}>
+                    {donor.status}
+                  </span>
+                  <span className={styles.relationshipStage}>
+                    {donor.relationshipStage?.replace('_', ' ') || 'NEW'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.donorStats}>
+              <div className={styles.statRow}>
+                <CurrencyDollarIcon className={styles.statIcon} />
+                <div>
+                  <div className={styles.statValue}>{formatCurrency(donor.totalGiven)}</div>
+                  <div className={styles.statLabel}>Total Given</div>
+                </div>
+              </div>
+
+              <div className={styles.statRow}>
+                <CalendarIcon className={styles.statIcon} />
+                <div>
+                  <div className={styles.statValue}>
+                    {formatDate(donor.lastGiftDate)}
+                  </div>
+                  <div className={styles.statLabel}>Last Gift</div>
+                </div>
+              </div>
+
+              <div className={styles.statsGrid}>
+                <div className={styles.smallStat}>
+                  <div className={styles.smallStatValue}>{donor.giftsCount}</div>
+                  <div className={styles.smallStatLabel}>Gifts</div>
+                </div>
+                <div className={styles.smallStat}>
+                  <div className={styles.smallStatValue}>
+                    {formatCurrency(donor.averageGift)}
+                  </div>
+                  <div className={styles.smallStatLabel}>Avg. Gift</div>
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.viewProfile}>
+              View Profile →
+            </div>
+          </Link>
+        ))}
+      </div>
+
+      {sortedDonors.length === 0 && (
+        <div className={styles.emptyState}>
+          <UserCircleIcon className={styles.emptyIcon} />
+          <h3 className={styles.emptyTitle}>No donors found</h3>
+          <p className={styles.emptyDescription}>
+            {search || selectedFilter !== 'all' 
+              ? 'Try adjusting your search or filters'
+              : 'Add your first donor to get started'
+            }
+          </p>
+          {!search && selectedFilter === 'all' && (
+            <Link href="/donors/new" className={styles.primaryButton}>
+              <PlusIcon className={styles.buttonIcon} />
+              Add First Donor
+            </Link>
+          )}
         </div>
       )}
-
-      {/* Filters */}
-      <div className={styles.filtersSection}>
-        <div className={styles.filtersContainer}>
-          <div className={styles.searchBox}>
-            <MagnifyingGlassIcon className={styles.searchIcon} />
-            <input
-              type="text"
-              placeholder="Search donations by donor name, amount, or campaign..."
-              className={styles.searchInput}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <div className={styles.filterControls}>
-            <select
-              value={timeframe}
-              onChange={(e) => setTimeframe(e.target.value)}
-              className={styles.timeframeSelect}
-            >
-              <option value="7days">Last 7 days</option>
-              <option value="30days">Last 30 days</option>
-              <option value="90days">Last 90 days</option>
-              <option value="year">This year</option>
-              <option value="all">All time</option>
-            </select>
-            <button className={styles.secondaryButton}>
-              <FunnelIcon className={styles.buttonIcon} />
-              More Filters
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Donations Table */}
-      <div className={styles.donationsTableSection}>
-        <div className={styles.tableWrapper}>
-          <table className={styles.donationsTable}>
-            <thead className={styles.tableHeader}>
-              <tr>
-                <th>Donor</th>
-                <th>Date</th>
-                <th>Amount</th>
-                <th>Campaign</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody className={styles.tableBody}>
-              {donations.map((donation) => (
-                <tr key={donation.id}>
-                  <td className={styles.donorCell}>
-                    <div>
-                      <div className={styles.donorName}>
-                        {donation.donor?.firstName} {donation.donor?.lastName}
-                      </div>
-                      <div className={styles.donorEmail}>
-                        {donation.donor?.email}
-                      </div>
-                    </div>
-                  </td>
-                  <td className={styles.dateCell}>
-                    {new Date(donation.date).toLocaleDateString()}
-                  </td>
-                  <td className={styles.amountCell}>
-                    {formatCurrency(donation.amount)}
-                  </td>
-                  <td className={styles.campaignCell}>
-                    {donation.campaign?.name || 'General Fund'}
-                  </td>
-                  <td className={styles.typeCell}>
-                    {donation.type.replace('_', ' ')}
-                  </td>
-                  <td>
-                    <span className={`${styles.statusBadge} ${getStatusClass(donation.status)}`}>
-                      {donation.status}
-                    </span>
-                  </td>
-                  <td>
-                    <div className={styles.actionLinks}>
-                      <Link
-                        href={`/donations/${donation.id}`}
-                        className={`${styles.actionLink} ${styles.actionLinkView}`}
-                      >
-                        View
-                      </Link>
-                      <Link
-                        href={`/communications/new?donationId=${donation.id}`}
-                        className={`${styles.actionLink} ${styles.actionLinkThank}`}
-                      >
-                        Thank
-                      </Link>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {donations.length === 0 && (
-          <div className={styles.emptyState}>
-            <ReceiptPercentIcon className={styles.emptyIcon} />
-            <h3 className={styles.emptyTitle}>No donations found</h3>
-            <p className={styles.emptyDescription}>
-              Record your first donation to get started
-            </p>
-            <Link href="/recorddonorpage" className={styles.primaryButton}>
-              <PlusIcon className={styles.buttonIcon} />
-              Record First Donation
-            </Link>
-          </div>
-        )}
-      </div>
     </div>
   )
 }

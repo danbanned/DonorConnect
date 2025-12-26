@@ -29,13 +29,32 @@ export async function GET(request) {
     const limit = Number(searchParams.get('limit')) || 50
     const timeframe = searchParams.get('timeframe') || '30days'
 
-    // Optional filters (future)
-    //const donorId = searchParams.get('donorId')
-    //const campaignId = searchParams.get('campaignId')
+    // Extract filter parameters
+    const donorIdsParam = searchParams.get('donorIds')
+    const donorId = searchParams.get('donorId')
+    const campaignId = searchParams.get('campaignId')
+    const organizationId = searchParams.get('organizationId')
 
-    // NOTE: filters not yet supported by lib
-    const donations = await getDonations(timeframe, page, limit)
-    const summary = await getDonationSummary(timeframe)
+    // Parse donorIds if provided
+    let donorIds = null
+      if (donorIdsParam) {
+        donorIds = donorIdsParam.split(',').filter(id => id.trim())
+      }
+
+    // Create filters object to pass to library functions
+    const filters = {
+      donorId,
+      donorIds,
+      campaignId,
+      organizationId,
+      timeframe,
+      page,
+      limit
+    }
+
+    // Pass filters to the library functions
+    const donations = await getDonations(filters)
+    const summary = await getDonationSummary(filters)
 
     return NextResponse.json(
       serializeBigInt({
@@ -74,10 +93,23 @@ export async function POST(request) {
       )
     }
 
-    const donation = await createDonation({
-      ...data,
-      organizationId: data.organizationId ?? 'org_test_123',
-    })
+    if (!data.organizationId) {
+      return NextResponse.json(
+        { error: 'organizationId is required' },
+        { status: 400 }
+      )
+    }
+
+    const donation = await createDonation(data)
+
+    await prisma.donorActivity.create({
+      data: {
+        donorId: donation.donorId,
+        action: "Made a donation",
+        amount: donation.amount,
+        details: { donationId: donation.id },
+      },
+    });
 
     return NextResponse.json(
       serializeBigInt(donation),

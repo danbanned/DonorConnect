@@ -1,3 +1,6 @@
+
+//this file is just meant to calcute the info given frinm the donors 
+
 export function formatCurrency(amount, decimals = 2) {
   if (amount === null || amount === undefined) return '$0.00'
   
