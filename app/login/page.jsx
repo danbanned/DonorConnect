@@ -138,7 +138,7 @@ export default function LoginPage() {
         }, 1000);
         
         // Log successful login
-        await fetch('/api/audit/log', {
+        await fetch('/api/auth/auditLog',{
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -173,7 +173,7 @@ export default function LoginPage() {
           });
           
           // Log failed attempt
-          await fetch('/api/audit/log', {
+          await fetch('/api/auth/auditLog', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
