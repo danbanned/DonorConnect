@@ -1,15 +1,23 @@
 import { NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
 
+// Force dynamic so Next.js doesn't pre-render at build
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-const prisma = new PrismaClient()
+// Use a global Prisma client to avoid exhausting connections in development
+let prisma
+if (!global.prisma) {
+  global.prisma = new PrismaClient()
+}
+prisma = global.prisma
 
 export async function GET(request, { params }) {
   try {
+    // Test the database connection
     await prisma.$queryRaw`SELECT 1`
 
+    // Fetch donor stats
     const [donorCount, donationCount, recentDonations] = await Promise.all([
       prisma.donor.count(),
       prisma.donation.count(),
@@ -39,6 +47,7 @@ export async function GET(request, { params }) {
       uptime: process.uptime(),
     })
   } catch (error) {
+    console.error('API error:', error)
     return NextResponse.json(
       {
         status: 'unhealthy',

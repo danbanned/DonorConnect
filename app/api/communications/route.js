@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
 import { sendEmail } from '@/lib/api/email'
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 
 const prisma = new PrismaClient()
 

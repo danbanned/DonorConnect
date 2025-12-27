@@ -109,6 +109,7 @@ export default function LoginPage() {
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
+        credentials: 'include', // ✅ REQUIRED
         headers: {
           'Content-Type': 'application/json',
         },
@@ -133,7 +134,7 @@ export default function LoginPage() {
         
         // Redirect after success
         setTimeout(() => {
-          router.push(redirect);
+          router.replace(redirect); // ✅ use replace, not push
         }, 1000);
         
         // Log successful login
@@ -141,11 +142,12 @@ export default function LoginPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            action: 'LOGIN_SUCCESS',
-            details: { email: formData.email },
-            userAgent: navigator.userAgent
+            action: 'DONOR_CREATED',
+            entityType: 'DONOR',
+            entityId: donorId,
+            details: { source: 'manual' }
           })
-        });
+        })
         
       } else {
         // Failed login

@@ -26,8 +26,8 @@ const publicRoutes = [
   '/register',
   '/forgot-password',
   '/reset-password',
-  '/api/auth',
-  '/api/public',
+  '/api/auth',       // base
+  '/api/auth/',      // ALL auth subroutes
 ]
 
 // Routes that require specific roles
@@ -190,6 +190,6 @@ export const config = {
      * 3. /favicon.ico (favicon file)
      * 4. /public (public files)
      */
-    '/((?!_next/static|_next/image|favicon.ico|public).*)',
+    '/((?!_next/static|_next/image|favicon.ico|public|components|hooks|providers).*)',
   ],
 }

@@ -3,6 +3,9 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
 import prisma from '@/lib/db';
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 

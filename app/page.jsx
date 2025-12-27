@@ -1,4 +1,6 @@
 // app/page.jsx
+'use client'
+
 import Link from 'next/link'
 import { ArrowRightIcon, ChartBarIcon, UserGroupIcon, CurrencyDollarIcon, ClockIcon } from '@heroicons/react/24/outline'
 import './HomePage.css'
