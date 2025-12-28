@@ -1,7 +1,6 @@
-// app/login/page.jsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -14,7 +13,8 @@ import {
 } from '@heroicons/react/24/outline';
 import './LoginPage.css';
 
-export default function LoginPage() {
+// Create a separate component that uses useSearchParams
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect') || '/dashboard';
@@ -109,7 +109,7 @@ export default function LoginPage() {
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
-        credentials: 'include', // ✅ REQUIRED
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -134,20 +134,8 @@ export default function LoginPage() {
         
         // Redirect after success
         setTimeout(() => {
-          router.replace(redirect); // ✅ use replace, not push
+          router.replace(redirect);
         }, 1000);
-        
-        // Log successful login
-        await fetch('/api/auth/auditLog',{
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'DONOR_CREATED',
-            entityType: 'DONOR',
-            entityId: donorId,
-            details: { source: 'manual' }
-          })
-        })
         
       } else {
         // Failed login
@@ -170,20 +158,6 @@ export default function LoginPage() {
           setMessage({
             type: 'error',
             text: data.error || 'Invalid email or password'
-          });
-          
-          // Log failed attempt
-          await fetch('/api/auth/auditLog', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'LOGIN_FAILED',
-              details: { 
-                email: formData.email,
-                attempts: newAttempts 
-              },
-              userAgent: navigator.userAgent
-            })
           });
         }
       }
@@ -432,5 +406,33 @@ export default function LoginPage() {
         <div className="pattern-dot"></div>
       </div>
     </div>
+  );
+}
+
+// Main page component with Suspense wrapper
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="login-page">
+        <div className="login-container">
+          <div className="login-header">
+            <div className="login-logo">
+              <div className="logo-icon">D</div>
+              <span className="logo-text">DonorConnect</span>
+            </div>
+            <h1 className="login-title">Welcome Back</h1>
+            <p className="login-subtitle">
+              Sign in to your account to continue
+            </p>
+          </div>
+          <div className="loading-state">
+            <div className="spinner"></div>
+            <p>Loading login page...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }
