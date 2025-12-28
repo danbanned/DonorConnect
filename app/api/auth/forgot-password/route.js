@@ -1,8 +1,13 @@
 // app/api/auth/forgot-password/route.js
+
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import prisma from '@/lib/db';
 import validator from 'validator';
+
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 // Note: You'll need to set up email service (nodemailer, sendgrid, etc.)
 
 export async function POST(request) {

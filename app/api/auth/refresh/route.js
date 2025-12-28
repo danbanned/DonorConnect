@@ -1,4 +1,7 @@
 // app/api/auth/refresh/route.js
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { refreshToken } from '@/lib/auth'
