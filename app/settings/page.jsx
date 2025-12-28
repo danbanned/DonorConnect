@@ -838,7 +838,7 @@ export default function SettingsPage() {
         }
         
         // Fetch audit logs
-        const logsRes = await fetch('/api/audit/logs')
+        const logsRes = await fetch('/api/audit')
         if (logsRes.ok) {
           setAuditLogs(await logsRes.json())
         }
