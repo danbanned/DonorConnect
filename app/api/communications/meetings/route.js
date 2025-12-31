@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma } from '../../../../lib/db'
 
 const ZOOM_ACCOUNT_ID = process.env.ZOOM_ACCOUNT_ID;
 const ZOOM_CLIENT_ID = process.env.ZOOM_CLIENT_ID;
