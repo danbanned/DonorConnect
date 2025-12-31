@@ -1,6 +1,6 @@
 import { CalendarIcon, CurrencyDollarIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
-import { formatCurrency } from '@/utils/formatCurrency'
-import  dateHelpers  from '@/utils/dateHelpers'
+import { formatCurrency } from '../../../utils/formatCurrency'
+import  dateHelpers  from '../../../utils/dateHelpers'
 import styles from './PledgeBox.module.css'
 
 export default function PledgeBox({ pledge }) {

@@ -10,8 +10,8 @@ import {
   CalendarIcon,
 } from '@heroicons/react/24/outline'
 
-import { getDonors, getLYBUNTDonors } from '@/lib/api/donors'
-import { useDonations } from '@/app/hooks/usedonation'
+import { getDonors, getLYBUNTDonors } from '../../lib/api/donors'
+import { useDonations } from '../hooks/usedonation'
 import styles from './donations.module.css'
 
 const filters = [

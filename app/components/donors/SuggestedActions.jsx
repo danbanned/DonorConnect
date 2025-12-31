@@ -7,7 +7,7 @@ import {
   CheckCircleIcon,
   ClockIcon
 } from '@heroicons/react/24/outline'
-import { formatCurrency } from '@/utils/formatCurrency'
+import { formatCurrency } from '../../../utils/formatCurrency'
 import './SuggestedActions.css'
 
 export default function SuggestedActions({ donor, insights }) {

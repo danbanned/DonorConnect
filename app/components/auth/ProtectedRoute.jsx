@@ -1,31 +1,39 @@
-'use client'
+'use client';
 
-import { useAuth } from '@/app/providers/AuthProvider'
-import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useAuth } from '../../providers/AuthProvider';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import Loading from '../ui/Loading';
 
-export default function ProtectedRoute({ children }) {
-  const { user, loading } = useAuth()
-  const router = useRouter()
+export default function ProtectedRoute({ children, requireAuth = true }) {
+  const { user, loading } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
-    // If not loading and no user, redirect to login
-    if (!loading && !user) {
-      router.push(`/login`)
+    if (!loading) {
+      if (requireAuth && !user) {
+        // Redirect to login if authentication is required but user is not logged in
+        router.push('/login');
+      } else if (!requireAuth && user) {
+        // Redirect to home if authentication is NOT required but user IS logged in
+        router.push('/');
+      }
     }
-  }, [user, loading, router])
+  }, [user, loading, router, requireAuth]);
 
   if (loading) {
     return (
-      <div className="loading-screen">
-        <p>Loading...</p>
+      <div className="flex items-center justify-center min-h-screen">
+        <Loading />
       </div>
-    )
+    );
   }
 
-  if (!user) {
-    return null // prevent rendering before redirect
+  // If auth requirements are met, render children
+  if ((requireAuth && user) || (!requireAuth && !user)) {
+    return <>{children}</>;
   }
 
-  return <>{children}</>
+  // Return null while redirecting
+  return null;
 }

@@ -6,7 +6,8 @@ import {
   getDonations,
   getDonationSummary,
   createDonation,
-} from '@/lib/api/donations'
+  logDonorActivity, // ✅ import the new helper
+} from '../../../lib/api/donations'
 
 /////////////////////////////////////////////////
 // utils
@@ -38,13 +39,11 @@ export async function GET(request) {
     const campaignId = searchParams.get('campaignId')
     const organizationId = searchParams.get('organizationId')
 
-    // Parse donorIds if provided
     let donorIds = null
-      if (donorIdsParam) {
-        donorIds = donorIdsParam.split(',').filter(id => id.trim())
-      }
+    if (donorIdsParam) {
+      donorIds = donorIdsParam.split(',').filter(id => id.trim())
+    }
 
-    // Create filters object to pass to library functions
     const filters = {
       donorId,
       donorIds,
@@ -52,10 +51,9 @@ export async function GET(request) {
       organizationId,
       timeframe,
       page,
-      limit
+      limit,
     }
 
-    // Pass filters to the library functions
     const donations = await getDonations(filters)
     const summary = await getDonationSummary(filters)
 
@@ -74,9 +72,9 @@ export async function GET(request) {
       })
     )
   } catch (error) {
-    console.error('[GET /api/donations]', error)
+    console.error('[GET /api/donations]', error.message, error)
     return NextResponse.json(
-      { error: 'Failed to fetch donations' },
+      { error: error.message || 'Failed to fetch donations' },
       { status: 500 }
     )
   }
@@ -103,16 +101,16 @@ export async function POST(request) {
       )
     }
 
+    // 1️⃣ Create the donation using the lib
     const donation = await createDonation(data)
 
-    await prisma.donorActivity.create({
-      data: {
-        donorId: donation.donorId,
-        action: "Made a donation",
-        amount: donation.amount,
-        details: { donationId: donation.id },
-      },
-    });
+    // 2️⃣ Log donor activity using the lib
+    await logDonorActivity({
+      donorId: donation.donorId,
+      action: 'Made a donation',
+      amount: donation.amount,
+      donationId: donation.id,
+    })
 
     return NextResponse.json(
       serializeBigInt(donation),

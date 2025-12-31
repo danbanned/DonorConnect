@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getAllDonors } from '@/lib/api/donor-data'
+import { getAllDonors } from  '../../../../lib/api/donor-data'
 
 export async function GET() {
   try {

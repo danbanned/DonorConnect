@@ -18,7 +18,7 @@ import Link from 'next/link'
 import styles from './Dashboard.module.css'
 import { useRouter } from 'next/navigation'
 import {useDonors} from '../hooks/useDonor'
-import { useDonations } from '@/app/hooks/usedonation'
+import { useDonations } from '../hooks/usedonation.js'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -34,6 +34,8 @@ export default function DashboardPage() {
     timeframe,
     limit: 1000 // Get more donations for better stats
   })
+
+console.log(donations,'gigganigga')
   
  
   const isLoading = donorsLoading || donationsLoading
@@ -70,7 +72,8 @@ export default function DashboardPage() {
     })
   }, [donors, donations])
 
-   console.log(processedDonors,'butter')
+   console.log('[Dashboard] donations sample:', donations?.[0])
+
 
   // Process donation statistics
   const donationStats = useMemo(() => {

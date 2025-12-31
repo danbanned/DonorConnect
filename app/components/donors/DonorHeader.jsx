@@ -6,7 +6,7 @@ import {
   CalendarIcon,
   CurrencyDollarIcon
 } from '@heroicons/react/24/outline'
-import { formatCurrency } from '@/utils/formatCurrency'
+import { formatCurrency } from '../../../utils/formatCurrency'
 import './DonorHeader.css'
 
 export default function DonorHeader({ donor, insights, donations}) {

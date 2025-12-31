@@ -1,6 +1,6 @@
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '../db.js'
 
-const prisma = new PrismaClient()
+
 
 export async function getDonors(filter = 'all', page = 1, limit = 50) {
   try {

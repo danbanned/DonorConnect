@@ -24,8 +24,8 @@ import {
   DocumentDuplicateIcon
 } from '@heroicons/react/24/outline'
 import './communications.css'
-import TemplatesSection from '@/app/components/communications/TemplatesSection'
-import { templates as templateLibrary } from '@/lib/templates'
+import TemplatesSection from '../components/communications/TemplatesSection'
+import { templates as templateLibrary } from '../../lib/templates'
 
 
 const communicationTypes = [

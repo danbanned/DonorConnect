@@ -1,0 +1,379 @@
+/* Footer Container */
+.footer {
+  background: linear-gradient(to bottom, #1a202c 0%, #2d3748 100%);
+  color: #cbd5e0;
+  padding: 4rem 0 2rem;
+  margin-top: auto;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* Main Content */
+.mainContent {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 3rem;
+  margin-bottom: 3rem;
+}
+
+@media (min-width: 768px) {
+  .mainContent {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .mainContent {
+    grid-template-columns: 2fr repeat(3, 1fr);
+  }
+}
+
+/* Company Info */
+.companyInfo {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 768px) {
+  .companyInfo {
+    grid-column: 1 / 3;
+  }
+}
+
+@media (min-width: 1024px) {
+  .companyInfo {
+    grid-column: 1 / 2;
+  }
+}
+
+.logo {
+  margin: 0 0 1rem;
+}
+
+.logoLink {
+  font-size: 1.875rem;
+  font-weight: 800;
+  color: white;
+  text-decoration: none;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.logoLink:hover {
+  opacity: 0.9;
+}
+
+.companyDescription {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+  max-width: 300px;
+}
+
+.socialLinks {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.socialLink {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: #cbd5e0;
+  transition: all 0.3s ease;
+}
+
+.socialLink:hover {
+  background: #4299e1;
+  color: white;
+  transform: translateY(-2px);
+}
+
+.socialIcon {
+  width: 18px;
+  height: 18px;
+}
+
+/* Links Sections */
+.linksSection {
+  margin-bottom: 1rem;
+}
+
+.sectionTitle {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 1.25rem;
+  position: relative;
+  padding-bottom: 0.5rem;
+}
+
+.sectionTitle::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 40px;
+  height: 2px;
+  background: linear-gradient(to right, #4299e1, #38b2ac);
+}
+
+.linksList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.listItem {
+  margin-bottom: 0.75rem;
+}
+
+.link {
+  color: #cbd5e0;
+  text-decoration: none;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+  display: inline-block;
+}
+
+.link:hover {
+  color: #4299e1;
+  transform: translateX(5px);
+}
+
+/* Newsletter Section */
+.newsletterSection {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 768px) {
+  .newsletterSection {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 1024px) {
+  .newsletterSection {
+    grid-column: 4 / 5;
+  }
+}
+
+.newsletterDescription {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+}
+
+.newsletterForm {
+  margin-bottom: 1rem;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+@media (min-width: 480px) {
+  .formGroup {
+    flex-direction: row;
+  }
+}
+
+.emailInput {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border: 1px solid #4a5568;
+  border-radius: 6px;
+  background: #2d3748;
+  color: white;
+  font-size: 0.95rem;
+  transition: all 0.2s;
+}
+
+.emailInput:focus {
+  outline: none;
+  border-color: #4299e1;
+  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+}
+
+.emailInput::placeholder {
+  color: #a0aec0;
+}
+
+.subscribeButton {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #4299e1 0%, #38b2ac 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.subscribeButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(66, 153, 225, 0.3);
+}
+
+.newsletterNote {
+  font-size: 0.8rem;
+  color: #a0aec0;
+  line-height: 1.4;
+}
+
+/* Divider */
+.divider {
+  height: 1px;
+  background: linear-gradient(to right, transparent, #4a5568, transparent);
+  margin: 2rem 0;
+}
+
+/* Bottom Footer */
+.bottomFooter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+@media (min-width: 768px) {
+  .bottomFooter {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+
+.copyright {
+  text-align: center;
+  order: 2;
+}
+
+@media (min-width: 768px) {
+  .copyright {
+    order: 1;
+    text-align: left;
+  }
+}
+
+.copyright p {
+  font-size: 0.9rem;
+  color: #a0aec0;
+  margin: 0;
+}
+
+.legalLinks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  order: 1;
+}
+
+@media (min-width: 768px) {
+  .legalLinks {
+    order: 2;
+  }
+}
+
+.legalLink {
+  color: #cbd5e0;
+  text-decoration: none;
+  font-size: 0.85rem;
+  transition: color 0.2s;
+}
+
+.legalLink:hover {
+  color: #4299e1;
+}
+
+.separator {
+  color: #4a5568;
+  font-size: 0.85rem;
+}
+
+.backToTop {
+  order: 3;
+}
+
+.backToTopButton {
+  background: transparent;
+  color: #cbd5e0;
+  border: 1px solid #4a5568;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.backToTopButton:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: #4299e1;
+  color: white;
+}
+
+/* Contact Info */
+.contactInfo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding-top: 2rem;
+  border-top: 1px solid #4a5568;
+  text-align: center;
+}
+
+@media (min-width: 768px) {
+  .contactInfo {
+    flex-direction: row;
+    justify-content: center;
+    gap: 2rem;
+    text-align: left;
+  }
+}
+
+.contactItem {
+  font-size: 0.9rem;
+  color: #a0aec0;
+}
+
+.contactLink {
+  color: #cbd5e0;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.contactLink:hover {
+  color: #4299e1;
+  text-decoration: underline;
+}
+
+/* Screen Reader Only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

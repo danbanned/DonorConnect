@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
-import { verifyToken } from '@/lib/auth'
+import { prisma } from '../../../lib/db'
+import { verifyToken } from '../../../lib/auth'
 import { cookies } from 'next/headers'
 
 /**

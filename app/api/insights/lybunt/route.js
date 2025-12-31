@@ -2,7 +2,7 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
-import prisma from '@/lib/db'
+import prisma from '../../../../lib/db.js'
 
 export async function GET(request) {
   const organizationId = request.headers.get('x-organization-id')

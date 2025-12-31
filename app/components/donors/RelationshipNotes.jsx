@@ -9,7 +9,7 @@ import {
   UserCircleIcon,
   ChatBubbleLeftRightIcon
 } from '@heroicons/react/24/outline'
-import dateHelpers from '@/utils/dateHelpers'
+import dateHelpers from '../../../utils/dateHelpers'
 import styles from './RelationshipNotes.module.css'
 
 const initialNotes = [

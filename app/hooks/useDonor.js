@@ -6,7 +6,7 @@ import {
   getDonorById,
   getLYBUNTDonors,
   createDonor,
-} from '@/lib/api/donors'
+} from '../../lib/api/donors'
 
 /**
  * Hook for working with donors in the UI
@@ -24,6 +24,7 @@ export function useDonors(options = {}) {
    */
   const loadDonors = useCallback(async () => {
     try {
+      console.log('[useDonors donor datw] loadDonors START', { lybunt })
       setLoading(true)
       setError(null)
 
@@ -31,14 +32,21 @@ export function useDonors(options = {}) {
         ? await getLYBUNTDonors()
         : await getDonors()
 
+        console.log('[useDonors data data] loadDonors API RESULT:', data)
+
       setDonors(data)
+
+      console.log('[useDonors] donors state SET')
     } catch (err) {
+      console.error('[useDonors] loadDonors ERROR:', err)
       setError(err.message)
     } finally {
+      console.log('[useDonors] loadDonors END')
       setLoading(false)
     }
   }, [lybunt])
 
+  
   /**
    * Load single donor
    */
@@ -46,6 +54,8 @@ export function useDonors(options = {}) {
     if (!id) return
 
     try {
+
+      console.log('[useDonors] loadDonorById START:', id)
       setLoading(true)
       setError(null)
 
@@ -63,6 +73,8 @@ export function useDonors(options = {}) {
    */
   const addDonor = useCallback(async (donorData) => {
     try {
+
+      console.log('[useDonors] addDonor START:', donorData)
       setError(null)
       const newDonor = await createDonor(donorData)
 
@@ -89,6 +101,16 @@ export function useDonors(options = {}) {
     }
   }, [autoLoad, donorId, loadDonors, loadDonorById])
 
+    // 👇👇👇 PUT THIS RIGHT HERE 👇👇👇
+      console.log('[useDonors] RETURNING:', {
+        donors,
+        donor,
+        loading,
+        error,
+      })
+  // 👆👆👆 RIGHT BEFORE RETURN 👆👆👆
+
+
   return {
     // data
     donors,
@@ -103,4 +125,9 @@ export function useDonors(options = {}) {
     loadDonorById,
     addDonor,
   }
+
+
+  
 }
+
+

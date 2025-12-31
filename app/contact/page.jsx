@@ -1,12 +1,8 @@
+export const dynamic = 'force-dynamic';
 import styles from './contact.module.css';
+import ContactForm from './ContactForm';
 
 export default function ContactPage() {
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // Form submission logic would go here
-    alert('Thank you for your message! We will get back to you soon.');
-  };
-
   return (
     <div className={styles.container}>
       <header className={styles.header}>
@@ -49,59 +45,28 @@ export default function ContactPage() {
                   <p className={styles.detailText}>(123) 456-7890</p>
                 </div>
               </div>
+
+              <div className={styles.contactItem}>
+                <div className={styles.icon}>⏰</div>
+                <div>
+                  <h3 className={styles.detailTitle}>Business Hours</h3>
+                  <p className={styles.detailText}>
+                    Monday - Friday: 9:00 AM - 6:00 PM<br />
+                    Saturday: 10:00 AM - 4:00 PM<br />
+                    Sunday: Closed
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 
           <div className={styles.contactForm}>
-            <form onSubmit={handleSubmit} className={styles.form}>
-              <div className={styles.formGroup}>
-                <label htmlFor="name" className={styles.label}>Name</label>
-                <input
-                  type="text"
-                  id="name"
-                  className={styles.input}
-                  placeholder="Your name"
-                  required
-                />
-              </div>
-
-              <div className={styles.formGroup}>
-                <label htmlFor="email" className={styles.label}>Email</label>
-                <input
-                  type="email"
-                  id="email"
-                  className={styles.input}
-                  placeholder="Your email address"
-                  required
-                />
-              </div>
-
-              <div className={styles.formGroup}>
-                <label htmlFor="subject" className={styles.label}>Subject</label>
-                <input
-                  type="text"
-                  id="subject"
-                  className={styles.input}
-                  placeholder="What is this regarding?"
-                  required
-                />
-              </div>
-
-              <div className={styles.formGroup}>
-                <label htmlFor="message" className={styles.label}>Message</label>
-                <textarea
-                  id="message"
-                  className={styles.textarea}
-                  rows="5"
-                  placeholder="Your message..."
-                  required
-                ></textarea>
-              </div>
-
-              <button type="submit" className={styles.submitButton}>
-                Send Message
-              </button>
-            </form>
+            <h2 className={styles.sectionTitle}>Send Us a Message</h2>
+            <p className={styles.paragraph}>
+              Fill out the form below and we&apos;ll get back to you as soon as possible.
+            </p>
+            {/* Client component for form interactivity */}
+            <ContactForm />
           </div>
         </div>
       </div>

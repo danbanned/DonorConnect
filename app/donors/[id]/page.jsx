@@ -13,13 +13,13 @@ import {
   UserCircleIcon,
 } from '@heroicons/react/24/outline'
 
-import DonorHeader from '@/app/components/donors/DonorHeader'
-import DonationHistory from '@/app/components/donations/DonationHistory'
-import PledgeBox from '@/app/components/donors/PledgeBox'
-import RelationshipNotes from '@/app/components/donors/RelationshipNotes'
-import SuggestedActions from '@/app/components/donors/SuggestedActions'
-import AddDonorForm from '@/app/components/donors/AddDonorForm'
-import { getDonorById as fetchDonorById } from '@/lib/api/donors'
+import DonorHeader from '../../components/donors/DonorHeader'
+import DonationHistory from '../../components/donations/DonationHistory'
+import PledgeBox from '../../components/donors/PledgeBox'
+import RelationshipNotes from '../../components/donors/RelationshipNotes'
+import SuggestedActions from '../../components/donors/SuggestedActions'
+import AddDonorForm from '../../components/donors/AddDonorForm'
+import { getDonorById as fetchDonorById } from '../../../lib/api/donors'
 import './DonorProfile.css'
 import {useDonations} from  '../../hooks/usedonation'
 

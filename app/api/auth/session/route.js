@@ -5,7 +5,7 @@ export const runtime = 'nodejs'
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
-import prisma from '@/lib/db';
+import prisma from '/lib/db.js'
 
 
 
@@ -13,7 +13,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-producti
 
 export async function GET(request) {
   try {
-    const cookieStore = await cookies();
+    const cookieStore = cookies();
     const token = cookieStore.get('auth_token')?.value;
     
     if (!token) {

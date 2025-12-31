@@ -1,7 +1,7 @@
-import { getDonorWithDetails } from '@/lib/api/donor-data'
-import DonorSummary from '@/app/components/donations/DonationSummary'
-import DonorInsights from '@/app/components/donations/DonorInsights'
-import DonorRelationship from '@/app/components/donations/RelationshipBuilder'
+import { getDonorWithDetails } from '../../../lib/api/donor-data'
+import DonorSummary from '../../components/donations/DonationSummary'
+import DonorInsights from '../../components/donations/DonorInsights'
+import DonorRelationship from '../../components/donations/RelationshipBuilder'
 import styles from './DonorPage.module.css'
 
 export default async function DonorPage({ params }) {

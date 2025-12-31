@@ -1,6 +1,6 @@
 // hooks/useDonations.js
 'use client'
-
+ 
 import { useState, useEffect } from 'react'
 
 export function useDonations({ 
@@ -40,6 +40,7 @@ export function useDonations({
 
         const res = await fetch(`/api/donations?${params.toString()}`, {
           cache: 'no-store',
+          //whatever page we are on, the data for that page gets returned 
         })
 
         if (!res.ok) {
@@ -82,6 +83,14 @@ export function useDonations({
 
     fetchDonations()
   }, [timeframe, page, limit, campaignId, donorId, donorIds, organizationId])
+
+  console.log('retruned',
+    donations, 
+    donationsByDonor,
+    summary, 
+    pagination, 
+    loading, 
+    error )
 
   return { 
     donations, 

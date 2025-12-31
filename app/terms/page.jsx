@@ -1,5 +1,10 @@
 import styles from './terms.module.css';
 
+export const metadata = {
+  title: 'Terms and Conditions',
+  description: 'Read our terms and conditions for using our services.',
+};
+
 export default function TermsPage() {
   return (
     <div className={styles.container}>

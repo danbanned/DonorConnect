@@ -1,3 +1,6 @@
+
+'use client'
+
 export default function Button({
   children,
   variant = 'primary',

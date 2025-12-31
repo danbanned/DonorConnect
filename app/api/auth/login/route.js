@@ -4,8 +4,9 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs' // Change from 'bcrypt' to 'bcryptjs'
 import jwt from 'jsonwebtoken'
-import prisma from '@/lib/db'
 import validator from 'validator'
+import prisma from '../../../../lib/db'
+
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production'
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'your-refresh-secret-change-in-production'

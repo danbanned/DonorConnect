@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
-import { prisma } from '@/lib/db'
+import { prisma } from '../../../../lib/db.js'
 import { NextResponse } from 'next/server'
 
 export async function GET(req, { params }) {
