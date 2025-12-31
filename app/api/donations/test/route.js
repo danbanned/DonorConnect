@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createDonation } from '@/lib/api/donations';
+import { createDonation } from '../../../../lib/api/donations';
 
 export async function POST(req) {
   try {

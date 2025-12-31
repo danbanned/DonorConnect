@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
-import { calculateLYBUNT } from '@/lib/api/lybunt'
+import { calculateLYBUNT } from '../../../lib/api/lybunt'
 
 const prisma = new PrismaClient()
 
