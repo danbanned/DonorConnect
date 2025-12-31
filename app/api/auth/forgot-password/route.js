@@ -2,7 +2,7 @@
 
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
-import prisma from '@/lib/db';
+import prisma from '../../../../lib/db';
 import validator from 'validator';
 
 export const runtime = 'nodejs'

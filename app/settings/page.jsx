@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuth } from '@/app/providers/AuthProvider'
+import { useAuth } from '../providers/AuthProvider'
 import {
   UserCircleIcon,
   LockClosedIcon,
