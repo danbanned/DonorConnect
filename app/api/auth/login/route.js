@@ -209,9 +209,70 @@ export async function POST(request) {
 }
 
 // Add GET method for health check
-export async function GET() {
-  return NextResponse.json({ 
-    status: 'ok', 
-    message: 'Login endpoint is active. Use POST to login.' 
-  })
+// Add GET method to retrieve user info from token
+export async function GET(request) {
+  try {
+    // Get auth token from cookies
+    const authToken = request.cookies.get('auth_token')?.value
+    
+    if (!authToken) {
+      return NextResponse.json(
+        { error: 'No authentication token found' }, 
+        { status: 401 }
+      )
+    }
+
+    // Verify and decode the token
+    const decoded = jwt.verify(authToken, JWT_SECRET)
+    
+    // Find the user in database
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        organization: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' }, 
+        { status: 404 }
+      )
+    }
+
+    // Return user information including login name (email)
+    return NextResponse.json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email, // This is the login name
+        name: user.name,
+        role: user.role,
+        organization: user.organization
+      }
+    })
+
+  } catch (error) {
+    if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+      return NextResponse.json(
+        { error: 'Invalid or expired token' }, 
+        { status: 401 }
+      )
+    }
+    
+    console.error('❌ GET USER INFO ERROR:', error)
+    return NextResponse.json(
+      { error: 'Internal server error', details: error.message }, 
+      { status: 500 }
+    )
+  }
 }

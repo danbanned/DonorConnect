@@ -508,3 +508,136 @@
     padding: 1rem;
   }
 }
+
+/* Tabs */
+.auth-tabs {
+  display: flex;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 2rem;
+}
+
+.auth-tab {
+  flex: 1;
+  padding: 1rem;
+  background: none;
+  border: none;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-bottom: 2px solid transparent;
+}
+
+.auth-tab:hover {
+  color: #374151;
+}
+
+.auth-tab.active {
+  color: #3b82f6;
+  border-bottom-color: #3b82f6;
+}
+
+/* Password Strength */
+.password-strength {
+  margin-top: 0.5rem;
+}
+
+.strength-meter {
+  height: 4px;
+  background-color: #e5e7eb;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 0.25rem;
+}
+
+.strength-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.strength-fill.weak {
+  background-color: #ef4444;
+}
+
+.strength-fill.medium {
+  background-color: #f59e0b;
+}
+
+.strength-fill.strong {
+  background-color: #10b981;
+}
+
+.strength-text {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.strength-text .weak {
+  color: #ef4444;
+}
+
+.strength-text .medium {
+  color: #f59e0b;
+}
+
+.strength-text .strong {
+  color: #10b981;
+}
+
+/* Terms Acceptance */
+.terms-acceptance {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.terms-link {
+  color: #3b82f6;
+  text-decoration: underline;
+}
+
+.terms-link:hover {
+  color: #2563eb;
+}
+
+/* Auth Switch Link */
+.auth-switch-link {
+  background: none;
+  border: none;
+  color: #3b82f6;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  font-size: inherit;
+}
+
+.auth-switch-link:hover {
+  color: #2563eb;
+}
+
+/* Adjust container for register form */
+.register-container .login-form {
+  max-height: 70vh;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+/* Scrollbar styling */
+.register-container .login-form::-webkit-scrollbar {
+  width: 6px;
+}
+
+.register-container .login-form::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.register-container .login-form::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.register-container .login-form::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}

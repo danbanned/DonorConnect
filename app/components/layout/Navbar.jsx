@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { useCurrentAccount } from '../../hooks/usecurrentaccount'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { 
@@ -12,7 +13,9 @@ import {
   Bars3Icon,
   XMarkIcon,
   BellIcon,
-  UserCircleIcon
+  UserCircleIcon,
+  Cog6ToothIcon,
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline'
 import './Navbar.css'
 
@@ -31,6 +34,10 @@ export default function Navbar() {
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const menuRef = useRef(null)
+  
+  // Get current account from hook - THIS IS THE RIGHT SPOT
+  const { account, loading, error } = useCurrentAccount()
+  console.log('Current account in Navbar:', account)
 
   // Close user menu when clicking outside
   useEffect(() => {
@@ -45,7 +52,10 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     try {
-      const res = await fetch('/api/auth/logout', { method: 'POST' })
+      const res = await fetch('/api/auth/logout', { 
+        method: 'POST',
+        credentials: 'include'
+      })
       if (res.ok) {
         localStorage.removeItem('auth_token')
         localStorage.removeItem('user')
@@ -139,30 +149,129 @@ export default function Navbar() {
               )}
             </div>
 
-            {/* User profile */}
+            {/* User profile - UPDATED TO USE ACCOUNT DATA */}
             <div className="navbar-user-profile" ref={menuRef}>
-              <div className="navbar-user-info" onClick={() => setUserMenuOpen(!userMenuOpen)}>
-                <p className="navbar-user-name">John Smith</p>
-                <p className="navbar-user-role">Development Director</p>
-              </div>
-              <div className="navbar-user-avatar" onClick={() => setUserMenuOpen(!userMenuOpen)}>
-                <UserCircleIcon className="h-8 w-8 text-gray-700 hover:text-gray-900" />
-              </div>
+              {loading ? (
+                // Loading state
+                <div className="navbar-user-info">
+                  <p className="navbar-user-name animate-pulse">Loading...</p>
+                  <p className="navbar-user-role animate-pulse">&nbsp;</p>
+                </div>
+              ) : error ? (
+                // Error state
+                <div className="navbar-user-info">
+                  <p className="navbar-user-name text-red-500">Error</p>
+                  <p className="navbar-user-role text-xs text-red-400">Could not load user</p>
+                </div>
+              ) : account ? (
+                // Authenticated state
+                <>
+                  <div className="navbar-user-info" onClick={() => setUserMenuOpen(!userMenuOpen)}>
+                    <p className="navbar-user-name">
+                      {account.name || account.email?.split('@')[0] || 'User'}
+                    </p>
+                    <p className="navbar-user-role">
+                      {account.role || 'User'}
+                    </p>
+                  </div>
+                  <div className="navbar-user-avatar" onClick={() => setUserMenuOpen(!userMenuOpen)}>
+                    <UserCircleIcon className="h-8 w-8 text-gray-700 hover:text-gray-900" />
+                  </div>
+                </>
+              ) : (
+                // Not authenticated state
+                <div className="navbar-user-info">
+                  <p className="navbar-user-name">Not logged in</p>
+                  <Link 
+                    href="/login"
+                    className="navbar-user-role text-blue-500 hover:text-blue-700 text-sm"
+                  >
+                    Sign in
+                  </Link>
+                </div>
+              )}
 
-              {userMenuOpen && (
-                <div className="absolute right-0 mt-2 w-40 bg-white border rounded shadow-lg z-50">
-                  <button
-                    className="w-full px-4 py-2 text-left hover:bg-gray-100"
-                    onClick={() => router.push('/settings')}
+              {userMenuOpen && account && (
+                <div className="absolute right-0 mt-2 w-56 bg-white border rounded shadow-lg z-50">
+                  {/* User info in dropdown */}
+                  <div className="px-4 py-2 border-b">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-medium truncate">
+                        {account.name || account.email?.split('@')[0] || 'User'}
+                      </p>
+                      {account.role && (
+                        <span className={`inline-block px-2 py-0.5 text-xs font-semibold rounded ${
+                          account.role === 'ADMIN' 
+                            ? 'bg-purple-100 text-purple-800' 
+                            : account.role === 'STAFF'
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {account.role}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-500 truncate">{account.email}</p>
+                    {account.organization && (
+                      <p className="text-xs text-gray-400 mt-1">{account.organization.name}</p>
+                    )}
+                  </div>
+                  
+                  {/* Admin-only link */}
+                  {account.role === 'ADMIN' && (
+                    <Link
+                      href="/admin-only"
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-purple-700 hover:bg-purple-50 hover:text-purple-800"
+                      onClick={() => setUserMenuOpen(false)}
+                    >
+                      <ShieldCheckIcon className="h-4 w-4" />
+                      Admin Settings
+                    </Link>
+                  )}
+                  
+                  {/* Regular user links */}
+                  <Link
+                    href="/myprofile"
+                    className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => setUserMenuOpen(false)}
                   >
-                    Settings
-                  </button>
-                  <button
-                    className="w-full px-4 py-2 text-left hover:bg-gray-100"
-                    onClick={handleLogout}
+                    <UserCircleIcon className="h-4 w-4" />
+                    My Profile
+                  </Link>
+                  
+                  <Link
+                    href="/settings"
+                    className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => setUserMenuOpen(false)}
                   >
-                    Logout
-                  </button>
+                    <Cog6ToothIcon className="h-4 w-4" />
+                    Account Settings
+                  </Link>
+                  
+                  {account.organization && (
+                    <Link
+                      href="/organization"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setUserMenuOpen(false)}
+                    >
+                      Organization
+                    </Link>
+                  )}
+                  
+                  <div className="border-t">
+                    <button
+                      onClick={() => {
+                        handleLogout();
+                        setUserMenuOpen(false);
+                      }}
+                      className="flex w-full items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-red-700"
+                    >
+                      <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                      Sign Out
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -203,6 +312,54 @@ export default function Navbar() {
                   </Link>
                 )
               })}
+              
+              {/* Mobile admin link for admins */}
+              {account?.role === 'ADMIN' && (
+                <Link
+                  href="/admin/settings"
+                  className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-purple-700 bg-purple-50 border-l-4 border-purple-500"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <ShieldCheckIcon className="h-5 w-5" />
+                  Admin Settings
+                </Link>
+              )}
+              
+              {/* Mobile user links */}
+              {account && (
+                <>
+                  <Link
+                    href="/myprofile"
+                    className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <UserCircleIcon className="h-5 w-5" />
+                    My Profile
+                  </Link>
+                  
+                  <Link
+                    href="/settings"
+                    className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <Cog6ToothIcon className="h-5 w-5" />
+                    Account Settings
+                  </Link>
+                  
+                  <button
+                    onClick={() => {
+                      handleLogout();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50"
+                  >
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    Sign Out
+                  </button>
+                </>
+              )}
             </div>
           </div>
         )}

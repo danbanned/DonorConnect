@@ -433,3 +433,75 @@
   border-right: 0.25rem solid transparent;
   border-bottom: 0.25rem solid #ffffff;
 }
+
+
+/* Add to Navbar.css */
+
+/* Loading animation */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Make sure the user info is properly aligned */
+.navbar-user-info {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.navbar-user-info:hover {
+  opacity: 0.8;
+}
+
+/* Ensure dropdown stays on top */
+.z-50 {
+  z-index: 50;
+}
+
+/* Admin-specific styles */
+.admin-badge {
+  background-color: #f3e8ff;
+  color: #7c3aed;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+  text-transform: uppercase;
+}
+
+/* Purple styling for admin links */
+.text-purple-700 {
+  color: #7c3aed;
+}
+
+.hover\:text-purple-800:hover {
+  color: #6d28d9;
+}
+
+.hover\:bg-purple-50:hover {
+  background-color: #faf5ff;
+}
+
+.bg-purple-100 {
+  background-color: #f3e8ff;
+}
+
+.text-purple-800 {
+  color: #6d28d9;
+}
+
+.border-purple-500 {
+  border-color: #8b5cf6;
+}
+
+.bg-purple-50 {
+  background-color: #faf5ff;
+}
