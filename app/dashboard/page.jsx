@@ -445,11 +445,7 @@ console.log(donations,'gigganigga')
               ))
             ) : (
               <>
-                {[
-                  { id: 1, donor: 'John Smith', action: 'Made a donation', amount: '$10,000', time: '2 hours ago' },
-                  { id: 2, donor: 'Sarah Johnson', action: 'Meeting scheduled', amount: '', time: '4 hours ago' },
-                  { id: 3, donor: 'Robert Chen', action: 'Thank you note sent', amount: '', time: '1 day ago' },
-                ].map((activity) => (
+               {processedDonors.map((activity) => (
                   <div key={activity.id} className={styles.activityItem}>
                     <UserCircleIcon className={styles.activityIcon} />
                     <div className={styles.activityInfo}>

@@ -303,6 +303,7 @@ model Donor {
   phone            String?
   preferredContact PreferredContact @default(EMAIL)
   tasks  Task[]   // 👈 THIS fixes the error
+  activities     DonorActivity[]  // <-- This tracks donor-specific activities
   
   // Status
   relationshipStage RelationshipStage @default(NEW)
@@ -565,17 +566,81 @@ model Communication {
 // DONOR ACTIVITY
 /////////////////////////////////////////////////
 
-model DonorActivity {
-  id        String   @id @default(cuid())
-  donorId   String
-  action    String // e.g., "donation_created", "info_updated"
-  amount    Float? // optional, e.g., donation amount
-  details   Json? // optional extra info
-  createdAt DateTime @default(now())
+model ActivityFeed {
+  id             String        @id @default(cuid())
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id])
   
-  donor Donor @relation(fields: [donorId], references: [id])
+  // Who performed the action (optional - could be system)
+  userId         String?
+  user           User?         @relation(fields: [userId], references: [id])
+  
+  // What donor is involved (optional - for donor-related actions)
+  donorId        String?
+  donor          Donor?        @relation(fields: [donorId], references: [id])
+  
+  // What donation is involved (optional - for donation-related actions)
+  donationId     String?
+  donation       Donation?     @relation(fields: [donationId], references: [id])
+  
+  // Activity details
+  action         String        // e.g., "DONATION_RECEIVED", "MEETING_SCHEDULED", "THANK_YOU_SENT"
+  title          String        // Short title for display
+  description    String?       // Longer description
+  amount         Float?        // Amount if applicable
+  
+  // Metadata
+  metadata       Json?         // Additional data like meeting time, note content, etc.
+  priority       String        @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
+  isRead         Boolean       @default(false)
+  
+  // Timestamps
+  createdAt      DateTime      @default(now())
+  expiresAt      DateTime?     // When to auto-remove from feed
+  
+  @@index([organizationId, createdAt])
+  @@index([organizationId, donorId])
+  @@index([organizationId, userId])
+  @@index([organizationId, isRead])
+}
+
+model DonorActivity {
+  id             String        @id @default(cuid())
+  donorId        String
+  organizationId String
+  
+  donor          Donor         @relation(fields: [donorId], references: [id])
+  organization   Organization  @relation(fields: [organizationId], references: [id])
+  
+  // Action details
+  type           String        // DONATION, MEETING, COMMUNICATION, STATUS_CHANGE, NOTE_ADDED
+  action         String        // More specific: "DONATION_RECEIVED", "MEETING_SCHEDULED", etc.
+  title          String        // Display title
+  description    String?       // Detailed description
+  
+  // Related entities
+  relatedDonationId   String?
+  relatedDonation     Donation?     @relation(fields: [relatedDonationId], references: [id])
+  
+  relatedMeetingId    String?
+  relatedMeeting      Meeting?      @relation(fields: [relatedMeetingId], references: [id])
+  
+  relatedCommunicationId String?
+  relatedCommunication Communication? @relation(fields: [relatedCommunicationId], references: [id])
+  
+  // Amount if financial
+  amount         Float?
+  
+  // Metadata
+  metadata       Json?         // Additional data
+  importance     String        @default("NORMAL") // LOW, NORMAL, HIGH
+  
+  // Timestamps
+  createdAt      DateTime      @default(now())
   
   @@index([donorId, createdAt])
+  @@index([organizationId, type, createdAt])
+  @@index([organizationId, donorId, type])
 }
 
 /////////////////////////////////////////////////
