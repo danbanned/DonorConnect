@@ -17,11 +17,20 @@ async generateFakeDonorData(options = {}) {
   }
 
   async fetchData(method, params = {}, options = {}) {
+    //fetchdata is a fetch wrapper that can use GET or POST based on options
     const { usePost = false, headers = {} } = options;
+    //pulls the values out of options or set the defualuts assign by = if no data exist 
+    //usePost = false - use post or get, headers(any extra headers (auth, custom tokens, etc.)
+    //what gets posted to the browser http 
+     //call one backend endpoint regardless of method
+      //fetechdta allows for you to fetchData('login', data, { usePost: true })
+
     
     try {
       if (usePost) {
+        //checks to see if the method is post or get 
         const response = await fetch(this.baseUrl, {
+         
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -38,19 +47,28 @@ async generateFakeDonorData(options = {}) {
       } else {
         // Build query string for GET
         const queryParams = new URLSearchParams();
+        //this builds urls
         queryParams.append('method', method);
+        //adds the action name to the url
+        //somethign like ?method=getCurrentUser
+        //converts an dictionary of params into a l
+
         
         Object.entries(params).forEach(([key, value]) => {
+          //this add params one by one 
           if (typeof value === 'object') {
+            //objrcts cant go into urls, 
             queryParams.append(key, JSON.stringify(value));
+            //converts objects to json strings 
           } else {
             queryParams.append(key, value);
           }
         });
         
         const url = `${this.baseUrl}?${queryParams.toString()}`;
+        //example url /api?method=getUser&id=123
         const response = await fetch(url, { headers });
-        
+        //gets dont have bodies so only headers are sent to get specific datat
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
@@ -61,6 +79,9 @@ async generateFakeDonorData(options = {}) {
       console.error(`API Error (${method}):`, error);
       throw error;
     }
+    //This function is a transport-agnostic RPC client that sends 
+    // { method, params } to a single backend endpoint using either
+    //  POST (preferred) or GET, with centralized error handling.
   }
 
   // Specific methods for common operations

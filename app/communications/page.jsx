@@ -38,12 +38,12 @@ const communicationTypes = [
 
 // Template categories for quick access
 const templateCategories = [
-  { id: 'thank_you', name: 'Thank You', description: 'Express gratitude for donations', count: 5 },
-  { id: 'follow_up', name: 'Follow Up', description: 'Follow up on recent interactions', count: 3 },
-  { id: 'recurring', name: 'Recurring Giving', description: 'Manage recurring donations', count: 2 },
-  { id: 'event', name: 'Event Invitations', description: 'Invite donors to events', count: 4 },
-  { id: 'year_end', name: 'Year-End Giving', description: 'End of year campaigns', count: 3 },
-  { id: 'acknowledgment', name: 'Acknowledgments', description: 'Receipts and tax letters', count: 6 },
+  { id: 'thank_you', name: 'Thank You', description: 'Express gratitude for donations', count: 0 },
+  { id: 'follow_up', name: 'Follow Up', description: 'Follow up on recent interactions', count: 0 },
+  { id: 'recurring', name: 'Recurring Giving', description: 'Manage recurring donations', count: 0 },
+  { id: 'event', name: 'Event Invitations', description: 'Invite donors to events', count: 0 },
+  { id: 'year_end', name: 'Year-End Giving', description: 'End of year campaigns', count: 0 },
+  { id: 'acknowledgment', name: 'Acknowledgments', description: 'Receipts and tax letters', count: 0 },
 ]
 
 export default function CommunicationsPage() {

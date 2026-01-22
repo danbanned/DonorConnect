@@ -105,12 +105,17 @@ export async function POST(request) {
     const donation = await createDonation(data)
 
     // 2️⃣ Log donor activity using the lib
-    await logDonorActivity({
+   await logDonorActivity({
+      organizationId: donation.organizationId,
       donorId: donation.donorId,
-      action: 'Made a donation',
-      amount: donation.amount,
       donationId: donation.id,
-    })
+      action: 'DONATION_RECEIVED',
+      title: 'Donation received',
+      amount: donation.amount,
+      metadata: {
+        source: 'ui',
+      },
+    });
 
     return NextResponse.json(
       serializeBigInt(donation),

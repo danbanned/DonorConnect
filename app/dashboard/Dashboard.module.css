@@ -137,7 +137,7 @@
 
 .chartTitle {
   font-size: 1.25rem;
-  font-weight: 600;
+  font-weight: 60;
   color: #1f2937;
   margin: 0;
 }
@@ -162,7 +162,7 @@
 }
 
 .chartWrapper {
-  height: 250px;
+  height: 300px;
   position: relative;
 }
 
