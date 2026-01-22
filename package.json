@@ -14,6 +14,11 @@
     "prisma:studio": "prisma studio --schema=./prisma/schema.prisma",
     "prisma:push": "prisma db push --schema=./prisma/schema.prisma"
   },
+
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
+
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "@prisma/client": "^5.22.0",
@@ -22,10 +27,14 @@
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
     "chart.js": "^4.4.0",
+    "compromise": "^14.14.5",
     "date-fns": "^2.30.0",
+    "dotenv": "^17.2.3",
     "jsonwebtoken": "^9.0.3",
+    "natural": "^8.1.0",
     "next": "^14.0.4",
     "nodemailer": "^7.0.11",
+    "openai": "^6.16.0",
     "react": "^18.3.1",
     "react-chartjs-2": "^5.2.0",
     "react-dom": "^18.3.1",

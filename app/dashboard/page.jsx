@@ -12,12 +12,17 @@ import {
   XMarkIcon,
   UserCircleIcon,
   ChartBarIcon,
-  ReceiptPercentIcon
+  ReceiptPercentIcon,
+  FireIcon,
+  BellAlertIcon,
+  DocumentTextIcon,
+  PhoneIcon,
+  CheckCircleIcon
 } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import styles from './Dashboard.module.css'
 import { useRouter } from 'next/navigation'
-import {useDonors} from '../hooks/useDonor'
+import { useDonors } from '../hooks/useDonor'
 import { useDonations } from '../hooks/usedonation.js'
 
 export default function DashboardPage() {
@@ -27,6 +32,8 @@ export default function DashboardPage() {
   const [filterType, setFilterType] = useState('all')
   const [showDonorDropdown, setShowDonorDropdown] = useState(false)
   const [timeframe, setTimeframe] = useState('year') // For donation stats
+  const [activityFeed, setActivityFeed] = useState([])
+  const [activityLoading, setActivityLoading] = useState(false)
   
   // Real data hooks
   const { donors, loading: donorsLoading, error: donorsError } = useDonors()
@@ -35,10 +42,30 @@ export default function DashboardPage() {
     limit: 1000 // Get more donations for better stats
   })
 
-console.log(donations,'gigganigga')
-  
- 
   const isLoading = donorsLoading || donationsLoading
+
+  // Fetch activity data
+  useEffect(() => {
+    const fetchActivityData = async () => {
+      setActivityLoading(true)
+      try {
+        // Fetch from your activity API endpoint
+        const response = await fetch('/api/donor-activity?timeframe=7days&limit=10')
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success) {
+            setActivityFeed(data.data.activities || [])
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching activity data:', error)
+      } finally {
+        setActivityLoading(false)
+      }
+    }
+
+    fetchActivityData()
+  }, [])
 
   // Process real donor data
   const processedDonors = useMemo(() => {
@@ -62,6 +89,7 @@ console.log(donations,'gigganigga')
         totalDonations: totalGiven,
         lastDonationDate: lastDonation ? new Date(lastDonation.date) : null,
         isLYBUNT: donor.relationshipStage === 'LYBUNT',
+        isSYBUNT: donor.relationshipStage === 'SYBUNT',
         status: donor.status || 'ACTIVE',
         relationshipStage: donor.relationshipStage || 'NEW',
         notes: donor.notes || donor.personalNotes?.notes || '',
@@ -72,18 +100,18 @@ console.log(donations,'gigganigga')
     })
   }, [donors, donations])
 
-   console.log('[Dashboard] donations sample:', donations?.[0])
-
-
   // Process donation statistics
   const donationStats = useMemo(() => {
     if (!donations || donations.length === 0) return {
       totalDonors: 0,
       yearToDate: 0,
       lybuntDonors: 0,
+      sybuntDonors: 0,
       avgGiftSize: 0,
       growth: 0,
-      recentDonations: []
+      recentDonations: [],
+      recentActivities: [],
+      totalActivities: activityFeed.length
     }
 
     // Calculate YTD donations (current year)
@@ -94,8 +122,9 @@ console.log(donations,'gigganigga')
     })
     const ytdTotal = ytdDonations.reduce((sum, d) => sum + (d.amount || 0), 0)
     
-    // Calculate LY BUNT donors (simplified)
+    // Calculate LY BUNT and SY BUNT donors
     const lybuntCount = processedDonors.filter(donor => donor.isLYBUNT).length
+    const sybuntCount = processedDonors.filter(donor => donor.isSYBUNT).length
     
     // Calculate average gift
     const avgGift = donations.length > 0 
@@ -113,19 +142,29 @@ console.log(donations,'gigganigga')
           donor: donor ? `${donor.firstName} ${donor.lastName}` : 'Unknown Donor',
           action: 'Made a donation',
           amount: `$${donation.amount.toFixed(0)}`,
-          time: formatTimeAgo(new Date(donation.date))
+          time: formatTimeAgo(new Date(donation.date)),
+          icon: 'CurrencyDollarIcon',
+          type: 'DONATION'
         }
       })
+
+    // Combine activity feed with recent donations for display
+    const combinedActivities = [...activityFeed, ...recentDonations]
+      .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date))
+      .slice(0, 8) // Show 8 most recent items
 
     return {
       totalDonors: processedDonors.length,
       yearToDate: ytdTotal,
       lybuntDonors: lybuntCount,
+      sybuntDonors: sybuntCount,
       avgGiftSize: avgGift,
       growth: 8.2, // Mock growth percentage for now
-      recentDonations
+      recentDonations,
+      recentActivities: combinedActivities,
+      totalActivities: activityFeed.length
     }
-  }, [donations, processedDonors])
+  }, [donations, processedDonors, activityFeed])
 
   // Filter donors based on search and filter type
   const filteredDonors = useMemo(() => {
@@ -148,6 +187,10 @@ console.log(donations,'gigganigga')
       results = results.filter(donor => donor.isLYBUNT)
     }
 
+    if (filterType === 'sybunt') {
+      results = results.filter(donor => donor.isSYBUNT)
+    }
+
     return results
   }, [processedDonors, searchQuery, filterType])
 
@@ -156,7 +199,8 @@ console.log(donations,'gigganigga')
     // Create monthly donation data
     const monthlyData = Array(12).fill(0).map((_, i) => ({
       month: new Date(2024, i, 1).toLocaleDateString('en-US', { month: 'short' }),
-      amount: 0
+      amount: 0,
+      activityCount: 0
     }))
 
     // Fill with real data if available
@@ -178,47 +222,94 @@ console.log(donations,'gigganigga')
       })
     }
 
+    // Count activities per month
+    activityFeed.forEach(activity => {
+      try {
+        const activityDate = new Date(activity.createdAt || activity.date)
+        const month = activityDate.getMonth()
+        if (month >= 0 && month < 12) {
+          monthlyData[month].activityCount += 1
+        }
+      } catch (e) {
+        // Skip if date parsing fails
+      }
+    })
+
     return monthlyData
-  }, [donations])
+  }, [donations, activityFeed])
 
   // Donor composition data
   const donorComposition = useMemo(() => {
     if (processedDonors.length === 0) {
       return [
-        { category: 'Major Donors', value: 15 },
-        { category: 'Recurring', value: 32 },
-        { category: 'Single Gift', value: 28 },
-        { category: 'LYBUNT', value: 25 },
+        { category: 'Major Donors', value: 15, color: 'blue', icon: CurrencyDollarIcon },
+        { category: 'Recurring', value: 32, color: 'green', icon: ArrowTrendingUpIcon },
+        { category: 'Single Gift', value: 28, color: 'purple', icon: UserGroupIcon },
+        { category: 'LYBUNT', value: 15, color: 'orange', icon: ExclamationTriangleIcon },
+        { category: 'SYBUNT', value: 10, color: 'yellow', icon: BellAlertIcon },
       ]
     }
 
     const majorDonors = processedDonors.filter(d => d.totalDonations >= 10000).length
     const lybuntDonors = processedDonors.filter(d => d.isLYBUNT).length
+    const sybuntDonors = processedDonors.filter(d => d.isSYBUNT).length
     const recurringDonors = processedDonors.filter(d => 
       donations?.some(donation => donation.donorId === d.id && donation.isRecurring)
     ).length
-    const singleGiftDonors = processedDonors.length - (majorDonors + lybuntDonors + recurringDonors)
-    console.log(majorDonors,'mjjjjjj')
+    const singleGiftDonors = processedDonors.length - (majorDonors + lybuntDonors + sybuntDonors + recurringDonors)
 
     return [
       { 
         category: 'Major Donors', 
-        value: Math.round((majorDonors / processedDonors.length) * 100) 
+        value: Math.round((majorDonors / processedDonors.length) * 100),
+        color: 'blue',
+        icon: CurrencyDollarIcon
       },
       { 
         category: 'Recurring', 
-        value: Math.round((recurringDonors / processedDonors.length) * 100) 
+        value: Math.round((recurringDonors / processedDonors.length) * 100),
+        color: 'green',
+        icon: ArrowTrendingUpIcon
       },
       { 
         category: 'Single Gift', 
-        value: Math.round((singleGiftDonors / processedDonors.length) * 100) 
+        value: Math.round((singleGiftDonors / processedDonors.length) * 100),
+        color: 'purple',
+        icon: UserGroupIcon
       },
       { 
         category: 'LYBUNT', 
-        value: Math.round((lybuntDonors / processedDonors.length) * 100) 
+        value: Math.round((lybuntDonors / processedDonors.length) * 100),
+        color: 'orange',
+        icon: ExclamationTriangleIcon
+      },
+      { 
+        category: 'SYBUNT', 
+        value: Math.round((sybuntDonors / processedDonors.length) * 100),
+        color: 'yellow',
+        icon: BellAlertIcon
       },
     ]
   }, [processedDonors, donations])
+
+  // Activity breakdown
+  const activityBreakdown = useMemo(() => {
+    const breakdown = {
+      donations: 0,
+      communications: 0,
+      meetings: 0,
+      notes: 0
+    }
+
+    activityFeed.forEach(activity => {
+      if (activity.type === 'DONATION') breakdown.donations++
+      else if (activity.type === 'COMMUNICATION') breakdown.communications++
+      else if (activity.type === 'MEETING') breakdown.meetings++
+      else if (activity.type === 'NOTE') breakdown.notes++
+    })
+
+    return breakdown
+  }, [activityFeed])
 
   // Format currency
   const formatCurrency = (amount) => {
@@ -240,6 +331,24 @@ console.log(donations,'gigganigga')
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`
     if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} days ago`
     return `${Math.floor(diffInSeconds / 604800)} weeks ago`
+  }
+
+  // Get icon component
+  const getIconComponent = (iconName) => {
+    const iconMap = {
+      'CurrencyDollarIcon': CurrencyDollarIcon,
+      'CalendarIcon': CalendarIcon,
+      'EnvelopeIcon': EnvelopeIcon,
+      'PhoneIcon': PhoneIcon,
+      'DocumentTextIcon': DocumentTextIcon,
+      'CheckCircleIcon': CheckCircleIcon,
+      'ExclamationTriangleIcon': ExclamationTriangleIcon,
+      'UserCircleIcon': UserCircleIcon,
+      'FireIcon': FireIcon,
+      'BellAlertIcon': BellAlertIcon
+    }
+    
+    return iconMap[iconName] || UserCircleIcon
   }
 
   const handleDonorSelect = (donor) => {
@@ -286,13 +395,14 @@ console.log(donations,'gigganigga')
     )
   }
 
-  // Stats data - mix of real and calculated
+  // Enhanced stats data
   const stats = [
     { 
       name: 'Total Donors', 
       value: donationStats.totalDonors.toLocaleString(), 
       change: '+12%', 
-      icon: UserGroupIcon 
+      icon: UserGroupIcon,
+      subtitle: `${donationStats.lybuntDonors} LYBUNT, ${donationStats.sybuntDonors} SYBUNT`
     },
     { 
       name: 'Year to Date', 
@@ -301,10 +411,11 @@ console.log(donations,'gigganigga')
       icon: CurrencyDollarIcon 
     },
     { 
-      name: 'LYBUNT Donors', 
-      value: donationStats.lybuntDonors.toString(), 
-      change: donationStats.lybuntDonors > 0 ? '-3.2%' : '0%', 
-      icon: ExclamationTriangleIcon 
+      name: 'Recent Activities', 
+      value: donationStats.totalActivities.toString(), 
+      change: '+15%', 
+      icon: FireIcon,
+      subtitle: `${activityBreakdown.donations} donations, ${activityBreakdown.communications} communications`
     },
     { 
       name: 'Avg Gift Size', 
@@ -319,8 +430,8 @@ console.log(donations,'gigganigga')
       <div className={styles.dashboardHeader}>
         <h1 className={styles.dashboardTitle}>Dashboard</h1>
         <p className={styles.dashboardSubtitle}>
-          Welcome back! {donationStats.recentDonations.length > 0 
-            ? `You have ${donationStats.totalDonors} donors and received ${formatCurrency(donationStats.yearToDate)} this year.`
+          Welcome back! {donationStats.recentActivities.length > 0 
+            ? `You have ${donationStats.totalDonors} donors, received ${formatCurrency(donationStats.yearToDate)} this year, and ${donationStats.totalActivities} recent activities.`
             : 'Welcome to your donor management system.'}
         </p>
       </div>
@@ -347,6 +458,9 @@ console.log(donations,'gigganigga')
                 <div className={styles.statText}>
                   <p className={styles.statName}>{stat.name}</p>
                   <p className={styles.statValue}>{stat.value}</p>
+                  {stat.subtitle && (
+                    <p className={styles.statSubtitle}>{stat.subtitle}</p>
+                  )}
                   <p className={`${styles.statChange} ${stat.change.startsWith('+') ? styles.statChangePositive : styles.statChangeNegative}`}>
                     {stat.change} from last month
                   </p>
@@ -385,6 +499,11 @@ console.log(donations,'gigganigga')
                   <div key={index} className={styles.barContainer}>
                     <div className={styles.bar} style={{ height: `${height}%` }}>
                       <div className={styles.barAmount}>{formatCurrency(item.amount)}</div>
+                      {item.activityCount > 0 && (
+                        <div className={styles.activityIndicator} title={`${item.activityCount} activities`}>
+                          {item.activityCount}
+                        </div>
+                      )}
                     </div>
                     <span className={styles.barLabel}>{item.month}</span>
                   </div>
@@ -406,14 +525,22 @@ console.log(donations,'gigganigga')
               </div>
             </div>
             <div className={styles.donutLegend}>
-              {donorComposition.map((item, index) => (
-                <div key={index} className={styles.donutLegendItem}>
-                  <div className={`${styles.donutLegendColor} ${
-                    styles[`donutLegendColor${item.category.replace(/\s+/g, '')}`]
-                  }`}></div>
-                  <span>{item.category}: {item.value}%</span>
-                </div>
-              ))}
+              {donorComposition.map((item, index) => {
+                const Icon = item.icon
+                return (
+                  <div key={index} className={styles.donutLegendItem}>
+                    <div className={`${styles.donutLegendColor} ${
+                      styles[`donutLegendColor${item.category.replace(/\s+/g, '')}`]
+                    }`}>
+                      <Icon className={styles.donutLegendIcon} />
+                    </div>
+                    <div className={styles.donutLegendText}>
+                      <span className={styles.donutLegendCategory}>{item.category}</span>
+                      <span className={styles.donutLegendValue}>{item.value}%</span>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
         </div>
@@ -423,41 +550,61 @@ console.log(donations,'gigganigga')
       <div className={styles.dashboardMainGrid}>
         <div className={styles.recentActivityCard}>
           <div className={styles.recentActivityHeader}>
-            <h2 className={styles.recentActivityTitle}>Recent Activity</h2>
-            <Link href="/donations" className={styles.viewAllLink}>
+            <h2 className={styles.recentActivityTitle}>Recent Activity Feed</h2>
+            <Link href="/activities" className={styles.viewAllLink}>
               View All →
             </Link>
           </div>
           <div className={styles.recentActivityList}>
-            {donationStats.recentDonations.length > 0 ? (
-              donationStats.recentDonations.map((activity) => (
-                <div key={activity.id} className={styles.activityItem}>
-                  <UserCircleIcon className={styles.activityIcon} />
-                  <div className={styles.activityInfo}>
-                    <p className={styles.activityDonor}>{activity.donor}</p>
-                    <p className={styles.activityAction}>{activity.action}</p>
-                  </div>
-                  <div className={styles.activityDetails}>
-                    {activity.amount && <p className={styles.activityAmount}>{activity.amount}</p>}
-                    <p className={styles.activityTime}>{activity.time}</p>
+            {activityLoading ? (
+              Array.from({ length: 5 }).map((_, index) => (
+                <div key={index} className={styles.activityItemSkeleton}>
+                  <div className={styles.activityIconSkeleton}></div>
+                  <div className={styles.activityInfoSkeleton}>
+                    <div className={styles.activityDonorSkeleton}></div>
+                    <div className={styles.activityActionSkeleton}></div>
                   </div>
                 </div>
               ))
-            ) : (
-              <>
-               {processedDonors.map((activity) => (
-                  <div key={activity.id} className={styles.activityItem}>
-                    <UserCircleIcon className={styles.activityIcon} />
+            ) : donationStats.recentActivities.length > 0 ? (
+              donationStats.recentActivities.map((activity, index) => {
+                const Icon = getIconComponent(activity.icon)
+                return (
+                  <div key={`${activity.id || index}_${activity.type}`} className={styles.activityItem}>
+                    <Icon className={styles.activityIcon} />
                     <div className={styles.activityInfo}>
                       <p className={styles.activityDonor}>{activity.donor}</p>
-                      <p className={styles.activityAction}>{activity.action}</p>
+                      <p className={styles.activityAction}>{activity.action || activity.title}</p>
                     </div>
                     <div className={styles.activityDetails}>
                       {activity.amount && <p className={styles.activityAmount}>{activity.amount}</p>}
                       <p className={styles.activityTime}>{activity.time}</p>
                     </div>
                   </div>
-                ))}
+                )
+              })
+            ) : (
+              <>
+                {[
+                  { id: 1, donor: 'John Smith', action: 'Made a donation', amount: '$10,000', time: '2 hours ago', icon: 'CurrencyDollarIcon' },
+                  { id: 2, donor: 'Sarah Johnson', action: 'Meeting scheduled', amount: '', time: '4 hours ago', icon: 'CalendarIcon' },
+                  { id: 3, donor: 'Robert Chen', action: 'Thank you note sent', amount: '', time: '1 day ago', icon: 'EnvelopeIcon' },
+                ].map((activity) => {
+                  const Icon = getIconComponent(activity.icon)
+                  return (
+                    <div key={activity.id} className={styles.activityItem}>
+                      <Icon className={styles.activityIcon} />
+                      <div className={styles.activityInfo}>
+                        <p className={styles.activityDonor}>{activity.donor}</p>
+                        <p className={styles.activityAction}>{activity.action}</p>
+                      </div>
+                      <div className={styles.activityDetails}>
+                        {activity.amount && <p className={styles.activityAmount}>{activity.amount}</p>}
+                        <p className={styles.activityTime}>{activity.time}</p>
+                      </div>
+                    </div>
+                  )
+                })}
               </>
             )}
           </div>
@@ -512,6 +659,14 @@ console.log(donations,'gigganigga')
                   <ExclamationTriangleIcon className={styles.filterIcon} />
                   LYBUNT ({donationStats.lybuntDonors})
                 </button>
+                <button
+                  className={`${styles.filterButton} ${filterType === 'sybunt' ? styles.active : ''}`}
+                  onClick={() => setFilterType('sybunt')}
+                  disabled={processedDonors.length === 0}
+                >
+                  <BellAlertIcon className={styles.filterIcon} />
+                  SYBUNT ({donationStats.sybuntDonors})
+                </button>
               </div>
             </div>
 
@@ -529,8 +684,8 @@ console.log(donations,'gigganigga')
                       <span className={styles.donorStat}>
                         Total: {formatCurrency(selectedDonor.totalDonations)}
                       </span>
-                      <span className={`${styles.donorStat} ${selectedDonor.isLYBUNT ? styles.lybuntBadge : ''}`}>
-                        {selectedDonor.isLYBUNT ? 'LYBUNT' : 'Current Donor'}
+                      <span className={`${styles.donorStat} ${selectedDonor.isLYBUNT ? styles.lybuntBadge : selectedDonor.isSYBUNT ? styles.sybuntBadge : ''}`}>
+                        {selectedDonor.isLYBUNT ? 'LYBUNT' : selectedDonor.isSYBUNT ? 'SYBUNT' : 'Current Donor'}
                       </span>
                     </div>
                   </div>
@@ -571,6 +726,9 @@ console.log(donations,'gigganigga')
                           </span>
                           {donor.isLYBUNT && (
                             <span className={styles.donorItemLybunt}>LYBUNT</span>
+                          )}
+                          {donor.isSYBUNT && (
+                            <span className={styles.donorItemSybunt}>SYBUNT</span>
                           )}
                           {donor.totalDonations >= 10000 && (
                             <span className={styles.donorItemMajor}>Major</span>
@@ -634,11 +792,11 @@ console.log(donations,'gigganigga')
             </button>
             
             <Link
-              href="/donors"
+              href="/activities"
               className={`${styles.quickActionLink} ${styles.quickActionLinkYellow}`}
             >
-              <UserGroupIcon className={styles.quickActionIcon} />
-              <span className={styles.quickActionText}>View All Donors</span>
+              <FireIcon className={styles.quickActionIcon} />
+              <span className={styles.quickActionText}>View Activity Feed</span>
             </Link>
             
             <Link
@@ -649,6 +807,35 @@ console.log(donations,'gigganigga')
               <span className={styles.quickActionText}>Record Quick Donation</span>
             </Link>
           </div>
+
+          {/* Activity Summary */}
+          {activityFeed.length > 0 && (
+            <div className={styles.activitySummary}>
+              <h3 className={styles.activitySummaryTitle}>Activity Summary (Last 7 days)</h3>
+              <div className={styles.activitySummaryGrid}>
+                <div className={styles.activitySummaryItem}>
+                  <CurrencyDollarIcon className={styles.activitySummaryIcon} />
+                  <span className={styles.activitySummaryLabel}>Donations:</span>
+                  <span className={styles.activitySummaryValue}>{activityBreakdown.donations}</span>
+                </div>
+                <div className={styles.activitySummaryItem}>
+                  <EnvelopeIcon className={styles.activitySummaryIcon} />
+                  <span className={styles.activitySummaryLabel}>Communications:</span>
+                  <span className={styles.activitySummaryValue}>{activityBreakdown.communications}</span>
+                </div>
+                <div className={styles.activitySummaryItem}>
+                  <CalendarIcon className={styles.activitySummaryIcon} />
+                  <span className={styles.activitySummaryLabel}>Meetings:</span>
+                  <span className={styles.activitySummaryValue}>{activityBreakdown.meetings}</span>
+                </div>
+                <div className={styles.activitySummaryItem}>
+                  <DocumentTextIcon className={styles.activitySummaryIcon} />
+                  <span className={styles.activitySummaryLabel}>Notes:</span>
+                  <span className={styles.activitySummaryValue}>{activityBreakdown.notes}</span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Hint for selecting donor */}
           {!selectedDonor && processedDonors.length > 0 && (

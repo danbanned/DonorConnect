@@ -27,6 +27,8 @@ export default function DonorDirectoryPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
 
+  console.log('Rendering DonorDirectoryPage with',)
+
   // Fetch initial data
   useEffect(() => {
     const fetchData = async () => {

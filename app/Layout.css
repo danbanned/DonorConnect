@@ -1,100 +1,56 @@
-/* Minimal Layout CSS */
+/* app/Layout.css */
+/* Add these to your existing Layout.css */
 
-/* Base layout */
-.layout {
+:root {
+  --ai-color-primary: #3b82f6;
+  --ai-color-success: #10b981;
+  --ai-color-warning: #f59e0b;
+  --ai-color-error: #ef4444;
+  --ai-bg-blur: rgba(255, 255, 255, 0.95);
+  --ai-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --ai-border-radius: 12px;
+}
+
+/* Ensure proper stacking context */
+.layout-container {
+  position: relative;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background-color: #f8fafc;
 }
 
-/* Main content area */
-.main {
+.main-content {
+  position: relative;
   flex: 1;
-  width: 100%;
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem 1rem;
+  padding: 20px 0;
+  z-index: 1;
 }
 
-/* Container for responsive width */
-.container {
-  width: 100%;
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 0 1rem;
+/* Navbar adjustments for AI indicators */
+.navbar {
+  position: relative;
+  z-index: 1000;
 }
 
-@media (min-width: 768px) {
-  .main,
-  .container {
-    padding: 2rem 1.5rem;
+/* Smooth animations for AI elements */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-@media (min-width: 1024px) {
-  .main,
-  .container {
-    padding: 2rem 2rem;
-  }
+.ai-element {
+  animation: fadeIn 0.3s ease-out;
 }
 
-/* Utility classes for common patterns */
-.flex-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.flex-between {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.flex-col {
-  display: flex;
-  flex-direction: column;
-}
-
-.grid-2 {
-  display: grid;
-  grid-template-columns: repeat(1, 1fr);
-  gap: 1.5rem;
-}
-
-@media (min-width: 768px) {
-  .grid-2 {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-.grid-3 {
-  display: grid;
-  grid-template-columns: repeat(1, 1fr);
-  gap: 1.5rem;
-}
-
-@media (min-width: 768px) {
-  .grid-3 {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-.grid-4 {
-  display: grid;
-  grid-template-columns: repeat(1, 1fr);
-  gap: 1.5rem;
-}
-
-@media (min-width: 768px) {
-  .grid-4 {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (min-width: 1024px) {
-  .grid-4 {
-    grid-template-columns: repeat(4, 1fr);
+/* Mobile optimization */
+@media (max-width: 768px) {
+  .main-content {
+    padding-top: 80px; /* Make room for notifications on mobile */
   }
 }

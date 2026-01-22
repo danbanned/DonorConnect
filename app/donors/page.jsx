@@ -47,7 +47,13 @@ export default function DonorsPage() {
 
   // 2️⃣ Batch donation hook (LEGAL)
   const donorIds = useMemo(() => donors.map(d => d.id), [donors])
-  const { donationsByDonor, loading: donationsLoading } = useDonations(donorIds);
+  const { donationsByDonor, loading: donationsLoading } = useDonations({ 
+  donorIds,
+  limit: 100, // Increase limit to get all donations
+  timeframe: 'all' // Get all time donations, not just 30 days
+});
+
+
 
   // 3️⃣ Attach derived stats
   const donorsWithStats = useMemo(() => {

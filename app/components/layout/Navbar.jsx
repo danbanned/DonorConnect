@@ -1,7 +1,7 @@
+// app/components/layout/Navbar.jsx
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { useCurrentAccount } from '../../hooks/usecurrentaccount'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { 
@@ -14,9 +14,13 @@ import {
   XMarkIcon,
   BellIcon,
   UserCircleIcon,
-  Cog6ToothIcon,
-  ShieldCheckIcon
+  SparklesIcon,
+  ChatBubbleLeftRightIcon,
+  PlayIcon,
+  StopIcon
 } from '@heroicons/react/24/outline'
+import { useCurrentAccount } from '../../hooks/useCurrentAccount.js'
+import { useAI } from '../../providers/AIProvider.jsx'
 import './Navbar.css'
 
 const navigation = [
@@ -25,6 +29,7 @@ const navigation = [
   { name: 'Donations', href: '/donations', icon: CurrencyDollarIcon },
   { name: 'Communications', href: '/communications', icon: EnvelopeIcon },
   { name: 'Insights', href: '/insights', icon: ChartBarIcon },
+  { name: 'AI Dashboard', href: '/dashboard/AiDashboard', icon: SparklesIcon },
 ]
 
 export default function Navbar() {
@@ -35,10 +40,10 @@ export default function Navbar() {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const menuRef = useRef(null)
   
-  // Get current account from hook - THIS IS THE RIGHT SPOT
-  const { account, loading, error } = useCurrentAccount()
-  console.log('Current account in Navbar:', account)
-
+  // Get AI status from provider
+  const { status, aiSystem, startSimulation, stopSimulation, isLoading } = useAI()
+  const { account, loading: accountLoading } = useCurrentAccount()
+  console.log('Current account in Navbar:', account, accountLoading)
   // Close user menu when clicking outside
   useEffect(() => {
     function handleClickOutside(e) {
@@ -52,13 +57,11 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     try {
-      const res = await fetch('/api/auth/logout', { 
-        method: 'POST',
-        credentials: 'include'
-      })
+      const res = await fetch('/api/auth/logout', { method: 'POST' })
       if (res.ok) {
         localStorage.removeItem('auth_token')
         localStorage.removeItem('user')
+        localStorage.removeItem('currentOrgId')
         router.push('/login')
       } else {
         console.error('Logout failed')
@@ -66,6 +69,30 @@ export default function Navbar() {
     } catch (err) {
       console.error('Logout error:', err)
     }
+  }
+
+  const handleSimulationToggle = async () => {
+    const orgId = localStorage.getItem('currentOrgId') || 'default-org'
+    if (status.simulation?.isRunning) {
+      await stopSimulation()
+    } else {
+      await startSimulation(orgId)
+    }
+  }
+
+  const getAIStatusColor = () => {
+    if (!status.initialized) return 'gray'
+    if (status.simulation?.isRunning) return 'green'
+    if (status.bonding?.activeSessions > 0) return 'blue'
+    return 'yellow'
+  }
+
+  const getAIStatusText = () => {
+    if (isLoading) return 'AI Loading...'
+    if (!status.initialized) return 'AI Offline'
+    if (status.simulation?.isRunning) return 'Simulation Running'
+    if (status.bonding?.activeSessions > 0) return `${status.bonding.activeSessions} Active`
+    return 'AI Ready'
   }
 
   const notifications = [
@@ -102,7 +129,7 @@ export default function Navbar() {
                       : 'navbar-desktop-link-inactive'
                   }`}
                 >
-                  <item.icon />
+                  <item.icon className="w-5 h-5" />
                   <span>{item.name}</span>
                 </Link>
               )
@@ -111,13 +138,53 @@ export default function Navbar() {
 
           {/* Right side actions */}
           <div className="navbar-actions">
+            {/* AI Status Indicator */}
+            <div className="ai-navbar-status">
+              <div className={`ai-status-indicator ai-status-${getAIStatusColor()}`}>
+                <SparklesIcon className="w-4 h-4" />
+                <span className="ai-status-text">{getAIStatusText()}</span>
+                
+                {status.dataSummary && (
+                  <div className="ai-stats">
+                    <span className="ai-stat">👥 {status.dataSummary.totalDonors || 0}</span>
+                    <span className="ai-stat">💰 {status.dataSummary.totalDonations || 0}</span>
+                  </div>
+                )}
+              </div>
+              
+              {status.initialized && (
+                <div className="ai-actions">
+                  <button
+                    onClick={handleSimulationToggle}
+                    className={`ai-action-btn ${status.simulation?.isRunning ? 'stop' : 'start'}`}
+                    disabled={isLoading}
+                    title={status.simulation?.isRunning ? 'Stop Simulation' : 'Start Simulation'}
+                  >
+                    {status.simulation?.isRunning ? (
+                      <StopIcon className="w-3 h-3" />
+                    ) : (
+                      <PlayIcon className="w-3 h-3" />
+                    )}
+                  </button>
+                  
+                  <Link
+                    href="components/ai/AIDashboard"
+                    className="ai-action-btn dashboard"
+                    title="AI Dashboard"
+                  >
+                    <ChartBarIcon className="w-3 h-3" />
+                  </Link>
+                </div>
+              )}
+            </div>
+
             {/* Notifications */}
             <div className="navbar-notifications">
               <button
                 onClick={() => setNotificationsOpen(!notificationsOpen)}
                 className="navbar-notifications-button"
               >
-                <BellIcon />
+                <BellIcon className="w-5 h-5" />
                 <span className="navbar-notifications-badge">3</span>
               </button>
 
@@ -149,129 +216,30 @@ export default function Navbar() {
               )}
             </div>
 
-            {/* User profile - UPDATED TO USE ACCOUNT DATA */}
+            {/* User profile */}
             <div className="navbar-user-profile" ref={menuRef}>
-              {loading ? (
-                // Loading state
-                <div className="navbar-user-info">
-                  <p className="navbar-user-name animate-pulse">Loading...</p>
-                  <p className="navbar-user-role animate-pulse">&nbsp;</p>
-                </div>
-              ) : error ? (
-                // Error state
-                <div className="navbar-user-info">
-                  <p className="navbar-user-name text-red-500">Error</p>
-                  <p className="navbar-user-role text-xs text-red-400">Could not load user</p>
-                </div>
-              ) : account ? (
-                // Authenticated state
-                <>
-                  <div className="navbar-user-info" onClick={() => setUserMenuOpen(!userMenuOpen)}>
-                    <p className="navbar-user-name">
-                      {account.name || account.email?.split('@')[0] || 'User'}
-                    </p>
-                    <p className="navbar-user-role">
-                      {account.role || 'User'}
-                    </p>
-                  </div>
-                  <div className="navbar-user-avatar" onClick={() => setUserMenuOpen(!userMenuOpen)}>
-                    <UserCircleIcon className="h-8 w-8 text-gray-700 hover:text-gray-900" />
-                  </div>
-                </>
-              ) : (
-                // Not authenticated state
-                <div className="navbar-user-info">
-                  <p className="navbar-user-name">Not logged in</p>
-                  <Link 
-                    href="/login"
-                    className="navbar-user-role text-blue-500 hover:text-blue-700 text-sm"
-                  >
-                    Sign in
-                  </Link>
-                </div>
-              )}
+              <div className="navbar-user-info" onClick={() => setUserMenuOpen(!userMenuOpen)}>
+                <p className="navbar-user-name">{account?.name || 'John Smith'}</p>
+                <p className="navbar-user-role">{account?.role || 'Development Director'}</p>
+              </div>
+              <div className="navbar-user-avatar" onClick={() => setUserMenuOpen(!userMenuOpen)}>
+                <UserCircleIcon className="h-8 w-8 text-gray-700 hover:text-gray-900" />
+              </div>
 
-              {userMenuOpen && account && (
-                <div className="absolute right-0 mt-2 w-56 bg-white border rounded shadow-lg z-50">
-                  {/* User info in dropdown */}
-                  <div className="px-4 py-2 border-b">
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="font-medium truncate">
-                        {account.name || account.email?.split('@')[0] || 'User'}
-                      </p>
-                      {account.role && (
-                        <span className={`inline-block px-2 py-0.5 text-xs font-semibold rounded ${
-                          account.role === 'ADMIN' 
-                            ? 'bg-purple-100 text-purple-800' 
-                            : account.role === 'STAFF'
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {account.role}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-500 truncate">{account.email}</p>
-                    {account.organization && (
-                      <p className="text-xs text-gray-400 mt-1">{account.organization.name}</p>
-                    )}
-                  </div>
-                  
-                  {/* Admin-only link */}
-                  {account.role === 'ADMIN' && (
-                    <Link
-                      href="/admin-only"
-                      className="flex items-center gap-2 px-4 py-2 text-sm text-purple-700 hover:bg-purple-50 hover:text-purple-800"
-                      onClick={() => setUserMenuOpen(false)}
-                    >
-                      <ShieldCheckIcon className="h-4 w-4" />
-                      Admin Settings
-                    </Link>
-                  )}
-                  
-                  {/* Regular user links */}
-                  <Link
-                    href="/myprofile"
-                    className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    onClick={() => setUserMenuOpen(false)}
+              {userMenuOpen && (
+                <div className="navbar-user-dropdown">
+                  <button
+                    className="navbar-user-dropdown-item"
+                    onClick={() => router.push('/settings')}
                   >
-                    <UserCircleIcon className="h-4 w-4" />
-                    My Profile
-                  </Link>
-                  
-                  <Link
-                    href="/settings"
-                    className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    onClick={() => setUserMenuOpen(false)}
+                    Settings
+                  </button>
+                  <button
+                    className="navbar-user-dropdown-item"
+                    onClick={handleLogout}
                   >
-                    <Cog6ToothIcon className="h-4 w-4" />
-                    Account Settings
-                  </Link>
-                  
-                  {account.organization && (
-                    <Link
-                      href="/organization"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      onClick={() => setUserMenuOpen(false)}
-                    >
-                      Organization
-                    </Link>
-                  )}
-                  
-                  <div className="border-t">
-                    <button
-                      onClick={() => {
-                        handleLogout();
-                        setUserMenuOpen(false);
-                      }}
-                      className="flex w-full items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-red-700"
-                    >
-                      <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                      </svg>
-                      Sign Out
-                    </button>
-                  </div>
+                    Logout
+                  </button>
                 </div>
               )}
             </div>
@@ -282,9 +250,9 @@ export default function Navbar() {
               className="navbar-mobile-button"
             >
               {mobileMenuOpen ? (
-                <XMarkIcon />
+                <XMarkIcon className="w-6 h-6" />
               ) : (
-                <Bars3Icon />
+                <Bars3Icon className="w-6 h-6" />
               )}
             </button>
           </div>
@@ -307,59 +275,25 @@ export default function Navbar() {
                     }`}
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    <item.icon />
+                    <item.icon className="w-5 h-5" />
                     <span>{item.name}</span>
                   </Link>
                 )
               })}
               
-              {/* Mobile admin link for admins */}
-              {account?.role === 'ADMIN' && (
-                <Link
-                  href="/admin/settings"
-                  className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-purple-700 bg-purple-50 border-l-4 border-purple-500"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <ShieldCheckIcon className="h-5 w-5" />
-                  Admin Settings
-                </Link>
-              )}
-              
-              {/* Mobile user links */}
-              {account && (
-                <>
-                  <Link
-                    href="/myprofile"
-                    className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-100"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <UserCircleIcon className="h-5 w-5" />
-                    My Profile
-                  </Link>
-                  
-                  <Link
-                    href="/settings"
-                    className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-100"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <Cog6ToothIcon className="h-5 w-5" />
-                    Account Settings
-                  </Link>
-                  
-                  <button
-                    onClick={() => {
-                      handleLogout();
-                      setMobileMenuOpen(false);
-                    }}
-                    className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50"
-                  >
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                    </svg>
-                    Sign Out
-                  </button>
-                </>
-              )}
+              {/* Mobile AI Status */}
+              <div className="navbar-mobile-ai">
+                <div className="flex items-center gap-2">
+                  <SparklesIcon className={`w-4 h-4 ai-icon-${getAIStatusColor()}`} />
+                  <span>{getAIStatusText()}</span>
+                </div>
+                {status.dataSummary && (
+                  <div className="flex gap-4 mt-2 text-sm text-gray-600">
+                    <span>Donors: {status.dataSummary.totalDonors || 0}</span>
+                    <span>Donations: {status.dataSummary.totalDonations || 0}</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}

@@ -152,7 +152,6 @@ model User {
   password              String? // Hashed password
   role                  Role          @default(STAFF)
   status                UserStatus    @default(ACTIVE)
-  assignedTasks Task[] @relation("TaskAssignment")
   
   // Profile fields
   timeZone              String?       @default("America/New_York")
@@ -190,7 +189,11 @@ model User {
   communications        Communication[]
   meetings              Meeting[]
   assignedDonors        Donor[]       @relation("AssignedStaff")
-  tasks                 Task[]
+  activityFeeds         ActivityFeed[]
+  
+  // Task relations - CORRECTED: Only these two
+  tasksAssignedToMe     Task[]        @relation("TaskAssignedTo")
+  tasksAssignedByMe     Task[]        @relation("TaskAssignedBy")
   
   @@index([email])
   @@index([organizationId])
@@ -226,6 +229,8 @@ model Organization {
   auditLogs           AuditLog[]
   meetings            Meeting[]
   tasks               Task[]
+  activityFeeds       ActivityFeed[]
+  donorActivities     DonorActivity[]
   
   @@index([slug])
 }
@@ -297,13 +302,11 @@ model Donor {
   organization   Organization  @relation(fields: [organizationId], references: [id])
   
   // Personal info
-  firstName        String
-  lastName         String
-  email            String?
-  phone            String?
+  firstName      String
+  lastName       String
+  email          String?
+  phone          String?
   preferredContact PreferredContact @default(EMAIL)
-  tasks  Task[]   // 👈 THIS fixes the error
-  activities     DonorActivity[]  // <-- This tracks donor-specific activities
   
   // Status
   relationshipStage RelationshipStage @default(NEW)
@@ -322,7 +325,9 @@ model Donor {
   communications Communication[]
   softCredits    SoftCredit[]
   meetings       Meeting[]
+  activityFeeds  ActivityFeed[]
   activities     DonorActivity[]
+  tasks          Task[]              // Donor tasks relation
   
   // Assignment (for staff)
   assignedToId   String?
@@ -459,6 +464,8 @@ model Donation {
   
   softCredits    SoftCredit[]
   communications Communication[]
+  activityFeeds  ActivityFeed[]
+  donorActivities DonorActivity[]
   
   notes String?
   
@@ -553,6 +560,7 @@ model Communication {
   user   User?   @relation(fields: [userId], references: [id])
   
   meeting Meeting?
+  donorActivities DonorActivity[]
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -677,6 +685,7 @@ model Meeting {
   
   notes  String?
   agenda Json?
+  donorActivities DonorActivity[]
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -694,11 +703,9 @@ model Meeting {
 model Task {
   id             String @id @default(cuid())
   organizationId String
-  userId         String?
   donorId        String?
   
   organization Organization @relation(fields: [organizationId], references: [id])
-  user         User?        @relation(fields: [userId], references: [id])
   donor        Donor?       @relation(fields: [donorId], references: [id])
   
   title       String
@@ -712,15 +719,20 @@ model Task {
   category    String? // e.g., "FOLLOW_UP", "RESEARCH", "OUTREACH"
   estimatedDuration Int? // in minutes
   
+  // Task assignment relations - CORRECTED: Only these two
+  assignedToId   String?
+  assignedTo     User?   @relation("TaskAssignedTo", fields: [assignedToId], references: [id])
+  
   assignedById   String?
-  assignedBy     User?  @relation("TaskAssignment", fields: [assignedById], references: [id])
+  assignedBy     User?   @relation("TaskAssignedBy", fields: [assignedById], references: [id])
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
   @@index([organizationId])
-  @@index([userId])
   @@index([donorId])
   @@index([organizationId, status])
   @@index([organizationId, dueDate])
+  @@index([assignedToId])
+  @@index([assignedById])
 }

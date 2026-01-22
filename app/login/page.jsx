@@ -27,6 +27,7 @@ function AuthContent() {
   
   const [activeTab, setActiveTab] = useState('login');
   
+  
   // Login form state
   const [loginData, setLoginData] = useState({
     email: registeredEmail || '',
@@ -59,6 +60,7 @@ function AuthContent() {
 
   // Check for existing session on mount
   useEffect(() => {
+
     const checkSession = async () => {
       try {
         const response = await fetch('/api/auth/session');
@@ -84,6 +86,10 @@ function AuthContent() {
       setActiveTab('login');
     }
   }, [router, redirect, isRegistered, registeredEmail]);
+
+
+
+
 
   // Handle tab change
   const handleTabChange = (tab) => {

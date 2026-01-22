@@ -1,0 +1,344 @@
+/* AIDashboard.css */
+
+.ai-dashboard {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.ai-loading,
+.ai-offline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  font-size: 1.25rem;
+  color: #6b7280;
+}
+
+.ai-offline {
+  color: #ef4444;
+}
+
+.ai-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.ai-header h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+}
+
+.refresh-btn {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+}
+
+.refresh-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.4);
+}
+
+.refresh-btn:active {
+  transform: translateY(0);
+}
+
+.ai-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.ai-card {
+  background: white;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+  transition: all 0.3s ease;
+}
+
+.ai-card:hover {
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.ai-card h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 1rem 0;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #f3f4f6;
+}
+
+.ai-card.recommendations {
+  grid-column: span 2;
+}
+
+@media (max-width: 768px) {
+  .ai-card.recommendations {
+    grid-column: span 1;
+  }
+}
+
+/* Health Score Styles */
+.health-score {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.score-circle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 120px;
+  height: 120px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.score-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: white;
+  line-height: 1;
+}
+
+.score-label {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.9);
+  margin-top: 0.25rem;
+}
+
+.health-details {
+  flex: 1;
+}
+
+.health-details p {
+  margin: 0.5rem 0;
+  color: #374151;
+  font-size: 0.95rem;
+}
+
+.health-details p:first-child {
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: #111827;
+}
+
+/* Sessions Styles */
+.sessions-list {
+  padding: 1rem 0;
+}
+
+.active-session {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-radius: 0.75rem;
+  border-left: 4px solid #3b82f6;
+}
+
+.session-count {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #2563eb;
+  line-height: 1;
+}
+
+.session-label {
+  font-size: 1rem;
+  color: #1e40af;
+  font-weight: 500;
+}
+
+.no-sessions {
+  padding: 2rem;
+  text-align: center;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* Simulation Styles */
+.simulation-status {
+  padding: 1rem 0;
+}
+
+.simulation-running {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 12px;
+  background: #e5e7eb;
+  border-radius: 9999px;
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #8b5cf6 0%, #7c3aed 100%);
+  border-radius: 9999px;
+  transition: width 0.3s ease;
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+}
+
+.progress-text {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #7c3aed;
+  text-align: center;
+}
+
+.simulation-idle {
+  padding: 2rem;
+  text-align: center;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* Recommendations Styles */
+.recommendations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.recommendation {
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 0.75rem;
+  border-left: 4px solid #6b7280;
+  transition: all 0.2s ease;
+}
+
+.recommendation:hover {
+  background: #f3f4f6;
+  transform: translateX(4px);
+}
+
+.recommendation.priority-high {
+  border-left-color: #ef4444;
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+}
+
+.recommendation.priority-high:hover {
+  background: #fee2e2;
+}
+
+.recommendation.priority-medium {
+  border-left-color: #f59e0b;
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+}
+
+.recommendation.priority-medium:hover {
+  background: #fef3c7;
+}
+
+.recommendation.priority-low {
+  border-left-color: #10b981;
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+}
+
+.recommendation.priority-low:hover {
+  background: #dcfce7;
+}
+
+.rec-priority {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  border-radius: 9999px;
+  margin-bottom: 0.5rem;
+}
+
+.priority-high .rec-priority {
+  background: #ef4444;
+  color: white;
+}
+
+.priority-medium .rec-priority {
+  background: #f59e0b;
+  color: white;
+}
+
+.priority-low .rec-priority {
+  background: #10b981;
+  color: white;
+}
+
+.recommendation h4 {
+  margin: 0.5rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.recommendation p {
+  margin: 0.5rem 0 0 0;
+  color: #6b7280;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .ai-dashboard {
+    padding: 1.5rem;
+  }
+  
+  .health-score {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .ai-dashboard {
+    padding: 1rem;
+  }
+  
+  .ai-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+  
+  .ai-header h2 {
+    font-size: 1.5rem;
+  }
+  
+  .refresh-btn {
+    width: 100%;
+  }
+  
+  .ai-grid {
+    grid-template-columns: 1fr;
+  }
+}

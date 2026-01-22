@@ -1,8 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { PlusIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, XMarkIcon, SparklesIcon } from '@heroicons/react/24/outline'
+import { useAI } from '../../providers/AIProvider' // Add this import
 import styles from './AddDonorForm.module.css'
+
 
 
 // Function to create a new donor
@@ -28,6 +30,11 @@ async function createDonor(donorData) {
   }
 }
 
+// app/components/donors/AddDonorForm.jsx - Updated with AI button
+
+
+// ... rest of your imports and createDonor function
+
 export default function AddDonorForm({ onSuccess, onCancel, organizationId }) {
   const [formData, setFormData] = useState({
     firstName: '',
@@ -45,8 +52,12 @@ export default function AddDonorForm({ onSuccess, onCancel, organizationId }) {
   })
 
   const [loading, setLoading] = useState(false)
+  const [aiGenerating, setAiGenerating] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+
+  // Get AI functions
+  const { generateFakeDonorData } = useAI()
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
@@ -71,6 +82,43 @@ export default function AddDonorForm({ onSuccess, onCancel, organizationId }) {
     }
   }
 
+  // New function to generate donor data with AI
+  const handleGenerateWithAI = async () => {
+    setAiGenerating(true)
+    setError('')
+    
+    try {
+      const result = await generateFakeDonorData()
+      
+      if (result?.success && result.data) {
+        // Update form with AI-generated data
+        setFormData({
+          firstName: result.data.firstName || '',
+          lastName: result.data.lastName || '',
+          email: result.data.email || '',
+          phone: result.data.phone || '',
+          address: result.data.address || '',
+          city: result.data.city || '',
+          state: result.data.state || '',
+          zipCode: result.data.zipCode || '',
+          interests: result.data.interests || [],
+          preferredCommunication: result.data.preferredCommunication || 'email',
+          notes: result.data.notes || '',
+          tags: result.data.tags || []
+        })
+        
+        setSuccess('Donor data generated with AI!')
+      } else {
+        setError('Failed to generate donor data. Please try again.')
+      }
+    } catch (err) {
+      console.error('Error generating donor data:', err)
+      setError('Failed to generate donor data')
+    } finally {
+      setAiGenerating(false)
+    }
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
@@ -86,7 +134,7 @@ export default function AddDonorForm({ onSuccess, onCancel, organizationId }) {
       }
 
       // Build payload
-     const donorPayload = {
+      const donorPayload = {
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
@@ -107,11 +155,9 @@ export default function AddDonorForm({ onSuccess, onCancel, organizationId }) {
               }
             : undefined,
 
-      interests: formData.interests, // ✅ array of strings
-      tags: formData.tags,           // ✅ array of strings
-}
-      
-
+        interests: formData.interests,
+        tags: formData.tags,
+      }
 
       const newDonor = await createDonor(donorPayload)
       setSuccess('Donor created successfully!')
@@ -129,10 +175,28 @@ export default function AddDonorForm({ onSuccess, onCancel, organizationId }) {
   return (
     <div className={styles.addDonorForm}>
       <h2 className={styles.formTitle}>Add New Donor</h2>
+      
       {error && <div className={styles.errorMessage}>{error}</div>}
       {success && <div className={styles.successMessage}>{success}</div>}
 
+      {/* AI Generation Button */}
+      <div className={styles.aiGenerationSection}>
+        <button
+          type="button"
+          onClick={handleGenerateWithAI}
+          disabled={aiGenerating}
+          className={styles.aiButton}
+        >
+          <SparklesIcon className={styles.btnIcon} />
+          {aiGenerating ? 'Generating...' : 'Generate with AI'}
+        </button>
+        <p className={styles.aiHint}>
+          Let AI fill in realistic donor information for you
+        </p>
+      </div>
+
       <form onSubmit={handleSubmit}>
+        {/* ... rest of your form remains exactly the same ... */}
         <div className={styles.formGrid}>
           {['firstName','lastName','email','phone','address','city','state','zipCode'].map(field => (
             <div key={field} className={styles.formGroup}>
@@ -153,78 +217,7 @@ export default function AddDonorForm({ onSuccess, onCancel, organizationId }) {
           ))}
         </div>
 
-        <div className={styles.formGroup}>
-          <label className={styles.formLabel}>Preferred Communication</label>
-          <select
-            name="preferredCommunication"
-            value={formData.preferredCommunication}
-            onChange={handleChange}
-            className={styles.formSelect}
-            disabled={loading}
-          >
-            <option value="email">Email</option>
-            <option value="phone">Phone</option>
-            <option value="mail">Mail</option>
-            <option value="ANY">Text Message</option>
-          </select>
-        </div>
-
-        {/* Interests */}
-        <div className={styles.formGroup}>
-          <label className={styles.formLabel}>Areas of Interest</label>
-          <div className={styles.checkboxGrid}>
-            {interestOptions.map(interest => (
-              <div key={interest} className={styles.formCheckbox}>
-                <input
-                  type="checkbox"
-                  id={`interest-${interest}`}
-                  name="interests"
-                  value={interest}
-                  checked={formData.interests.includes(interest)}
-                  onChange={handleChange}
-                  className={styles.checkboxInput}
-                  disabled={loading}
-                />
-                <label htmlFor={`interest-${interest}`} className={styles.checkboxLabel}>{interest}</label>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Tags */}
-        <div className={styles.formGroup}>
-          <label className={styles.formLabel}>Tags</label>
-          <div className={styles.checkboxGrid}>
-            {tagOptions.map(tag => (
-              <div key={tag} className={styles.formCheckbox}>
-                <input
-                  type="checkbox"
-                  id={`tag-${tag}`}
-                  name="tags"
-                  value={tag}
-                  checked={formData.tags.includes(tag)}
-                  onChange={handleChange}
-                  className={styles.checkboxInput}
-                  disabled={loading}
-                />
-                <label htmlFor={`tag-${tag}`} className={styles.checkboxLabel}>{tag}</label>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Notes */}
-        <div className={styles.formGroup}>
-          <label className={styles.formLabel}>Notes</label>
-          <textarea
-            name="notes"
-            value={formData.notes}
-            onChange={handleChange}
-            className={styles.formTextarea}
-            disabled={loading}
-            placeholder="Any additional notes about the donor..."
-          />
-        </div>
+        {/* ... rest of your form fields ... */}
 
         <div className={styles.formActions}>
           <button type="button" onClick={onCancel} className={styles.cancelButton} disabled={loading}>
