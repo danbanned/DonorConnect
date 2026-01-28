@@ -51,6 +51,9 @@ enum RelationshipStage {
   STEWARDSHIP
   MAJOR_GIFT
   LEGACY
+  SYBUNT
+  LYBUNT
+  CURRENT
 }
 
 enum PledgeFrequency {
@@ -300,6 +303,8 @@ model Donor {
   id             String        @id @default(cuid())
   organizationId String
   organization   Organization  @relation(fields: [organizationId], references: [id])
+  files     File[]   // 👈 must exist if you include it
+
   
   // Personal info
   firstName      String
@@ -307,6 +312,9 @@ model Donor {
   email          String?
   phone          String?
   preferredContact PreferredContact @default(EMAIL)
+
+  // 🧬 Simulation tag
+  isSimulated      Boolean  @default(false)
   
   // Status
   relationshipStage RelationshipStage @default(NEW)
@@ -343,12 +351,20 @@ model Donor {
   @@index([organizationId, status])
 }
 
+model File {
+  id        String   @id @default(cuid())
+  donorId  String
+  donor    Donor    @relation(fields: [donorId], references: [id])
+}
+
 model Address {
   id      String  @id @default(cuid())
   street  String?
   city    String?
   state   String?
   zipCode String?
+  country String?
+
   
   donorId String  @unique
   donor   Donor   @relation(fields: [donorId], references: [id])

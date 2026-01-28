@@ -26,6 +26,10 @@ import {
 import './communications.css'
 import TemplatesSection from '../components/communications/TemplatesSection'
 import { templates as templateLibrary } from '../../lib/templates'
+import QuickActions from '../components/QuickActions'
+import { useDonations } from '../hooks/usedonation.js'
+
+
 
 
 const communicationTypes = [
@@ -57,6 +61,10 @@ export default function CommunicationsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filteredDonors, setFilteredDonors] = useState([])
   const [activeTab, setActiveTab] = useState('communications') // 'communications', 'templates', 'history'
+    const { donations, summary, loading: donationsLoading, error: donationsError } = useDonations({ 
+      timeframe,
+      limit: 1000 // Get more donations for better stats
+    })
   
   // Template modal states
   const [showTemplateModal, setShowTemplateModal] = useState(false)
@@ -104,6 +112,7 @@ export default function CommunicationsPage() {
         const donorsRes = await fetch('/api/donors/directory')
         if (donorsRes.ok) {
           const donorsData = await donorsRes.json()
+          console.log(donorsData,'asdfgrewerghgrewerthj')
           setDonors(donorsData)
           setFilteredDonors(donorsData.slice(0, 10)) // Show first 10
         }
@@ -499,45 +508,13 @@ export default function CommunicationsPage() {
           </div>
 
           {/* Quick Actions for Selected Donor */}
-          {selectedDonor && (
-            <div className="quick-actions-panel">
-              <h3>Quick Actions</h3>
-              <div className="action-buttons">
-                <button 
-                  onClick={() => setShowChatModal(true)}
-                  className="action-btn btn-chat"
-                >
-                  <EnvelopeIcon className="icon" />
-                  Send Message
-                </button>
-                
-                <button 
-                  onClick={() => setShowMeetingModal(true)}
-                  className="action-btn btn-meeting"
-                >
-                  <VideoCameraIcon className="icon" />
-                  Schedule Meeting
-                </button>
-                
-                <button 
-                  onClick={() => setShowEditModal(true)}
-                  className="action-btn btn-edit"
-                >
-                  <PencilIcon className="icon" />
-                  Edit Profile
-                </button>
-                
-                <Link 
-                  href={`/recorddonorpage/${selectedDonor.id}`}
-                  className="action-btn btn-donation"
-                >
-                  <CurrencyDollarIcon className="icon" />
-                  Record Donation
-                </Link>
-              </div>
-            </div>
-          )}
+            <div className="p-6">
+          <QuickActions donors={donors} donations={donations} />
         </div>
+
+       
+        </div>
+
 
         {/* Right Column - Main Content with Tabs */}
         <div className="communications-main">

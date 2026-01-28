@@ -48,7 +48,7 @@ export default function DonorDirectoryPage() {
 
         setDonors(donorsData)
         setFilteredDonors(donorsData)
-        setStats(statsData)
+        setStats(statsData);
       } catch (err) {
         setError(err.message)
         console.error('Error fetching data:', err)

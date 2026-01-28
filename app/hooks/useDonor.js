@@ -1,3 +1,4 @@
+// hooks/useDonor.js - FIXED VERSION (no React Query)
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
@@ -24,7 +25,7 @@ export function useDonors(options = {}) {
    */
   const loadDonors = useCallback(async () => {
     try {
-      console.log('[useDonors donor datw] loadDonors START', { lybunt })
+      console.log('[useDonors] loadDonors START', { lybunt })
       setLoading(true)
       setError(null)
 
@@ -32,10 +33,8 @@ export function useDonors(options = {}) {
         ? await getLYBUNTDonors()
         : await getDonors()
 
-        console.log('[useDonors data data] loadDonors API RESULT:', data)
-
-      setDonors(data)
-
+      console.log('[useDonors] loadDonors API RESULT:', data)
+      setDonors(data || []) // Ensure it's always an array
       console.log('[useDonors] donors state SET')
     } catch (err) {
       console.error('[useDonors] loadDonors ERROR:', err)
@@ -46,7 +45,6 @@ export function useDonors(options = {}) {
     }
   }, [lybunt])
 
-  
   /**
    * Load single donor
    */
@@ -54,7 +52,6 @@ export function useDonors(options = {}) {
     if (!id) return
 
     try {
-
       console.log('[useDonors] loadDonorById START:', id)
       setLoading(true)
       setError(null)
@@ -73,20 +70,19 @@ export function useDonors(options = {}) {
    */
   const addDonor = useCallback(async (donorData) => {
     try {
-
       console.log('[useDonors] addDonor START:', donorData)
       setError(null)
       const newDonor = await createDonor(donorData)
 
-      // Optimistic update
-      setDonors((prev) => [newDonor, ...prev])
+      // Refresh the donors list
+      await loadDonors()
 
       return newDonor
     } catch (err) {
       setError(err.message)
       throw err
     }
-  }, [])
+  }, [loadDonors])
 
   /**
    * Auto-load behavior
@@ -101,19 +97,24 @@ export function useDonors(options = {}) {
     }
   }, [autoLoad, donorId, loadDonors, loadDonorById])
 
-    // 👇👇👇 PUT THIS RIGHT HERE 👇👇👇
-      console.log('[useDonors] RETURNING:', {
-        donors,
-        donor,
-        loading,
-        error,
-      })
-  // 👆👆👆 RIGHT BEFORE RETURN 👆👆👆
+  /**
+   * Simple invalidate function - just reloads donors
+   */
+  const invalidate = useCallback(() => {
+    console.log('[useDonors] Invalidating donors cache - reloading donors')
+    return loadDonors()
+  }, [loadDonors])
 
+  console.log('[useDonors] RETURNING:', {
+    donorsCount: donors?.length || 0,
+    donor: donor ? 'loaded' : 'null',
+    loading,
+    error: error?.message,
+  })
 
   return {
     // data
-    donors,
+    donors: donors || [],
     donor,
 
     // state
@@ -124,10 +125,6 @@ export function useDonors(options = {}) {
     refresh: loadDonors,
     loadDonorById,
     addDonor,
+    invalidate
   }
-
-
-  
 }
-
-

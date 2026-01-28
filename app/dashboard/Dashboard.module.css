@@ -163,14 +163,12 @@
 
 .chartWrapper {
   height: 300px;
-  position: relative;
 }
 
 /* Bar Chart */
 .barChart {
   display: flex;
   align-items: flex-end;
-  justify-content: space-around;
   height: 100%;
   padding: 1rem;
   background: #f9fafb;
@@ -979,4 +977,572 @@
   .donorItemAvatar {
     align-self: center;
   }
+}
+
+/* Add these to your existing Dashboard.module.css */
+
+/* Simulation Panel */
+.simulationPanel {
+  margin-bottom: 24px;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Header with simulation toggle */
+.headerTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.simulationToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.simulationToggle:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.simulationToggleIcon {
+  width: 18px;
+  height: 18px;
+}
+
+/* Simulation badge */
+.simulationBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 12px;
+  padding: 4px 8px;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(124, 58, 237, 0.1) 100%);
+  color: #7c3aed;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Simulated activity item */
+.simulatedActivity {
+  position: relative;
+  border-left: 3px solid #8b5cf6;
+}
+
+.simulatedActivity::before {
+  content: '🤖 Simulated';
+  position: absolute;
+  top: -8px;
+  right: 8px;
+  font-size: 10px;
+  color: #8b5cf6;
+  font-weight: 600;
+  background: white;
+  padding: 2px 6px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+}
+
+.activityIconContainer {
+  position: relative;
+}
+
+.simulationIndicator {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  font-size: 12px;
+  background: white;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e5e7eb;
+}
+
+/* No activities state */
+.noActivities {
+  padding: 40px 20px;
+  text-align: center;
+  color: #6b7280;
+}
+
+.noActivities p {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Quick actions section */
+.quickActionsSection {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
+}
+
+/* Stats card enhancement for simulation */
+.statCard {
+  position: relative;
+  overflow: hidden;
+}
+
+.statCard::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(124, 58, 237, 0.1) 100%);
+  border-radius: 0 12px 0 12px;
+  opacity: 0.5;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .simulationToggle {
+    background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  }
+  
+  .simulationBadge {
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.2) 0%, rgba(109, 40, 217, 0.2) 100%);
+    color: #a78bfa;
+  }
+  
+  .simulatedActivity {
+    border-left-color: #a78bfa;
+  }
+  
+  .simulatedActivity::before {
+    background: #1f2937;
+    border-color: #374151;
+    color: #a78bfa;
+  }
+  
+  .simulationIndicator {
+    background: #1f2937;
+    border-color: #374151;
+  }
+  
+  .quickActionsSection {
+    background: #1f2937;
+    border-color: #374151;
+  }
+  
+  .noActivities {
+    color: #d1d5db;
+  }
+  
+  .statCard::after {
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.2) 0%, rgba(109, 40, 217, 0.2) 100%);
+  }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .headerTop {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .simulationToggle {
+    align-self: flex-start;
+  }
+  
+  .simulationBadge {
+    margin-left: 8px;
+  }
+}
+
+
+/* Add these styles to your Dashboard.module.css */
+
+/* Bulk donor manager styles */
+.bulkDonorManager {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border: 2px dashed #38bdf8;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.bulkManagerHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.bulkManagerTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: #0c4a6e;
+  margin: 0;
+}
+
+.bulkManagerSubtitle {
+  font-size: 14px;
+  color: #0369a1;
+  margin: 0 0 16px 0;
+}
+
+.bulkManagerButtons {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.previewButton {
+  padding: 8px 16px;
+  background: white;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  color: #0369a1;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.previewButton:hover {
+  background: #f0f9ff;
+  border-color: #7dd3fc;
+}
+
+.saveButton {
+  padding: 8px 20px;
+  background: #0ea5e9;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.saveButton:hover:not(:disabled) {
+  background: #0284c7;
+}
+
+.saveButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.bulkProgress {
+  margin-top: 16px;
+}
+
+.progressHeader {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.progressStatus {
+  font-size: 14px;
+  font-weight: 500;
+  color: #0c4a6e;
+}
+
+.progressCount {
+  font-size: 14px;
+  color: #64748b;
+}
+
+.progressBar {
+  width: 100%;
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #0ea5e9, #3b82f6);
+  transition: width 0.3s ease;
+}
+
+/* Simulated activity indicator */
+.simulatedActivity {
+  border-left: 4px solid #8b5cf6;
+  background: #faf5ff;
+}
+
+.simulationIndicator {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  font-size: 12px;
+}
+
+.simulationBadge {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+  margin-left: 8px;
+}
+
+.simulationToggle {
+  position: relative;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  border: 2px solid #f59e0b;
+  border-radius: 8px;
+  color: #92400e;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.simulationToggle:hover {
+  background: linear-gradient(135deg, #fde68a, #fbbf24);
+  transform: translateY(-2px);
+}
+
+.simulationToggleIcon {
+  width: 16px;
+  height: 16px;
+}
+
+/* No activities state */
+.noActivities {
+  text-align: center;
+  padding: 40px 20px;
+  color: #64748b;
+}
+
+.noActivitiesIcon {
+  width: 48px;
+  height: 48px;
+  color: #cbd5e1;
+  margin: 0 auto 16px;
+}
+
+.startSimulationButton {
+  margin-top: 16px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.startSimulationButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(139, 92, 246, 0.3);
+}
+
+.startSimulationIcon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Activity subtext */
+.activitySubtext {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+/* Add to Dashboard.module.css */
+
+/* Header actions */
+.headerActions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.testButton {
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+  border: 1px solid #7dd3fc;
+  border-radius: 8px;
+  color: #0369a1;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+
+.testButton:hover {
+  background: linear-gradient(135deg, #e0f2fe, #bae6fd);
+  transform: translateY(-1px);
+}
+
+.testButtonIcon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Simulation panel */
+.simulationPanel {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 2px solid #f59e0b;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  position: relative;
+}
+
+.simulationPanelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.simulationPanelTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #92400e;
+  margin: 0;
+}
+
+.simulationPanelIcon {
+  width: 20px;
+  height: 20px;
+}
+
+.closePanelButton {
+  padding: 8px;
+  background: #fef3c7;
+  border: 1px solid #fbbf24;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.closePanelButton:hover {
+  background: #fde68a;
+}
+
+.closePanelIcon {
+  width: 16px;
+  height: 16px;
+  color: #92400e;
+}
+
+/* Activity header actions */
+.activityHeaderActions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.generateButton {
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+  border: 1px solid #7dd3fc;
+  border-radius: 8px;
+  color: #0369a1;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.generateButton:hover {
+  background: linear-gradient(135deg, #e0f2fe, #bae6fd);
+  transform: translateY(-1px);
+}
+
+.generateButtonIcon {
+  width: 14px;
+  height: 14px;
+}
+
+/* Highlighted stat card */
+.statCardHighlight {
+  border: 2px solid #8b5cf6;
+  background: linear-gradient(135deg, #faf5ff, #f3e8ff);
+}
+
+/* Simulation running state */
+.simulationRunning {
+  background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+  border-color: #10b981;
+  color: #065f46;
+}
+
+/* No activities buttons */
+.noActivitiesButtons {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  justify-content: center;
+}
+
+.testDataButton {
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+  border: 2px solid #7dd3fc;
+  color: #0369a1;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.testDataButton:hover {
+  background: linear-gradient(135deg, #e0f2fe, #bae6fd);
+  transform: translateY(-2px);
+}
+
+.testDataIcon {
+  width: 16px;
+  height: 16px;
 }

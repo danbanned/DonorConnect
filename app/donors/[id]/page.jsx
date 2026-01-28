@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-
+import { useAI } from '../../providers/AIProvider'
 import {
   ArrowLeftIcon,
   PencilIcon,
@@ -11,6 +11,12 @@ import {
   CalendarIcon,
   CurrencyDollarIcon,
   UserCircleIcon,
+  SparklesIcon,
+  DocumentTextIcon,
+  ChatBubbleLeftRightIcon,
+  PlayIcon,
+  StopIcon,
+  LightBulbIcon
 } from '@heroicons/react/24/outline'
 
 import DonorHeader from '../../components/donors/DonorHeader'
@@ -22,6 +28,11 @@ import AddDonorForm from '../../components/donors/AddDonorForm'
 import { getDonorById as fetchDonorById } from '../../../lib/api/donors'
 import './DonorProfile.css'
 import {useDonations} from  '../../hooks/usedonation'
+import DonorRoleplay from '../../components/DonorRoleplay'
+import DonorBrief from '../../components/DonorBrief'
+import SimulationControls from '../../components/ai/SimulationControls'
+//import AIDashboard from '../../dashboard/AiDashboard/page'
+import donorDataContext from '../../../lib/donordatacontext'
 
 async function getDonorInsights(id) {
   try {
@@ -44,10 +55,10 @@ async function getDonorInsights(id) {
 export default function DonorProfilePage() {
   const { id: donorId } = useParams()
   const router = useRouter()
+  const { apiClient, status: aiStatus } = useAI()
   
   // Pass donorId to the hook to filter donations for this specific donor
-  const { donations, loading: donationsLoading } = useDonations({ donorId });
-  console.log(donations,'donation for donor', donorId)
+  const { donations, loading: donationsLoading } = useDonations({ donorId })
   
   const [donor, setDonor] = useState(null)
   const [insights, setInsights] = useState(null)
@@ -56,11 +67,19 @@ export default function DonorProfilePage() {
   const [showAddForm, setShowAddForm] = useState(false)
   const [error, setError] = useState(null)
 
-  // Check if donor has any pledges based on donation data
-  const hasActivePledge = donations?.some(donation => 
-    donation.type === 'RECURRING' || donation.isRecurring === true
-  )
+  // AI Features State
+  const [showRoleplay, setShowRoleplay] = useState(false)
+  const [showBrief, setShowBrief] = useState(false)
+  const [activeSessions, setActiveSessions] = useState([])
+  const [simulationStatus, setSimulationStatus] = useState({
+    isRunning: false,
+    progress: 0,
+    elapsedTime: '0:00',
+    donorsSimulated: 0,
+    activitiesGenerated: 0
+  })
 
+  // Load donor data and AI features
   useEffect(() => {
     async function loadData() {
       try {
@@ -98,16 +117,20 @@ export default function DonorProfilePage() {
           giftsCount,
           lastGiftDate,
           lastDonation,
-          // Add notes from personalNotes
           notes: donorData.personalNotes?.notes || donorData.notes || '',
         }
 
         setDonor(enhancedDonor)
-        console.log('Enhanced donor data:', enhancedDonor)
         setShowAddForm(false)
 
+        // Get AI insights
         const insightsData = await getDonorInsights(donorId)
         setInsights(insightsData)
+        
+        // Load AI features if API client is available
+        if (apiClient) {
+          loadAIFeatures(donorData, insightsData)
+        }
       } catch (err) {
         console.error('Failed to load donor:', err)
         setError('Failed to load donor data')
@@ -121,7 +144,59 @@ export default function DonorProfilePage() {
     if (donorId && !donationsLoading) {
       loadData()
     }
-  }, [donorId, donations, donationsLoading])
+  }, [donorId, donations, donationsLoading, apiClient])
+
+  const loadAIFeatures = async (donorData, insightsData) => {
+  try {
+    // Load active roleplay sessions - FIXED METHOD NAME
+    const sessionsResponse = await apiClient.fetchData('getRoleplaySessions', { 
+      donorId,
+      orgId: donorData.organizationId 
+    });
+    
+    if (sessionsResponse.success) {
+      setActiveSessions(sessionsResponse.data?.sessions || [])
+    }
+
+    // Load simulation status - FIXED METHOD NAME
+    const simResponse = await apiClient.fetchData('getSimulationStats', {
+      donorId,
+      orgId: donorData.organizationId
+    });
+    
+    if (simResponse.success) {
+      setSimulationStatus(prev => ({
+        ...prev,
+        isRunning: simResponse.data?.status === 'RUNNING' || false,
+        progress: simResponse.data?.activeDonors || 0,
+        donorsSimulated: simResponse.data?.activeDonors || 0,
+        activitiesGenerated: simResponse.data?.totalActivities || 0
+      }))
+    }
+
+    // Enhance insights with AI analysis - FIXED METHOD NAME
+    if (apiClient && donorData) {
+      try {
+        const aiAnalysis = await apiClient.fetchData('analyzeDonor', {
+          donorId,
+          orgId: donorData.organizationId
+        });
+        
+        if (aiAnalysis.success && aiAnalysis.data) {
+          setInsights(prev => ({
+            ...prev,
+            ...aiAnalysis.data,
+            hasAIInsights: true
+          }))
+        }
+      } catch (aiError) {
+        console.log('AI analysis not available:', aiError)
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load AI features:', error)
+  }
+}
 
   const handleAddDonorSuccess = (newDonorId) => {
     router.push(`/donors/${newDonorId}`)
@@ -130,6 +205,154 @@ export default function DonorProfilePage() {
   const handleCancelAdd = () => {
     donorId === 'new' ? router.push('/donors') : setShowAddForm(false)
   }
+
+  // AI Feature Handlers
+  // In your page.jsx - Update handleStartRoleplay
+const handleStartRoleplay = async () => {
+  if (!donor) return;
+  
+  try {
+    // Use direct POST request
+    const response = await fetch('/api/ai', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-org-id': donor.organizationId || 'default-org'
+      },
+      body: JSON.stringify({
+        method: 'startRoleplay',
+        params: {
+          donorId,
+          context: {
+            topic: 'donor relationship',
+            purpose: 'engagement'
+          }
+        }
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to start roleplay');
+    }
+    
+    if (data.success) {
+      setActiveSessions(prev => [data.data, ...prev]);
+      setShowRoleplay(true);
+    }
+  } catch (error) {
+    console.error('Error starting roleplay:', error);
+    
+    // Create a mock session for testing
+    const mockSession = {
+      sessionId: `mock_${Date.now()}_${donorId}`,
+      donor: {
+        id: donorId,
+        name: `${donor.firstName} ${donor.lastName}`,
+        email: donor.email
+      },
+      persona: {
+        type: 'SUPPORTER',
+        traits: ['generous'],
+        communicationStyle: 'balanced',
+        givingPattern: 'occasional',
+        interests: ['general'],
+        description: 'Supporter with general interests'
+      },
+      greeting: "Hello! Thanks for reaching out. I'm glad to connect.",
+      context: {
+        topic: 'donor relationship',
+        purpose: 'engagement'
+      },
+      startedAt: new Date().toISOString(),
+      isMock: true
+    };
+    
+    setActiveSessions(prev => [mockSession, ...prev]);
+    setShowRoleplay(true);
+  }
+};
+
+  const handleGenerateBrief = async () => {
+    setShowBrief(true)
+  }
+
+  const handleStartSimulation = async () => {
+    if (!apiClient || !donor) return
+    
+    try {
+      const response = await apiClient.fetchData('startSimulation', {
+        donorId,
+        orgId: donor.organizationId,
+        settings: {
+          speed: 'normal',
+          activityTypes: ['donations', 'communications'],
+          realism: 'high'
+        }
+      })
+      
+      if (response.success) {
+        setSimulationStatus(prev => ({
+          ...prev,
+          isRunning: true,
+          progress: 0,
+          donorsSimulated: 0,
+          activitiesGenerated: 0
+        }))
+        
+        // Start polling for simulation updates
+        const interval = setInterval(async () => {
+          try {
+            const simResponse = await apiClient.fetchData('getSimulationStats', {
+              donorId,
+              orgId: donor.organizationId
+            })
+            
+            if (simResponse.success) {
+              setSimulationStatus(prev => ({
+                ...prev,
+                progress: simResponse.data?.progress || prev.progress,
+                donorsSimulated: simResponse.data?.activeDonors || 0,
+                activitiesGenerated: simResponse.data?.totalActivities || 0
+              }))
+              
+              // Stop polling if simulation is done
+              if (simResponse.data?.status === 'STOPPED' || simResponse.data?.status === 'PAUSED') {
+                clearInterval(interval)
+                setSimulationStatus(prev => ({ ...prev, isRunning: false }))
+              }
+            }
+          } catch (error) {
+            console.error('Error polling simulation:', error)
+          }
+        }, 2000)
+      }
+    } catch (error) {
+      console.error('Error starting simulation:', error)
+    }
+  }
+
+  const handleStopSimulation = async () => {
+    if (!apiClient || !donor) return
+    
+    try {
+      const response = await apiClient.fetchData('stopSimulation', {
+        orgId: donor.organizationId
+      })
+      
+      if (response.success) {
+        setSimulationStatus(prev => ({ ...prev, isRunning: false }))
+      }
+    } catch (error) {
+      console.error('Error stopping simulation:', error)
+    }
+  }
+
+  // Check if donor has any pledges based on donation data
+  const hasActivePledge = donations?.some(donation => 
+    donation.type === 'RECURRING' || donation.isRecurring === true
+  )
 
   if (loading && !showAddForm) {
     return (
@@ -174,19 +397,20 @@ export default function DonorProfilePage() {
         donations={donations || []}
       />
 
+
       {hasActivePledge && (
         <PledgeBox 
           pledge={{
             amount: donations?.find(d => d.isRecurring)?.amount || 0,
-            frequency: 'Monthly', // You might want to get this from donation data
+            frequency: 'Monthly',
             startDate: donations?.find(d => d.isRecurring)?.date,
-            nextPayment: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+            nextPayment: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
           }}
         />
       )}
 
       <div className="tabs">
-        {['overview', 'donations', 'communications', 'insights', 'notes'].map(tab => (
+        {['overview', 'donations', 'communications', 'insights', 'notes', 'ai'].map(tab => (
           <button
             key={tab}
             className={`tab ${activeTab === tab ? 'active' : ''}`}
@@ -195,7 +419,8 @@ export default function DonorProfilePage() {
             {tab === 'overview' ? 'Overview' : 
              tab === 'donations' ? 'Donation History' : 
              tab === 'communications' ? 'Communications' : 
-             tab === 'insights' ? 'Analytics' : 'Notes'}
+             tab === 'insights' ? 'Analytics' : 
+             tab === 'ai' ? 'AI Dashboard' : 'Notes'}
           </button>
         ))}
       </div>
@@ -205,8 +430,6 @@ export default function DonorProfilePage() {
         organizationId={donor.organizationId}
         onAdded={(newDonation) => {
           console.log('Donation created:', newDonation)
-          // In a real app, you might want to refresh the donations here
-          // For now, we'll just alert the user
           alert('Donation added! Refresh the page to see it in the list.')
         }}
       />
@@ -309,10 +532,19 @@ export default function DonorProfilePage() {
                   <p className="insight-label">Next Best Action</p>
                   <div className="insight-value">{insights.nextBestAction}</div>
                 </div>
+                {insights.hasAIInsights && (
+                  <div className="ai-enhanced-badge">
+                    <SparklesIcon />
+                    <span>AI Enhanced Insights</span>
+                  </div>
+                )}
               </div>
             ) : (
               <p className="text-gray-500">No insights available yet</p>
             )}
+          </div>
+        ) : activeTab === 'ai' ? (
+          <div className="ai-dashboard-container">
           </div>
         ) : (
           <div className="card">
@@ -324,6 +556,33 @@ export default function DonorProfilePage() {
           </div>
         )}
       </div>
+
+      {/* AI Modals */}
+      {/*{showRoleplay && (
+        <div className="modal-overlay">
+          <div className="modal-content large">
+            <DonorRoleplay 
+              donorId={donorId}
+              donorName={`${donor.firstName} ${donor.lastName}`}
+              onClose={() => setShowRoleplay(false)}
+            />
+          </div>
+        </div>
+      )}
+
+   {/*  {showBrief && (
+      <div className="modal-overlay">
+        <div className="modal-content large">
+          //<DonorBrief 
+            //donorId={donorId}
+            //organizationId={donor?.organizationId} // Pass organizationId
+            //isOpen={showBrief}
+            //onClose={() => setShowBrief(false)}
+          />
+        </div>
+      </div>
+    )}
+      */}
 
       <div className="quick-actions">
         <Link href={`/recorddonorpage/${donor.id}`} className="btn-primary">
@@ -347,10 +606,10 @@ export default function DonorProfilePage() {
 }
 
 export function AddTestDonationButton({ donorId, organizationId, onAdded }) {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false)
 
   const handleAddDonation = async () => {
-    setLoading(true);
+    setLoading(true)
     try {
       const res = await fetch('/api/donations', {
         method: 'POST',
@@ -364,21 +623,21 @@ export function AddTestDonationButton({ donorId, organizationId, onAdded }) {
           status: 'COMPLETED',
           type: 'ONE_TIME'
         }),
-      });
-      const data = await res.json();
+      })
+      const data = await res.json()
       if (res.ok) {
-        alert(`Test donation added: $${data.amount}`);
-        onAdded?.(data);
+        alert(`Test donation added: $${data.amount}`)
+        onAdded?.(data)
       } else {
-        alert('Failed to add donation: ' + data.error);
+        alert('Failed to add donation: ' + data.error)
       }
     } catch (err) {
-      console.error(err);
-      alert('Error adding donation');
+      console.error(err)
+      alert('Error adding donation')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   return (
     <button
@@ -389,5 +648,5 @@ export function AddTestDonationButton({ donorId, organizationId, onAdded }) {
     >
       {loading ? 'Adding...' : 'Add Test Donation'}
     </button>
-  );
+  )
 }

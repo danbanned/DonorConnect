@@ -33,12 +33,14 @@ async function main() {
     }
   });
 
+
+
   // 👤 STAFF USER
   const staffUser = await prisma.user.upsert({
-    where: { email: 'staff@greenstreet.org' },
+    where: { email: 'staff@donorconnect.com' },
     update: {},
     create: {
-      email: 'staff@greenstreet.org',
+      email: 'staff@donorconnect.com',
       name: 'Staff User',
       role: 'STAFF',
       password: staffPassword, // ✅ FIXED

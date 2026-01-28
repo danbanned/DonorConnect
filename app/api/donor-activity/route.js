@@ -2,9 +2,10 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from '../../../lib/db'
+import { getSession } from '../../../lib/api/getSession'
 
-const prisma = new PrismaClient();
+
 
 /**
  * Convert BigInt to string so JSON.stringify works
@@ -89,9 +90,17 @@ function getIconForAction(action) {
  *   page (optional, default 1)
  */
 export async function GET(request) {
+
+  const session = await getSession()
+
+  if (!session) {
+    return new Response('Unauthorized', { status: 401 })
+  }
+
+  const { id: userId, organizationId } = session
+
   try {
     const { searchParams } = new URL(request.url);
-    const organizationId = searchParams.get("organizationId");
     const donorId = searchParams.get("donorId");
     const timeframe = searchParams.get("timeframe") || '30days';
     const limit = parseInt(searchParams.get("limit")) || 25;

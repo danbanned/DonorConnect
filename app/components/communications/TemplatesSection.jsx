@@ -1,14 +1,12 @@
 // components/TemplatesSection.jsx
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   EnvelopeIcon, 
   ClipboardDocumentIcon,
   ArrowPathIcon,
   CalendarIcon,
-  UserIcon,
-  CurrencyDollarIcon,
   PaperAirplaneIcon,
   XMarkIcon,
   CheckIcon,
@@ -17,7 +15,12 @@ import {
   TrashIcon,
   ChevronDownIcon,
   ChevronRightIcon,
-  MagnifyingGlassIcon
+  MagnifyingGlassIcon,
+  ExclamationTriangleIcon,
+  AtSymbolIcon, // Add this
+  UserGroupIcon, // Add this
+  DocumentTextIcon, // Add this
+  PhotoIcon // Add this
 } from '@heroicons/react/24/outline'
 import styles from './templates.module.css'
 
@@ -30,7 +33,21 @@ export default function TemplatesSection({ donorId, donorInfo }) {
   const [editingTemplate, setEditingTemplate] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedCategories, setExpandedCategories] = useState({})
-  
+  const [sendingEmail, setSendingEmail] = useState(false)
+  const [sendStatus, setSendStatus] = useState({ type: null, message: '' })
+  const [showEmailComposer, setShowEmailComposer] = useState(false)
+  const [composerMode, setComposerMode] = useState('template') // 'template' or 'custom'
+  const [emailData, setEmailData] = useState({
+    to: donorInfo?.email || '',
+    subject: '',
+    from: process.env.NEXT_PUBLIC_EMAIL_FROM || 'Acme <onboarding@resend.dev>',
+    cc: '',
+    bcc: ''
+  })
+  const [customHtml, setCustomHtml] = useState('')
+  const [composerLoading, setComposerLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState('compose') // 'compose', 'preview', 'code'
+    
   // Template form state
   const [templateForm, setTemplateForm] = useState({
     name: '',
@@ -133,12 +150,10 @@ export default function TemplatesSection({ donorId, donorInfo }) {
   async function loadTemplates() {
     try {
       setLoading(true)
-      // Try to load from localStorage first
       const savedTemplates = localStorage.getItem('emailTemplates')
       if (savedTemplates) {
         setTemplates(JSON.parse(savedTemplates))
       } else {
-        // Load default templates
         const defaultTemplates = templateCategories.flatMap(category => 
           category.defaultTemplates.map(template => ({
             ...template,
@@ -162,7 +177,6 @@ export default function TemplatesSection({ donorId, donorInfo }) {
     
     let preview = template.content
     
-    // Replace placeholders with actual donor data
     const replacements = {
       '{{firstName}}': donorInfo.firstName || '[Donor First Name]',
       '{{lastName}}': donorInfo.lastName || '[Donor Last Name]',
@@ -174,7 +188,7 @@ export default function TemplatesSection({ donorId, donorInfo }) {
         : '[Date]',
       '{{year}}': new Date().getFullYear(),
       '{{nextYear}}': new Date().getFullYear() + 1,
-      '{{organization}}': '[Your Organization Name]'
+      '{{organization}}': process.env.NEXT_PUBLIC_ORGANIZATION_NAME || '[Your Organization Name]'
     }
 
     Object.entries(replacements).forEach(([key, value]) => {
@@ -184,31 +198,196 @@ export default function TemplatesSection({ donorId, donorInfo }) {
     setPreviewContent(preview)
   }
 
-  const handleSendEmail = async () => {
-    if (!selectedTemplate || !donorId) return
-
-    try {
-      const response = await fetch('/api/communications', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          donorId,
-          type: 'EMAIL',
-          direction: 'OUTBOUND',
-          subject: selectedTemplate.subject || selectedTemplate.name,
-          content: previewContent,
-          templateId: selectedTemplate.id
-        })
-      })
-
-      if (response.ok) {
-        alert('Email sent successfully!')
-      }
-    } catch (err) {
-      console.error('Error sending email:', err)
-      alert('Failed to send email')
-    }
+  // Enhanced send email function
+const handleSendEmailEnhanced = async (templateData = null) => {
+  const templateToUse = templateData || selectedTemplate
+  const recipientEmail = emailData.to || donorInfo?.email
+  
+  if (!recipientEmail) {
+    setSendStatus({
+      type: 'error',
+      message: 'Please enter recipient email address'
+    })
+    return
   }
+
+  if (!emailData.subject && !templateToUse?.subject) {
+    setSendStatus({
+      type: 'error',
+      message: 'Please enter email subject'
+    })
+    return
+  }
+
+  try {
+    setComposerLoading(true)
+    setSendStatus({ type: null, message: '' })
+
+    const isCustomEmail = composerMode === 'custom' || templateToUse?.id === 'custom'
+    let emailHtml = ''
+    let templateType = 'custom'
+
+    if (isCustomEmail) {
+      // Use custom HTML or convert template content
+      emailHtml = formatEmailHtml(customHtml || previewContent, composerMode === 'custom')
+      templateType = 'custom'
+    } else if (templateToUse) {
+      // Generate HTML from template
+      const previewContent = generatePreview(templateToUse)
+      emailHtml = formatEmailHtml(previewContent, false)
+      
+      // Map to API template types
+      if (templateToUse.category === 'YEAR_END' || templateToUse.category === 'RECURRING') {
+        templateType = 'newsletter'
+      } else if (templateToUse.category === 'EVENT') {
+        templateType = 'promotion'
+      } else {
+        templateType = 'welcome'
+      }
+    }
+
+    // Send using your API endpoint
+    const response = await fetch('/api/communications/email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: emailData.to.split(',').map(e => e.trim()),
+        subject: emailData.subject || templateToUse?.subject || templateToUse?.name,
+        template: templateType,
+        html: emailHtml,
+        variables: {
+          firstName: donorInfo?.firstName || 'Valued Supporter',
+          // Add more variables as needed
+        },
+        from: emailData.from,
+        cc: emailData.cc || undefined,
+        bcc: emailData.bcc || undefined
+      })
+    })
+
+    const result = await response.json()
+
+    if (!response.ok) {
+      throw new Error(result.error || 'Failed to send email')
+    }
+
+    // Log the communication
+    await fetch('/api/communications', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        donorId,
+        type: 'EMAIL',
+        direction: 'OUTBOUND',
+        subject: emailData.subject || templateToUse?.subject || templateToUse?.name,
+        content: composerMode === 'custom' ? customHtml : previewContent,
+        templateId: templateToUse?.id,
+        templateUsed: templateType,
+        status: 'SENT',
+        messageId: result.data?.id,
+        sentAt: new Date().toISOString(),
+        metadata: {
+          resendId: result.data?.id,
+          from: emailData.from,
+          cc: emailData.cc,
+          bcc: emailData.bcc
+        }
+      })
+    })
+
+    setSendStatus({
+      type: 'success',
+      message: `Email sent successfully to ${emailData.to}`
+    })
+
+    // Close composer if open
+    if (showEmailComposer) {
+      setTimeout(() => {
+        setShowEmailComposer(false)
+        resetComposerState()
+      }, 2000)
+    }
+
+    setTimeout(() => {
+      setSendStatus({ type: null, message: '' })
+    }, 5000)
+
+  } catch (err) {
+    console.error('Error sending email:', err)
+    setSendStatus({
+      type: 'error',
+      message: err.message || 'Failed to send email'
+    })
+  } finally {
+    setComposerLoading(false)
+  }
+}
+
+// Reset composer state
+const resetComposerState = () => {
+  setEmailData({
+    to: donorInfo?.email || '',
+    subject: selectedTemplate?.subject || selectedTemplate?.name || '',
+    from: process.env.NEXT_PUBLIC_EMAIL_FROM || 'Acme <onboarding@resend.dev>',
+    cc: '',
+    bcc: ''
+  })
+  setCustomHtml('')
+  setComposerMode('template')
+  setActiveTab('compose')
+}
+
+  // Send email using your /api/communications/email endpoint
+  const handleSendEmail = async () => {
+   await handleSendEmailEnhanced()
+}
+
+
+  // Helper to convert text to HTML (for future use)
+  // Convert text to HTML with basic styling
+const convertTextToHtml = (text) => {
+  return text
+    .split('\n\n')
+    .map(paragraph => {
+      if (paragraph.trim() === '') return '<p><br></p>'
+      // Check if it's a heading (line ending with :)
+      if (paragraph.trim().endsWith(':')) {
+        return `<h3 style="color: #333; margin: 16px 0 8px 0; font-size: 16px; font-weight: bold;">${paragraph.trim()}</h3>`
+      }
+      return `<p style="margin: 0 0 16px 0; line-height: 1.6; color: #333;">${paragraph.replace(/\n/g, '<br>')}</p>`
+    })
+    .join('')
+}
+
+// Format the HTML for email
+const formatEmailHtml = (content, isHtml = false) => {
+  const bodyContent = isHtml ? content : convertTextToHtml(content)
+  
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${emailData.subject}</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+        <h1 style="color: #2c5282; margin-top: 0;">${process.env.NEXT_PUBLIC_ORGANIZATION_NAME || '[Your Organization]'}</h1>
+      </div>
+      
+      ${bodyContent}
+      
+      <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #718096; font-size: 14px;">
+        <p>
+          ${process.env.NEXT_PUBLIC_ORGANIZATION_NAME ? process.env.NEXT_PUBLIC_ORGANIZATION_NAME : 'Your Organization'} <br>
+          <a href="${process.env.NEXT_PUBLIC_WEBSITE_URL || '#'}" style="color: #4299e1;">Visit our website</a>
+        </p>
+      </div>
+    </body>
+    </html>
+  `
+}
 
   const handleSaveTemplate = async (e) => {
     e.preventDefault()
@@ -217,12 +396,10 @@ export default function TemplatesSection({ donorId, donorInfo }) {
       let updatedTemplates
       
       if (editingTemplate) {
-        // Update existing template
         updatedTemplates = templates.map(t => 
           t.id === editingTemplate.id ? { ...templateForm, id: editingTemplate.id } : t
         )
       } else {
-        // Create new template
         const newTemplate = {
           ...templateForm,
           id: `template-${Date.now()}`,
@@ -244,10 +421,21 @@ export default function TemplatesSection({ donorId, donorInfo }) {
         category: 'THANK_YOU'
       })
       
-      alert('Template saved successfully!')
+      setSendStatus({
+        type: 'success',
+        message: 'Template saved successfully!'
+      })
+      
+      setTimeout(() => {
+        setSendStatus({ type: null, message: '' })
+      }, 3000)
+      
     } catch (err) {
       console.error('Error saving template:', err)
-      alert('Failed to save template')
+      setSendStatus({
+        type: 'error',
+        message: 'Failed to save template'
+      })
     }
   }
 
@@ -263,10 +451,20 @@ export default function TemplatesSection({ donorId, donorInfo }) {
         setSelectedTemplate(null)
       }
       
-      alert('Template deleted successfully!')
+      setSendStatus({
+        type: 'success',
+        message: 'Template deleted successfully!'
+      })
+      
+      setTimeout(() => {
+        setSendStatus({ type: null, message: '' })
+      }, 3000)
     } catch (err) {
       console.error('Error deleting template:', err)
-      alert('Failed to delete template')
+      setSendStatus({
+        type: 'error',
+        message: 'Failed to delete template'
+      })
     }
   }
 
@@ -287,16 +485,20 @@ export default function TemplatesSection({ donorId, donorInfo }) {
     generatePreview(template)
   }
 
-  const handleQuickSend = (template) => {
-    if (!donorId) {
-      alert('Please select a donor first')
+  const handleQuickSend = async (template) => {
+    if (!donorId || !donorInfo?.email) {
+      setSendStatus({
+        type: 'error',
+        message: 'Please select a donor with an email address first'
+      })
       return
     }
     
     handleUseTemplate(template)
-    setTimeout(() => {
-      handleSendEmail()
-    }, 500)
+    
+    setTimeout(async () => {
+      await handleSendEmail()
+    }, 100)
   }
 
   const getFilteredTemplates = () => {
@@ -348,6 +550,26 @@ export default function TemplatesSection({ donorId, donorInfo }) {
 
   return (
     <div className={styles.container}>
+      {/* Status display */}
+      {sendStatus.type && (
+        <div className={`${styles.statusAlert} ${sendStatus.type === 'success' ? styles.success : styles.error}`}>
+          <div className={styles.statusContent}>
+            {sendStatus.type === 'success' ? (
+              <CheckIcon className={styles.statusIcon} />
+            ) : (
+              <ExclamationTriangleIcon className={styles.statusIcon} />
+            )}
+            <span>{sendStatus.message}</span>
+          </div>
+          <button 
+            className={styles.statusClose}
+            onClick={() => setSendStatus({ type: null, message: '' })}
+          >
+            <XMarkIcon className={styles.icon} />
+          </button>
+        </div>
+      )}
+      
       {/* Header */}
       <div className={styles.header}>
         <div className={styles.headerLeft}>
@@ -491,7 +713,7 @@ export default function TemplatesSection({ donorId, donorInfo }) {
                                   e.stopPropagation()
                                   handleQuickSend(template)
                                 }}
-                                disabled={!donorId}
+                                disabled={!donorId || !donorInfo?.email}
                               >
                                 <PaperAirplaneIcon className={styles.icon} />
                                 Send Now
@@ -591,117 +813,354 @@ export default function TemplatesSection({ donorId, donorInfo }) {
                 <button 
                   className={styles.primaryButton}
                   onClick={handleSendEmail}
-                  disabled={!donorId}
+                  disabled={!donorId || !donorInfo?.email || sendingEmail}
                 >
-                  <PaperAirplaneIcon className={styles.icon} /> 
-                  Send Email to {donorInfo?.firstName || 'Donor'}
+                  {sendingEmail ? (
+                    <>
+                      <ArrowPathIcon className={`${styles.icon} ${styles.spinning}`} />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <PaperAirplaneIcon className={styles.icon} /> 
+                      Send Email to {donorInfo?.firstName || 'Donor'}
+                    </>
+                  )}
                 </button>
                 
                 <button 
                   className={styles.secondaryButton}
                   onClick={() => {
                     navigator.clipboard.writeText(previewContent)
-                    alert('Template content copied to clipboard!')
+                    setSendStatus({
+                      type: 'success',
+                      message: 'Template content copied to clipboard!'
+                    })
+                    setTimeout(() => setSendStatus({ type: null, message: '' }), 2000)
                   }}
                 >
                   <ClipboardDocumentIcon className={styles.icon} />
                   Copy Content
                 </button>
               </div>
+              
+              {donorInfo?.email && (
+                <div className={styles.recipientInfo}>
+                  <strong>Recipient:</strong> {donorInfo.email}
+                </div>
+              )}
             </div>
           </div>
         )}
       </div>
 
-      {/* Create/Edit Template Modal */}
-      {showTemplateModal && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modal}>
-            <div className={styles.modalHeader}>
-              <h3>{editingTemplate ? 'Edit Template' : 'Create New Template'}</h3>
-              <button 
-                className={styles.iconButton}
-                onClick={() => {
-                  setShowTemplateModal(false)
-                  setEditingTemplate(null)
-                }}
-              >
-                <XMarkIcon className={styles.icon} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveTemplate} className={styles.modalForm}>
-              <div className={styles.formGroup}>
-                <label>Template Name *</label>
-                <input
-                  type="text"
-                  value={templateForm.name}
-                  onChange={(e) => setTemplateForm({...templateForm, name: e.target.value})}
-                  placeholder="e.g., Thank You Email"
-                  required
-                />
-              </div>
-
-              <div className={styles.formRow}>
-                <div className={styles.formGroup}>
-                  <label>Category *</label>
-                  <select
-                    value={templateForm.category}
-                    onChange={(e) => setTemplateForm({...templateForm, category: e.target.value})}
-                    required
-                  >
-                    {templateCategories.map(category => (
-                      <option key={category.id} value={category.id}>{category.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label>Email Subject *</label>
-                  <input
-                    type="text"
-                    value={templateForm.subject}
-                    onChange={(e) => setTemplateForm({...templateForm, subject: e.target.value})}
-                    placeholder="Email subject line"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className={styles.formGroup}>
-                <label>Content *</label>
-                <textarea
-                  value={templateForm.content}
-                  onChange={(e) => setTemplateForm({...templateForm, content: e.target.value})}
-                  placeholder="Enter your template content here. Use {{placeholders}} for dynamic content."
-                  rows={12}
-                  required
-                />
-                <small className={styles.helpText}>
-                  Available placeholders: {'{{firstName}}'}, {'{{lastName}}'}, {'{{fullName}}'}, 
-                  {'{{email}}'}, {'{{amount}}'}, {'{{date}}'}, {'{{year}}'}, {'{{organization}}'}
-                </small>
-              </div>
-
-              <div className={styles.modalActions}>
+        {/* Create/Edit Template Modal */}
+        {showTemplateModal && (
+          <div className={styles.modalOverlay}>
+            <div className={styles.modal}>
+              <div className={styles.modalHeader}>
+                <h3>{editingTemplate ? 'Edit Template' : 'Create New Template'}</h3>
                 <button 
-                  type="button" 
-                  className={styles.secondaryButton}
+                  className={styles.iconButton}
                   onClick={() => {
                     setShowTemplateModal(false)
                     setEditingTemplate(null)
                   }}
                 >
-                  Cancel
+                  <XMarkIcon className={styles.icon} />
                 </button>
-                <button type="submit" className={styles.primaryButton}>
-                  {editingTemplate ? 'Update Template' : 'Create Template'}
+
+                <button 
+                  className={styles.composerButton}
+                  onClick={() => {
+                    setShowEmailComposer(true)
+                    setEmailData(prev => ({
+                      ...prev,
+                      to: donorInfo?.email || '',
+                      subject: selectedTemplate?.subject || selectedTemplate?.name || ''
+                    }))
+                  }}
+                  disabled={!donorInfo?.email}
+                >
+                  <EnvelopeIcon className={styles.icon} /> Compose Email
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={handleSaveTemplate} className={styles.modalForm}>
+                <div className={styles.formGroup}>
+                  <label>Template Name *</label>
+                  <input
+                    type="text"
+                    value={templateForm.name}
+                    onChange={(e) => setTemplateForm({...templateForm, name: e.target.value})}
+                    placeholder="e.g., Thank You Email"
+                    required
+                  />
+                </div>
+
+                <div className={styles.formRow}>
+                  <div className={styles.formGroup}>
+                    <label>Category *</label>
+                    <select
+                      value={templateForm.category}
+                      onChange={(e) => setTemplateForm({...templateForm, category: e.target.value})}
+                      required
+                    >
+                      {templateCategories.map(category => (
+                        <option key={category.id} value={category.id}>{category.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label>Email Subject *</label>
+                    <input
+                      type="text"
+                      value={templateForm.subject}
+                      onChange={(e) => setTemplateForm({...templateForm, subject: e.target.value})}
+                      placeholder="Email subject line"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label>Content *</label>
+                  <textarea
+                    value={templateForm.content}
+                    onChange={(e) => setTemplateForm({...templateForm, content: e.target.value})}
+                    placeholder="Enter your template content here. Use {{placeholders}} for dynamic content."
+                    rows={12}
+                    required
+                  />
+                  <small className={styles.helpText}>
+                    Available placeholders: {'{{firstName}}'}, {'{{lastName}}'}, {'{{fullName}}'}, 
+                    {'{{email}}'}, {'{{amount}}'}, {'{{date}}'}, {'{{year}}'}, {'{{organization}}'}
+                  </small>
+                </div>
+
+                <div className={styles.modalActions}>
+                  <button 
+                    type="button" 
+                    className={styles.secondaryButton}
+                    onClick={() => {
+                      setShowTemplateModal(false)
+                      setEditingTemplate(null)
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" className={styles.primaryButton}>
+                    {editingTemplate ? 'Update Template' : 'Create Template'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Email Composer Modal */}
+  {showEmailComposer && (
+    <div className={styles.modalOverlay}>
+      <div className={`${styles.modal} ${styles.composerModal}`}>
+        <div className={styles.modalHeader}>
+          <h3>
+            <EnvelopeIcon className={styles.icon} /> 
+            Compose Email
+          </h3>
+          <button 
+            className={styles.iconButton}
+            onClick={() => {
+              setShowEmailComposer(false)
+              resetComposerState()
+            }}
+          >
+            <XMarkIcon className={styles.icon} />
+          </button>
+        </div>
+
+        <div className={styles.composerContainer}>
+          {/* Email Header */}
+          <div className={styles.composerHeader}>
+            <div className={styles.emailFields}>
+              <div className={styles.formGroup}>
+                <label><AtSymbolIcon className={styles.iconSm} /> To</label>
+                <input
+                  type="text"
+                  value={emailData.to}
+                  onChange={(e) => setEmailData({...emailData, to: e.target.value})}
+                  placeholder="recipient@example.com, another@example.com"
+                  className={styles.emailInput}
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label><DocumentTextIcon className={styles.iconSm} /> Subject</label>
+                <input
+                  type="text"
+                  value={emailData.subject}
+                  onChange={(e) => setEmailData({...emailData, subject: e.target.value})}
+                  placeholder="Email subject"
+                  className={styles.emailInput}
+                />
+              </div>
+
+              <div className={styles.formRow}>
+                <div className={styles.formGroup}>
+                  <label>From</label>
+                  <input
+                    type="email"
+                    value={emailData.from}
+                    onChange={(e) => setEmailData({...emailData, from: e.target.value})}
+                    className={styles.emailInput}
+                  />
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label>CC</label>
+                  <input
+                    type="text"
+                    value={emailData.cc}
+                    onChange={(e) => setEmailData({...emailData, cc: e.target.value})}
+                    placeholder="cc@example.com"
+                    className={styles.emailInput}
+                  />
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label>BCC</label>
+                  <input
+                    type="text"
+                    value={emailData.bcc}
+                    onChange={(e) => setEmailData({...emailData, bcc: e.target.value})}
+                    placeholder="bcc@example.com"
+                    className={styles.emailInput}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Mode Selector */}
+          <div className={styles.modeSelector}>
+            <div className={styles.modeButtons}>
+              <button
+                className={`${styles.modeButton} ${composerMode === 'template' ? styles.active : ''}`}
+                onClick={() => setComposerMode('template')}
+              >
+                <DocumentTextIcon className={styles.icon} />
+                Template
+              </button>
+              <button
+                className={`${styles.modeButton} ${composerMode === 'custom' ? styles.active : ''}`}
+                onClick={() => setComposerMode('custom')}
+              >
+                <PhotoIcon className={styles.icon} />
+                Custom HTML
+              </button>
+            </div>
+          </div>
+
+          {/* Content Area */}
+          <div className={styles.composerContent}>
+            {composerMode === 'template' && selectedTemplate ? (
+              <div className={styles.templatePreview}>
+                <h4>Template: {selectedTemplate.name}</h4>
+                <div className={styles.previewText}>
+                  {previewContent.split('\n').map((line, i) => (
+                    <p key={i}>{line || <br />}</p>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className={styles.htmlEditor}>
+                <div className={styles.editorTabs}>
+                  <button
+                    className={`${styles.tabButton} ${activeTab === 'compose' ? styles.active : ''}`}
+                    onClick={() => setActiveTab('compose')}
+                  >
+                    Compose
+                  </button>
+                  <button
+                    className={`${styles.tabButton} ${activeTab === 'preview' ? styles.active : ''}`}
+                    onClick={() => setActiveTab('preview')}
+                  >
+                    Preview
+                  </button>
+                  <button
+                    className={`${styles.tabButton} ${activeTab === 'code' ? styles.active : ''}`}
+                    onClick={() => setActiveTab('code')}
+                  >
+                    HTML
+                  </button>
+                </div>
+
+                <div className={styles.editorContent}>
+                  {activeTab === 'compose' ? (
+                    <textarea
+                      value={customHtml}
+                      onChange={(e) => setCustomHtml(e.target.value)}
+                      placeholder="Write your email content here..."
+                      rows={15}
+                      className={styles.htmlTextarea}
+                    />
+                  ) : activeTab === 'preview' ? (
+                    <div 
+                      className={styles.htmlPreview}
+                      dangerouslySetInnerHTML={{ 
+                        __html: formatEmailHtml(customHtml, true) 
+                      }}
+                    />
+                  ) : (
+                    <pre className={styles.htmlCode}>
+                      {formatEmailHtml(customHtml, true)}
+                    </pre>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div className={styles.composerActions}>
+            <button 
+              className={styles.secondaryButton}
+              onClick={() => {
+                navigator.clipboard.writeText(
+                  composerMode === 'template' ? previewContent : customHtml
+                )
+                setSendStatus({
+                  type: 'success',
+                  message: 'Content copied to clipboard!'
+                })
+              }}
+            >
+              <ClipboardDocumentIcon className={styles.icon} />
+              Copy Content
+            </button>
+            
+            <button 
+              className={styles.primaryButton}
+              onClick={handleSendEmailEnhanced}
+              disabled={composerLoading || !emailData.to}
+            >
+              {composerLoading ? (
+                <>
+                  <ArrowPathIcon className={`${styles.icon} ${styles.spinning}`} />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <PaperAirplaneIcon className={styles.icon} />
+                  Send Email
+                </>
+              )}
+            </button>
           </div>
         </div>
-      )}
+      </div>
+    </div>
+  )}
     </div>
   )
 }

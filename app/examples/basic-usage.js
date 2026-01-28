@@ -20,7 +20,11 @@ async function runExample() {
   
   // 4. Start simulation
   if (status.simulation.enabled) {
-    await aiSystem.services.simulation.start('org_123');
+    await aiSystem.services.simulation.start({
+      donorLimit: 20,
+      speed: 'normal'
+    });
+
     console.log('Simulation started');
   }
   

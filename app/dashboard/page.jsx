@@ -1,6 +1,9 @@
+// app/dashboard/page.jsx - Fixed version
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+
+
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { 
   CurrencyDollarIcon, 
   UserGroupIcon, 
@@ -8,38 +11,135 @@ import {
   ExclamationTriangleIcon,
   CalendarIcon,
   EnvelopeIcon,
-  MagnifyingGlassIcon,
-  XMarkIcon,
   UserCircleIcon,
   ChartBarIcon,
-  ReceiptPercentIcon,
   FireIcon,
   BellAlertIcon,
   DocumentTextIcon,
   PhoneIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
+  BoltIcon,
+  PlayIcon,
+  XMarkIcon,
+  SparklesIcon,
+  ArrowUpTrayIcon
 } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import styles from './Dashboard.module.css'
+import QuickActions from '../components/QuickActions'
+import SimulationControls from '../components/ai/SimulationControls'
+import BulkDonorManager from '../components/BulkDonorManager'
 import { useRouter } from 'next/navigation'
 import { useDonors } from '../hooks/useDonor'
-import { useDonations } from '../hooks/usedonation.js'
+import { useDonations } from '../hooks/usedonation'
+import { useAI } from '../providers/AIProvider'
+import { bulkCreateDonors, prepareDonorsForBulk } from '../../utils/bulkDonorCreator'
+
+// Simple event emitter for simulation events
+class SimulationEventEmitter {
+  constructor() {
+    this.listeners = new Map()
+  }
+
+  on(event, callback) {
+    if (!this.listeners.has(event)) {
+      this.listeners.set(event, new Set())
+    }
+    this.listeners.get(event).add(callback)
+    return () => this.off(event, callback)
+  }
+
+  off(event, callback) {
+    if (this.listeners.has(event)) {
+      this.listeners.get(event).delete(callback)
+    }
+  }
+
+  emit(event, data) {
+    if (this.listeners.has(event)) {
+      this.listeners.get(event).forEach(callback => {
+        try {
+          callback(data)
+        } catch (error) {
+          console.error('Error in event listener:', error)
+        }
+      })
+    }
+  }
+}
+
+// Create a global event emitter instance
+const simulationEventEmitter = new SimulationEventEmitter()
 
 export default function DashboardPage() {
   const router = useRouter()
-  const [selectedDonor, setSelectedDonor] = useState(null)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [filterType, setFilterType] = useState('all')
-  const [showDonorDropdown, setShowDonorDropdown] = useState(false)
-  const [timeframe, setTimeframe] = useState('year') // For donation stats
+  const { 
+    aiSystem, 
+    status: aiStatus, 
+    apiClient,
+    isSimulationRunning,
+    simulationStats
+  } = useAI()
+
+  const [timeframe, setTimeframe] = useState('year')
   const [activityFeed, setActivityFeed] = useState([])
+  const [simulatedActivities, setSimulatedActivities] = useState([])
+  const [simulatedDonors, setSimulatedDonors] = useState([])
   const [activityLoading, setActivityLoading] = useState(false)
+  const [showSimulationPanel, setShowSimulationPanel] = useState(false)
+  const [bulkCreating, setBulkCreating] = useState(false)
+  const [bulkProgress, setBulkProgress] = useState(null)
+  const [simulationEvents, setSimulationEvents] = useState([])
+  const [localSettings, setLocalSettings] = useState(null)
+  const [isClient, setIsClient] = useState(false)
+  
+  // Initialize client-side state
+  useEffect(() => {
+    setIsClient(true)
+    try {
+      const savedSettings = localStorage.getItem('simulationSettings')
+      if (savedSettings) {
+        setLocalSettings(JSON.parse(savedSettings))
+      } else {
+        // Set default settings
+       setLocalSettings({
+        speed: 'normal',
+        donorCount: 20,  // ← Make sure this matches!
+        activityTypes: ['donations', 'communications', 'profile_updates'],
+        realism: 'high',
+        autoGenerate: true,
+        autoSave: false
+      })
+      }
+    } catch (error) {
+      console.error('Error loading settings from localStorage:', error)
+      setLocalSettings({
+      speed: 'normal',
+      donorCount: 20,  // ← Consistent default
+      activityTypes: ['donations', 'communications', 'profile_updates'],
+      realism: 'high',
+      autoGenerate: true,
+      autoSave: false
+    })
+    }
+}, []) // Empty dependency array - only runs once on mount
+
+  // Save settings to localStorage when changed
+  useEffect(() => {
+    if (isClient && localSettings) {
+      try {
+        localStorage.setItem('simulationSettings', JSON.stringify(localSettings))
+      } catch (error) {
+        console.error('Error saving settings to localStorage:', error)
+      }
+    }
+  }, [localSettings, isClient])
   
   // Real data hooks
-  const { donors, loading: donorsLoading, error: donorsError } = useDonors()
+  const { donors, loading: donorsLoading, error: donorsError, invalidate: invalidateDonors } = useDonors()
   const { donations, summary, loading: donationsLoading, error: donationsError } = useDonations({ 
     timeframe,
-    limit: 1000 // Get more donations for better stats
+    limit: 1000
   })
 
   const isLoading = donorsLoading || donationsLoading
@@ -49,13 +149,14 @@ export default function DashboardPage() {
     const fetchActivityData = async () => {
       setActivityLoading(true)
       try {
-        // Fetch from your activity API endpoint
         const response = await fetch('/api/donor-activity?timeframe=7days&limit=10')
         if (response.ok) {
           const data = await response.json()
           if (data.success) {
             setActivityFeed(data.data.activities || [])
           }
+        } else {
+          console.warn('Failed to fetch activity data')
         }
       } catch (error) {
         console.error('Error fetching activity data:', error)
@@ -67,12 +168,294 @@ export default function DashboardPage() {
     fetchActivityData()
   }, [])
 
+  // Simulate generating donor data (for testing)
+  const simulateDonorGeneration = useCallback(async (count = 10) => {
+    try {
+      const orgId = localStorage.getItem('currentOrgId') || 'default-org'
+      
+      // Generate fake donor data through your AI API
+      const result = await apiClient.fetchData('generateFakeDonorData', {
+        count,
+        includeCommunications: false,
+        includeDonations: true
+      }, { usePost: true })
+
+      if (result.success && result.data?.donors) {
+        const donors = result.data.donors
+        
+        // Store donors for bulk creation
+        setSimulatedDonors(donors)
+        
+        // Emit event for UI update
+        simulationEventEmitter.emit('data_generated', {
+          type: 'data_generated',
+          data: result
+        })
+
+        console.log(`✅ Generated ${donors.length} simulated donors`)
+        return donors
+      }
+    } catch (error) {
+      console.error('Error generating donor data:', error)
+    }
+  }, [apiClient])
+
+  // Handle bulk creation of simulated donors
+  // In your Dashboard page, update the handleBulkCreateDonors function:
+const handleBulkCreateDonors = async (donorsToCreate = simulatedDonors) => {
+  if (!donorsToCreate || donorsToCreate.length === 0) {
+    console.warn('No donors to create')
+    return
+  }
+
+  setBulkCreating(true)
+  setBulkProgress({ status: 'preparing', total: donorsToCreate.length })
+
+  try {
+    const orgId = localStorage.getItem('currentOrgId') || 'default-org'
+    
+    // Prepare donors for bulk creation
+    const preparedDonors = prepareDonorsForBulk(donorsToCreate)
+    
+    if (preparedDonors.length === 0) {
+      throw new Error('No valid donors to create')
+    }
+
+    setBulkProgress({ 
+      status: 'creating', 
+      total: preparedDonors.length,
+      processed: 0 
+    })
+
+    // Create donors in bulk
+    const result = await bulkCreateDonors(preparedDonors, orgId, (progress) => {
+      setBulkProgress(progress)
+    })
+
+    // FIX: Safely handle invalidateDonors
+    if (invalidateDonors && typeof invalidateDonors === 'function') {
+      console.log('🔄 Invalidating donors cache...')
+      try {
+        await invalidateDonors()
+      } catch (invalidateError) {
+        console.warn('Failed to invalidate donors, reloading page:', invalidateError)
+        // Fallback: reload the page
+        window.location.reload()
+      }
+    } else {
+      console.warn('invalidateDonors not available, reloading page')
+      window.location.reload()
+    }
+
+    // Clear simulated donors
+    setSimulatedDonors([])
+
+    // Add success notification
+    const successActivity = {
+      id: `bulk_${Date.now()}`,
+      type: 'SYSTEM',
+      donor: 'Bulk Import',
+      action: `Created ${result.created} new donors`,
+      amount: '',
+      time: 'just now',
+      icon: 'CheckCircleIcon',
+      isSimulated: false,
+      data: result
+    }
+
+    setSimulatedActivities(prev => [successActivity, ...prev.slice(0, 19)])
+
+    console.log(`✅ Successfully created ${result.created} donors`)
+
+    // Emit success event
+    simulationEventEmitter.emit('bulk_creation_complete', {
+      type: 'bulk_creation_complete',
+      data: result
+    })
+
+  } catch (error) {
+    console.error('❌ Bulk creation failed:', error)
+    
+    // Add error notification
+    const errorActivity = {
+      id: `error_${Date.now()}`,
+      type: 'ERROR',
+      donor: 'Bulk Import',
+      action: 'Failed to create donors',
+      amount: '',
+      time: 'just now',
+      icon: 'ExclamationTriangleIcon',
+      isSimulated: false,
+      data: { error: error.message }
+    }
+
+    setSimulatedActivities(prev => [errorActivity, ...prev.slice(0, 19)])
+  } finally {
+    setBulkCreating(false)
+    setBulkProgress(null)
+  }
+}
+
+  // Handle simulation events
+  const handleSimulationEvent = useCallback((event) => {
+    console.log('🎮 Simulation event received:', event)
+    
+    // Track event for debugging
+    setSimulationEvents(prev => [...prev.slice(-9), event])
+    
+    // 🧬 Data generated event
+    if (event.type === 'data_generated') {
+      const donors = event.data?.data?.donors ?? []
+      console.log('🧬 Data generated:', donors.length, 'donors')
+
+      // Store donors for potential bulk creation
+      setSimulatedDonors(donors)
+
+      // Show as a system activity
+      const systemActivity = {
+        id: `sim_${Date.now()}`,
+        type: 'SYSTEM',
+        donor: 'AI Simulation',
+        action: `Generated ${donors.length} donors`,
+        amount: '',
+        time: 'just now',
+        icon: 'UserGroupIcon',
+        isSimulated: true,
+        data: donors
+      }
+
+      setSimulatedActivities(prev => [systemActivity, ...prev.slice(0, 19)])
+
+      // Auto-create donors if enabled in simulation settings
+      if (localSettings?.autoSave && donors.length > 0) {
+        setTimeout(() => {
+          handleBulkCreateDonors(donors)
+        }, 1000)
+      }
+
+      return
+    }
+
+    // Handle donation events
+    if (event.type === 'donation') {
+      const activity = {
+        id: `sim_${Date.now()}_${Math.random()}`,
+        type: 'DONATION',
+        donor: event.data?.donorName || 'Simulated Donor',
+        action: 'Made a donation',
+        amount: `$${event.data?.amount || 0}`,
+        time: 'just now',
+        icon: 'CurrencyDollarIcon',
+        isSimulated: true,
+        data: event.data
+      }
+
+      setSimulatedActivities(prev => [activity, ...prev.slice(0, 19)])
+    }
+
+    // Handle communication events
+    if (event.type === 'communication') {
+      const activity = {
+        id: `sim_${Date.now()}_${Math.random()}`,
+        type: 'COMMUNICATION',
+        donor: event.data?.donorName || 'Simulated Donor',
+        action: 'Sent a message',
+        amount: '',
+        time: 'just now',
+        icon: 'EnvelopeIcon',
+        isSimulated: true,
+        data: event.data
+      }
+
+      setSimulatedActivities(prev => [activity, ...prev.slice(0, 19)])
+    }
+
+    // Handle simulation status changes
+    if (event.type === 'simulation_status') {
+      const activity = {
+        id: `status_${Date.now()}`,
+        type: 'SYSTEM',
+        donor: 'AI Simulation',
+        action: event.data?.message || 'Simulation status updated',
+        amount: '',
+        time: 'just now',
+        icon: 'PlayIcon',
+        isSimulated: true,
+        data: event.data
+      }
+
+      setSimulatedActivities(prev => [activity, ...prev.slice(0, 19)])
+    }
+  }, [localSettings?.autoSave])
+
+  // Listen to simulation events using our event emitter
+  useEffect(() => {
+    console.log('🔍 Setting up simulation event listeners')
+
+    // Subscribe to events
+    const unsubscribeDataGenerated = simulationEventEmitter.on('data_generated', handleSimulationEvent)
+    const unsubscribeBulkComplete = simulationEventEmitter.on('bulk_creation_complete', handleSimulationEvent)
+    
+    // Poll for simulation status if AI system doesn't have events
+    let pollInterval
+    if (aiSystem && isSimulationRunning) {
+      pollInterval = setInterval(async () => {
+        try {
+          // Check for new simulation stats
+          if (simulationStats) {
+            simulationEventEmitter.emit('simulation_status', {
+              type: 'simulation_status',
+              data: {
+                status: 'running',
+                stats: simulationStats,
+                message: 'Simulation is running'
+              }
+            })
+          }
+        } catch (error) {
+          console.error('Error polling simulation status:', error)
+        }
+      }, 30000) // Poll every 30 seconds
+    }
+    
+    return () => {
+      console.log('🧹 Cleaning up simulation event listeners')
+      unsubscribeDataGenerated()
+      unsubscribeBulkComplete()
+      if (pollInterval) clearInterval(pollInterval)
+    }
+  }, [aiSystem, isSimulationRunning, simulationStats, handleSimulationEvent])
+
+  // Trigger donor generation when simulation starts
+  useEffect(() => {
+    if (isSimulationRunning && simulatedDonors.length === 0) {
+      // Auto-generate donors when simulation starts
+      const timer = setTimeout(() => {
+        const count = localSettings?.donorCount || 5
+        simulateDonorGeneration(count)
+      }, 2000)
+      
+      return () => clearTimeout(timer)
+    }
+  }, [isSimulationRunning, simulateDonorGeneration, simulatedDonors.length, localSettings?.donorCount])
+
+  // Combine real and simulated activities
+  const combinedActivities = useMemo(() => {
+    const allActivities = [...activityFeed, ...simulatedActivities]
+    return allActivities
+      .sort((a, b) => {
+        const timeA = a.createdAt || (a.isSimulated ? new Date() : a.date)
+        const timeB = b.createdAt || (b.isSimulated ? new Date() : b.date)
+        return new Date(timeB) - new Date(timeA)
+      })
+      .slice(0, 10) // Show top 10 most recent
+  }, [activityFeed, simulatedActivities])
+
   // Process real donor data
   const processedDonors = useMemo(() => {
     if (!donors || donors.length === 0) return []
     
     return donors.map((donor) => {
-      // Calculate donor stats from their donations
       const donorDonations = donations?.filter(d => d.donorId === donor.id) || []
       const totalGiven = donorDonations.reduce((sum, d) => sum + (d.amount || 0), 0)
       const lastDonation = donorDonations.length > 0 
@@ -100,218 +483,7 @@ export default function DashboardPage() {
     })
   }, [donors, donations])
 
-  // Process donation statistics
-  const donationStats = useMemo(() => {
-    if (!donations || donations.length === 0) return {
-      totalDonors: 0,
-      yearToDate: 0,
-      lybuntDonors: 0,
-      sybuntDonors: 0,
-      avgGiftSize: 0,
-      growth: 0,
-      recentDonations: [],
-      recentActivities: [],
-      totalActivities: activityFeed.length
-    }
-
-    // Calculate YTD donations (current year)
-    const currentYear = new Date().getFullYear()
-    const ytdDonations = donations.filter(d => {
-      const donationYear = new Date(d.date).getFullYear()
-      return donationYear === currentYear
-    })
-    const ytdTotal = ytdDonations.reduce((sum, d) => sum + (d.amount || 0), 0)
-    
-    // Calculate LY BUNT and SY BUNT donors
-    const lybuntCount = processedDonors.filter(donor => donor.isLYBUNT).length
-    const sybuntCount = processedDonors.filter(donor => donor.isSYBUNT).length
-    
-    // Calculate average gift
-    const avgGift = donations.length > 0 
-      ? donations.reduce((sum, d) => sum + d.amount, 0) / donations.length 
-      : 0
-    
-    // Get recent donations (last 5)
-    const recentDonations = [...donations]
-      .sort((a, b) => new Date(b.date) - new Date(a.date))
-      .slice(0, 5)
-      .map(donation => {
-        const donor = processedDonors.find(d => d.id === donation.donorId)
-        return {
-          id: donation.id,
-          donor: donor ? `${donor.firstName} ${donor.lastName}` : 'Unknown Donor',
-          action: 'Made a donation',
-          amount: `$${donation.amount.toFixed(0)}`,
-          time: formatTimeAgo(new Date(donation.date)),
-          icon: 'CurrencyDollarIcon',
-          type: 'DONATION'
-        }
-      })
-
-    // Combine activity feed with recent donations for display
-    const combinedActivities = [...activityFeed, ...recentDonations]
-      .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date))
-      .slice(0, 8) // Show 8 most recent items
-
-    return {
-      totalDonors: processedDonors.length,
-      yearToDate: ytdTotal,
-      lybuntDonors: lybuntCount,
-      sybuntDonors: sybuntCount,
-      avgGiftSize: avgGift,
-      growth: 8.2, // Mock growth percentage for now
-      recentDonations,
-      recentActivities: combinedActivities,
-      totalActivities: activityFeed.length
-    }
-  }, [donations, processedDonors, activityFeed])
-
-  // Filter donors based on search and filter type
-  const filteredDonors = useMemo(() => {
-    let results = [...processedDonors]
-
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      results = results.filter(donor =>
-        donor.name.toLowerCase().includes(query) ||
-        donor.email.toLowerCase().includes(query) ||
-        donor.phone.toLowerCase().includes(query)
-      )
-    }
-
-    if (filterType === 'highest') {
-      results.sort((a, b) => b.totalDonations - a.totalDonations)
-    }
-
-    if (filterType === 'lybunt') {
-      results = results.filter(donor => donor.isLYBUNT)
-    }
-
-    if (filterType === 'sybunt') {
-      results = results.filter(donor => donor.isSYBUNT)
-    }
-
-    return results
-  }, [processedDonors, searchQuery, filterType])
-
-  // Static chart data (enhanced with real data if available)
-  const chartData = useMemo(() => {
-    // Create monthly donation data
-    const monthlyData = Array(12).fill(0).map((_, i) => ({
-      month: new Date(2024, i, 1).toLocaleDateString('en-US', { month: 'short' }),
-      amount: 0,
-      activityCount: 0
-    }))
-
-    // Fill with real data if available
-    if (donations && donations.length > 0) {
-      donations.forEach(donation => {
-        const date = new Date(donation.date)
-        const month = date.getMonth()
-        const year = date.getFullYear()
-        
-        if (year === 2024 && month >= 0 && month < 12) {
-          monthlyData[month].amount += donation.amount
-        }
-      })
-    } else {
-      // Use mock data if no real data
-      const mockAmounts = [40250, 38920, 45670, 51230, 48910, 56780, 52100, 49870, 54320, 58910, 61230, 59870]
-      monthlyData.forEach((item, index) => {
-        item.amount = mockAmounts[index] || 45000
-      })
-    }
-
-    // Count activities per month
-    activityFeed.forEach(activity => {
-      try {
-        const activityDate = new Date(activity.createdAt || activity.date)
-        const month = activityDate.getMonth()
-        if (month >= 0 && month < 12) {
-          monthlyData[month].activityCount += 1
-        }
-      } catch (e) {
-        // Skip if date parsing fails
-      }
-    })
-
-    return monthlyData
-  }, [donations, activityFeed])
-
-  // Donor composition data
-  const donorComposition = useMemo(() => {
-    if (processedDonors.length === 0) {
-      return [
-        { category: 'Major Donors', value: 15, color: 'blue', icon: CurrencyDollarIcon },
-        { category: 'Recurring', value: 32, color: 'green', icon: ArrowTrendingUpIcon },
-        { category: 'Single Gift', value: 28, color: 'purple', icon: UserGroupIcon },
-        { category: 'LYBUNT', value: 15, color: 'orange', icon: ExclamationTriangleIcon },
-        { category: 'SYBUNT', value: 10, color: 'yellow', icon: BellAlertIcon },
-      ]
-    }
-
-    const majorDonors = processedDonors.filter(d => d.totalDonations >= 10000).length
-    const lybuntDonors = processedDonors.filter(d => d.isLYBUNT).length
-    const sybuntDonors = processedDonors.filter(d => d.isSYBUNT).length
-    const recurringDonors = processedDonors.filter(d => 
-      donations?.some(donation => donation.donorId === d.id && donation.isRecurring)
-    ).length
-    const singleGiftDonors = processedDonors.length - (majorDonors + lybuntDonors + sybuntDonors + recurringDonors)
-
-    return [
-      { 
-        category: 'Major Donors', 
-        value: Math.round((majorDonors / processedDonors.length) * 100),
-        color: 'blue',
-        icon: CurrencyDollarIcon
-      },
-      { 
-        category: 'Recurring', 
-        value: Math.round((recurringDonors / processedDonors.length) * 100),
-        color: 'green',
-        icon: ArrowTrendingUpIcon
-      },
-      { 
-        category: 'Single Gift', 
-        value: Math.round((singleGiftDonors / processedDonors.length) * 100),
-        color: 'purple',
-        icon: UserGroupIcon
-      },
-      { 
-        category: 'LYBUNT', 
-        value: Math.round((lybuntDonors / processedDonors.length) * 100),
-        color: 'orange',
-        icon: ExclamationTriangleIcon
-      },
-      { 
-        category: 'SYBUNT', 
-        value: Math.round((sybuntDonors / processedDonors.length) * 100),
-        color: 'yellow',
-        icon: BellAlertIcon
-      },
-    ]
-  }, [processedDonors, donations])
-
-  // Activity breakdown
-  const activityBreakdown = useMemo(() => {
-    const breakdown = {
-      donations: 0,
-      communications: 0,
-      meetings: 0,
-      notes: 0
-    }
-
-    activityFeed.forEach(activity => {
-      if (activity.type === 'DONATION') breakdown.donations++
-      else if (activity.type === 'COMMUNICATION') breakdown.communications++
-      else if (activity.type === 'MEETING') breakdown.meetings++
-      else if (activity.type === 'NOTE') breakdown.notes++
-    })
-
-    return breakdown
-  }, [activityFeed])
-
-  // Format currency
+  // Helper functions
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -321,19 +493,81 @@ export default function DashboardPage() {
     }).format(amount)
   }
 
-  // Format time ago
-  function formatTimeAgo(date) {
-    const now = new Date()
-    const diffInSeconds = Math.floor((now - date) / 1000)
-    
-    if (diffInSeconds < 60) return 'just now'
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`
-    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} days ago`
-    return `${Math.floor(diffInSeconds / 604800)} weeks ago`
-  }
+  // Process donation statistics
+  const donationStats = useMemo(() => {
+    if (!donations || donations.length === 0) return {
+      totalDonors: 0,
+      yearToDate: 0,
+      lybuntDonors: 0,
+      sybuntDonors: 0,
+      avgGiftSize: 0,
+      growth: 0,
+      totalActivities: combinedActivities.length,
+      simulatedDonorCount: simulatedDonors.length,
+      isSimulationRunning: isSimulationRunning
+    }
 
-  // Get icon component
+    const currentYear = new Date().getFullYear()
+    const ytdDonations = donations.filter(d => {
+      const donationYear = new Date(d.date).getFullYear()
+      return donationYear === currentYear
+    })
+    const ytdTotal = ytdDonations.reduce((sum, d) => sum + (d.amount || 0), 0)
+    
+    const lybuntCount = processedDonors.filter(donor => donor.isLYBUNT).length
+    const sybuntCount = processedDonors.filter(donor => donor.isSYBUNT).length
+    
+    const avgGift = donations.length > 0 
+      ? donations.reduce((sum, d) => sum + (d.amount || 0), 0) / donations.length 
+      : 0
+    
+    return {
+      totalDonors: processedDonors.length,
+      yearToDate: ytdTotal,
+      lybuntDonors: lybuntCount,
+      sybuntDonors: sybuntCount,
+      avgGiftSize: avgGift,
+      growth: 8.2,
+      totalActivities: combinedActivities.length,
+      simulatedDonorCount: simulatedDonors.length,
+      isSimulationRunning: isSimulationRunning
+    }
+  }, [donations, processedDonors, combinedActivities, simulatedDonors, isSimulationRunning])
+
+  // Enhanced stats data with simulation info
+  const stats = [
+    { 
+      name: 'Total Donors', 
+      value: donationStats.totalDonors.toLocaleString(), 
+      change: '+12%', 
+      icon: UserGroupIcon,
+      subtitle: simulatedDonors.length > 0 
+        ? `${simulatedDonors.length} ready to import` 
+        : `${donationStats.lybuntDonors} LYBUNT, ${donationStats.sybuntDonors} SYBUNT`
+    },
+    { 
+      name: 'Year to Date', 
+      value: formatCurrency(donationStats.yearToDate), 
+      change: '+8.2%', 
+      icon: CurrencyDollarIcon,
+      subtitle: isSimulationRunning ? 'Simulation active' : ''
+    },
+    { 
+      name: 'Recent Activities', 
+      value: donationStats.totalActivities.toString(), 
+      change: '+15%', 
+      icon: FireIcon,
+      subtitle: `${simulatedActivities.length} simulated, ${activityFeed.length} real`
+    },
+    { 
+      name: 'Avg Gift Size', 
+      value: formatCurrency(donationStats.avgGiftSize), 
+      change: '+5.1%', 
+      icon: ArrowTrendingUpIcon,
+      subtitle: isSimulationRunning ? 'Live simulation' : ''
+    },
+  ]
+
   const getIconComponent = (iconName) => {
     const iconMap = {
       'CurrencyDollarIcon': CurrencyDollarIcon,
@@ -345,107 +579,150 @@ export default function DashboardPage() {
       'ExclamationTriangleIcon': ExclamationTriangleIcon,
       'UserCircleIcon': UserCircleIcon,
       'FireIcon': FireIcon,
-      'BellAlertIcon': BellAlertIcon
+      'BellAlertIcon': BellAlertIcon,
+      'UserGroupIcon': UserGroupIcon,
+      'PlayIcon': PlayIcon,
+      'SparklesIcon': SparklesIcon
     }
     
     return iconMap[iconName] || UserCircleIcon
   }
 
-  const handleDonorSelect = (donor) => {
-    setSelectedDonor(donor)
-    setShowDonorDropdown(false)
-    setSearchQuery('')
-  }
+  // Test function to manually trigger donor generation
+  const handleTestDonorGeneration = useCallback(async (count = null) => {
+    try {
+      const orgId = localStorage.getItem('currentOrgId') || 'default-org'
+      const donorCount = count || localSettings?.donorCount || 10
+      
+      console.log(`🔮 Generating ${donorCount} donors...`)
+      
+      // Generate fake donor data through your AI API
+      const result = await apiClient.fetchData('generateFakeDonorData', {
+        count: donorCount,
+        includeCommunications: false,
+        includeDonations: true
+      }, { usePost: true })
 
-  const handleClearSelection = () => {
-    setSelectedDonor(null)
-    setSearchQuery('')
-  }
+      if (result.success && result.data?.donors) {
+        const donors = result.data.donors
+        
+        // Store donors for bulk creation
+        setSimulatedDonors(donors)
+        
+        // Emit event for UI update
+        simulationEventEmitter.emit('data_generated', {
+          type: 'data_generated',
+          data: result
+        })
 
-  const handleQuickAction = (action) => {
-    if (!selectedDonor) {
-      alert('Please select a donor first')
-      return
+        console.log(`✅ Generated ${donors.length} simulated donors`)
+        
+        // Auto-save if enabled
+        if (localSettings?.autoSave && donors.length > 0) {
+          console.log('🔄 Auto-saving donors...')
+          setTimeout(() => {
+            handleBulkCreateDonors(donors)
+          }, 1000)
+        }
+        
+        return donors
+      }
+    } catch (error) {
+      console.error('Error generating donor data:', error)
     }
+  }, [apiClient, localSettings?.autoSave, localSettings?.donorCount])
 
-    switch(action) {
-      case 'record':
-        router.push(`/recorddonorpage/${selectedDonor.id}`)
-        break
-      case 'thank-you':
-        router.push(`/communications/new?donorId=${selectedDonor.id}`)
-        break
-      case 'meeting':
-        router.push(`/communications/schedule?donorId=${selectedDonor.id}`)
-        break
-      case 'view':
-        router.push(`/donors/${selectedDonor.id}`)
-        break
-      default:
-        break
-    }
+  // Debug button handler
+  const handleDebugClick = () => {
+    console.log('=== DEBUG INFO ===')
+    console.log('Simulated Donors:', simulatedDonors.length)
+    console.log('Simulated Activities:', simulatedActivities.length)
+    console.log('Is Simulation Running:', isSimulationRunning)
+    console.log('Local Settings:', localSettings)
+    console.log('Donor Stats:', donationStats)
+    console.log('==================')
   }
-
-  if (isLoading) {
-    return (
-      <div className={styles.loadingContainer}>
-        <div className={styles.loadingSpinner}></div>
-        <p>Loading dashboard data...</p>
-      </div>
-    )
-  }
-
-  // Enhanced stats data
-  const stats = [
-    { 
-      name: 'Total Donors', 
-      value: donationStats.totalDonors.toLocaleString(), 
-      change: '+12%', 
-      icon: UserGroupIcon,
-      subtitle: `${donationStats.lybuntDonors} LYBUNT, ${donationStats.sybuntDonors} SYBUNT`
-    },
-    { 
-      name: 'Year to Date', 
-      value: formatCurrency(donationStats.yearToDate), 
-      change: '+8.2%', 
-      icon: CurrencyDollarIcon 
-    },
-    { 
-      name: 'Recent Activities', 
-      value: donationStats.totalActivities.toString(), 
-      change: '+15%', 
-      icon: FireIcon,
-      subtitle: `${activityBreakdown.donations} donations, ${activityBreakdown.communications} communications`
-    },
-    { 
-      name: 'Avg Gift Size', 
-      value: formatCurrency(donationStats.avgGiftSize), 
-      change: '+5.1%', 
-      icon: ArrowTrendingUpIcon 
-    },
-  ]
 
   return (
     <div className={styles.dashboard}>
       <div className={styles.dashboardHeader}>
-        <h1 className={styles.dashboardTitle}>Dashboard</h1>
+        <div className={styles.headerTop}>
+          <h1 className={styles.dashboardTitle}>Dashboard</h1>
+          <div className={styles.headerActions}>
+            <button 
+              onClick={() => setShowSimulationPanel(!showSimulationPanel)}
+              className={`${styles.simulationToggle} ${isSimulationRunning ? styles.simulationRunning : ''}`}
+            >
+              <BoltIcon className={styles.simulationToggleIcon} />
+              {isSimulationRunning ? 'Simulation Running' : 'AI Simulation'}
+              {simulatedDonors.length > 0 && (
+                <span className={styles.simulationBadge}>
+                  {simulatedDonors.length} new
+                </span>
+              )}
+            </button>
+                      
+            {/* Debug button for testing - optional */}
+            {process.env.NODE_ENV === 'development' && (
+              <button 
+                onClick={handleDebugClick}
+                className={styles.debugButton}
+                title="Debug Info"
+              >
+                🐛 Debug
+              </button>
+            )}
+          </div>
+        </div>
         <p className={styles.dashboardSubtitle}>
-          Welcome back! {donationStats.recentActivities.length > 0 
-            ? `You have ${donationStats.totalDonors} donors, received ${formatCurrency(donationStats.yearToDate)} this year, and ${donationStats.totalActivities} recent activities.`
+          Welcome back! {donationStats.totalDonors > 0 
+            ? `You have ${donationStats.totalDonors} donors, received ${formatCurrency(donationStats.yearToDate)} this year.`
             : 'Welcome to your donor management system.'}
+          {isSimulationRunning && ' AI simulation is active.'}
+          {simulatedDonors.length > 0 && ` ${simulatedDonors.length} simulated donors ready to import.`}
         </p>
       </div>
 
-      {/* Error messages */}
-      {donorsError && (
-        <div className={styles.errorMessage}>
-          <p>Error loading donors: {donorsError}</p>
+      {/* Simulation Panel */}
+      {showSimulationPanel && isClient && (
+        <div className={styles.simulationPanel}>
+          <SimulationControls 
+            simulatedDonors={simulatedDonors}
+            simulatedActivities={simulatedActivities.filter(a => a.isSimulated)}
+            onStartSimulation={async (settings) => {
+              console.log('Start simulation:', settings)
+            }}
+            onStopSimulation={async () => {
+              console.log('Stop simulation')
+            }}
+            onPauseSimulation={async () => {
+              console.log('Pause simulation')
+            }}
+            onGenerateTestData={async (settings) => {
+              // Simplified version for debugging
+              console.log('Generate test data with settings:', settings)
+              const count = settings?.count || localSettings?.donorCount || 10
+              await handleTestDonorGeneration(count)
+            }}
+            onBulkCreate={handleBulkCreateDonors}
+            bulkCreating={bulkCreating}
+            bulkProgress={bulkProgress}
+            simulationSettings={localSettings}
+            onSettingsChange={(newSettings) => {
+              setLocalSettings(newSettings)
+            }}
+          />
         </div>
       )}
-      {donationsError && (
-        <div className={styles.errorMessage}>
-          <p>Error loading donations: {donationsError}</p>
-        </div>
+
+      {/* Bulk Donor Manager */}
+      {simulatedDonors.length > 0 && (
+        <BulkDonorManager 
+          simulatedDonors={simulatedDonors}
+          onBulkCreate={handleBulkCreateDonors}
+          bulkCreating={bulkCreating}
+          bulkProgress={bulkProgress}
+        />
       )}
 
       {/* Stats Grid */}
@@ -453,7 +730,7 @@ export default function DashboardPage() {
         {stats.map((stat) => {
           const Icon = stat.icon
           return (
-            <div key={stat.name} className={styles.statCard}>
+            <div key={stat.name} className={`${styles.statCard} ${stat.name === 'Recent Activities' && simulatedActivities.length > 0 ? styles.statCardHighlight : ''}`}>
               <div className={styles.statCardContent}>
                 <div className={styles.statText}>
                   <p className={styles.statName}>{stat.name}</p>
@@ -472,88 +749,23 @@ export default function DashboardPage() {
         })}
       </div>
 
-      {/* Charts */}
-      <div className={styles.chartsGrid}>
-        <div className={styles.chartContainer}>
-          <div className={styles.chartHeader}>
-            <h2 className={styles.chartTitle}>Donations Over Time</h2>
-            <div className={styles.chartTimeframe}>
-              <select 
-                value={timeframe}
-                onChange={(e) => setTimeframe(e.target.value)}
-                className={styles.timeframeSelect}
-              >
-                <option value="30days">Last 30 days</option>
-                <option value="90days">Last 90 days</option>
-                <option value="year">This Year</option>
-                <option value="all">All Time</option>
-              </select>
-            </div>
-          </div>
-          <div className={styles.chartWrapper}>
-            <div className={styles.barChart}>
-              {chartData.map((item, index) => {
-                const maxAmount = Math.max(...chartData.map(d => d.amount))
-                const height = maxAmount > 0 ? (item.amount / maxAmount) * 100 : 0
-                return (
-                  <div key={index} className={styles.barContainer}>
-                    <div className={styles.bar} style={{ height: `${height}%` }}>
-                      <div className={styles.barAmount}>{formatCurrency(item.amount)}</div>
-                      {item.activityCount > 0 && (
-                        <div className={styles.activityIndicator} title={`${item.activityCount} activities`}>
-                          {item.activityCount}
-                        </div>
-                      )}
-                    </div>
-                    <span className={styles.barLabel}>{item.month}</span>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-
-        <div className={styles.chartContainer}>
-          <h2 className={styles.chartTitle}>Donor Composition</h2>
-          <div className={styles.chartWrapper}>
-            <div className={styles.donutChart}>
-              <div className={styles.donutCenter}>
-                <span className={styles.donutCenterValue}>
-                  {processedDonors.length}
-                </span>
-                <span className={styles.donutCenterLabel}>Total Donors</span>
-              </div>
-            </div>
-            <div className={styles.donutLegend}>
-              {donorComposition.map((item, index) => {
-                const Icon = item.icon
-                return (
-                  <div key={index} className={styles.donutLegendItem}>
-                    <div className={`${styles.donutLegendColor} ${
-                      styles[`donutLegendColor${item.category.replace(/\s+/g, '')}`]
-                    }`}>
-                      <Icon className={styles.donutLegendIcon} />
-                    </div>
-                    <div className={styles.donutLegendText}>
-                      <span className={styles.donutLegendCategory}>{item.category}</span>
-                      <span className={styles.donutLegendValue}>{item.value}%</span>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Recent Activity & Quick Actions */}
       <div className={styles.dashboardMainGrid}>
         <div className={styles.recentActivityCard}>
           <div className={styles.recentActivityHeader}>
-            <h2 className={styles.recentActivityTitle}>Recent Activity Feed</h2>
-            <Link href="/activities" className={styles.viewAllLink}>
-              View All →
-            </Link>
+            <h2 className={styles.recentActivityTitle}>
+              Recent Activity Feed
+              {simulatedActivities.length > 0 && (
+                <span className={styles.simulationBadge}>
+                  {simulatedActivities.length} simulated
+                </span>
+              )}
+            </h2>
+            <div className={styles.activityHeaderActions}>
+              <Link href="/activities" className={styles.viewAllLink}>
+                View All →
+              </Link>
+            </div>
           </div>
           <div className={styles.recentActivityList}>
             {activityLoading ? (
@@ -566,283 +778,64 @@ export default function DashboardPage() {
                   </div>
                 </div>
               ))
-            ) : donationStats.recentActivities.length > 0 ? (
-              donationStats.recentActivities.map((activity, index) => {
+            ) : combinedActivities.length > 0 ? (
+              combinedActivities.map((activity, index) => {
                 const Icon = getIconComponent(activity.icon)
                 return (
-                  <div key={`${activity.id || index}_${activity.type}`} className={styles.activityItem}>
-                    <Icon className={styles.activityIcon} />
+                  <div 
+                    key={`${activity.id || index}_${activity.type}`} 
+                    className={`${styles.activityItem} ${activity.isSimulated ? styles.simulatedActivity : ''}`}
+                  >
+                    <div className={styles.activityIconContainer}>
+                      <Icon className={styles.activityIcon} />
+                      {activity.isSimulated && (
+                        <span className={styles.simulationIndicator}>🤖</span>
+                      )}
+                    </div>
                     <div className={styles.activityInfo}>
                       <p className={styles.activityDonor}>{activity.donor}</p>
                       <p className={styles.activityAction}>{activity.action || activity.title}</p>
+                      {activity.data?.donors && (
+                        <p className={styles.activitySubtext}>
+                          {activity.data.donors.length} donors generated
+                        </p>
+                      )}
+                      {activity.data?.created && (
+                        <p className={styles.activitySubtext}>
+                          Created {activity.data.created} donors
+                        </p>
+                      )}
                     </div>
                     <div className={styles.activityDetails}>
                       {activity.amount && <p className={styles.activityAmount}>{activity.amount}</p>}
-                      <p className={styles.activityTime}>{activity.time}</p>
+                      <p className={styles.activityTime}>
+                        {activity.isSimulated ? 'just now' : activity.time}
+                      </p>
                     </div>
                   </div>
                 )
               })
             ) : (
-              <>
-                {[
-                  { id: 1, donor: 'John Smith', action: 'Made a donation', amount: '$10,000', time: '2 hours ago', icon: 'CurrencyDollarIcon' },
-                  { id: 2, donor: 'Sarah Johnson', action: 'Meeting scheduled', amount: '', time: '4 hours ago', icon: 'CalendarIcon' },
-                  { id: 3, donor: 'Robert Chen', action: 'Thank you note sent', amount: '', time: '1 day ago', icon: 'EnvelopeIcon' },
-                ].map((activity) => {
-                  const Icon = getIconComponent(activity.icon)
-                  return (
-                    <div key={activity.id} className={styles.activityItem}>
-                      <Icon className={styles.activityIcon} />
-                      <div className={styles.activityInfo}>
-                        <p className={styles.activityDonor}>{activity.donor}</p>
-                        <p className={styles.activityAction}>{activity.action}</p>
-                      </div>
-                      <div className={styles.activityDetails}>
-                        {activity.amount && <p className={styles.activityAmount}>{activity.amount}</p>}
-                        <p className={styles.activityTime}>{activity.time}</p>
-                      </div>
-                    </div>
-                  )
-                })}
-              </>
+              <div className={styles.noActivities}>
+                <SparklesIcon className={styles.noActivitiesIcon} />
+                <p>No recent activities. Start the AI simulation to see simulated donor activity!</p>
+                <div className={styles.noActivitiesButtons}>
+                  <button 
+                    onClick={() => setShowSimulationPanel(true)}
+                    className={styles.startSimulationButton}
+                    disabled={!isClient}
+                  >
+                    <PlayIcon className={styles.startSimulationIcon} />
+                    Start Simulation
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </div>
 
-        <div className={styles.quickActionsCard}>
-          <h2 className={styles.quickActionsTitle}>Quick Actions</h2>
-          
-          {/* Donor Selection Section */}
-          <div className={styles.donorSelectionSection}>
-            <div className={styles.donorSearchContainer}>
-              <div className={styles.donorSearchInputWrapper}>
-                <MagnifyingGlassIcon className={styles.searchIcon} />
-                <input
-                  type="text"
-                  placeholder={processedDonors.length > 0 ? "Search donors by name or email..." : "No donors available"}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onFocus={() => setShowDonorDropdown(true)}
-                  className={styles.donorSearchInput}
-                  disabled={processedDonors.length === 0}
-                />
-                {selectedDonor && (
-                  <button onClick={handleClearSelection} className={styles.clearSelectionBtn}>
-                    <XMarkIcon className={styles.clearIcon} />
-                  </button>
-                )}
-              </div>
-              
-              {/* Filter Buttons */}
-              <div className={styles.filterButtonsContainer}>
-                <button
-                  className={`${styles.filterButton} ${filterType === 'all' ? styles.active : ''}`}
-                  onClick={() => setFilterType('all')}
-                  disabled={processedDonors.length === 0}
-                >
-                  All Donors ({processedDonors.length})
-                </button>
-                <button
-                  className={`${styles.filterButton} ${filterType === 'highest' ? styles.active : ''}`}
-                  onClick={() => setFilterType('highest')}
-                  disabled={processedDonors.length === 0}
-                >
-                  <CurrencyDollarIcon className={styles.filterIcon} />
-                  Highest Donors
-                </button>
-                <button
-                  className={`${styles.filterButton} ${filterType === 'lybunt' ? styles.active : ''}`}
-                  onClick={() => setFilterType('lybunt')}
-                  disabled={processedDonors.length === 0}
-                >
-                  <ExclamationTriangleIcon className={styles.filterIcon} />
-                  LYBUNT ({donationStats.lybuntDonors})
-                </button>
-                <button
-                  className={`${styles.filterButton} ${filterType === 'sybunt' ? styles.active : ''}`}
-                  onClick={() => setFilterType('sybunt')}
-                  disabled={processedDonors.length === 0}
-                >
-                  <BellAlertIcon className={styles.filterIcon} />
-                  SYBUNT ({donationStats.sybuntDonors})
-                </button>
-              </div>
-            </div>
-
-            {/* Selected Donor Display */}
-            {selectedDonor && (
-              <div className={styles.selectedDonorDisplay}>
-                <div className={styles.selectedDonorInfo}>
-                  <div className={styles.selectedDonorAvatar}>
-                    {selectedDonor.name.split(' ').map(n => n[0]).join('')}
-                  </div>
-                  <div className={styles.selectedDonorDetails}>
-                    <p className={styles.selectedDonorName}>{selectedDonor.name}</p>
-                    <p className={styles.selectedDonorEmail}>{selectedDonor.email}</p>
-                    <div className={styles.selectedDonorStats}>
-                      <span className={styles.donorStat}>
-                        Total: {formatCurrency(selectedDonor.totalDonations)}
-                      </span>
-                      <span className={`${styles.donorStat} ${selectedDonor.isLYBUNT ? styles.lybuntBadge : selectedDonor.isSYBUNT ? styles.sybuntBadge : ''}`}>
-                        {selectedDonor.isLYBUNT ? 'LYBUNT' : selectedDonor.isSYBUNT ? 'SYBUNT' : 'Current Donor'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Donor Dropdown */}
-            {showDonorDropdown && filteredDonors.length > 0 && (
-              <div className={styles.donorDropdown}>
-                <div className={styles.donorDropdownHeader}>
-                  <span className={styles.dropdownTitle}>
-                    {filteredDonors.length} donor{filteredDonors.length !== 1 ? 's' : ''} found
-                  </span>
-                  <button 
-                    onClick={() => setShowDonorDropdown(false)}
-                    className={styles.closeDropdownBtn}
-                  >
-                    <XMarkIcon className={styles.closeIcon} />
-                  </button>
-                </div>
-                <div className={styles.donorDropdownList}>
-                  {filteredDonors.map((donor) => (
-                    <button
-                      key={donor.id}
-                      className={styles.donorDropdownItem}
-                      onClick={() => handleDonorSelect(donor)}
-                    >
-                      <div className={styles.donorItemAvatar}>
-                        {donor.name.split(' ').map(n => n[0]).join('')}
-                      </div>
-                      <div className={styles.donorItemInfo}>
-                        <p className={styles.donorItemName}>{donor.name}</p>
-                        <p className={styles.donorItemEmail}>{donor.email}</p>
-                        <div className={styles.donorItemStats}>
-                          <span className={styles.donorItemTotal}>
-                            {formatCurrency(donor.totalDonations)}
-                          </span>
-                          {donor.isLYBUNT && (
-                            <span className={styles.donorItemLybunt}>LYBUNT</span>
-                          )}
-                          {donor.isSYBUNT && (
-                            <span className={styles.donorItemSybunt}>SYBUNT</span>
-                          )}
-                          {donor.totalDonations >= 10000 && (
-                            <span className={styles.donorItemMajor}>Major</span>
-                          )}
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Empty state for donors */}
-            {processedDonors.length === 0 && (
-              <div className={styles.noDonorsMessage}>
-                <UserGroupIcon className={styles.noDonorsIcon} />
-                <p>No donors found. Add your first donor to get started.</p>
-                <Link href="/donors/new" className={styles.addDonorButton}>
-                  Add First Donor
-                </Link>
-              </div>
-            )}
-          </div>
-
-          {/* Quick Action Buttons */}
-          <div className={styles.quickActionsList}>
-            <button
-              onClick={() => handleQuickAction('record')}
-              className={`${styles.quickActionButton} ${!selectedDonor ? styles.disabled : ''} ${styles.quickActionButtonBlue}`}
-              disabled={!selectedDonor}
-            >
-              <CurrencyDollarIcon className={styles.quickActionIcon} />
-              <span className={styles.quickActionText}>Record Donation</span>
-            </button>
-            
-            <button
-              onClick={() => handleQuickAction('thank-you')}
-              className={`${styles.quickActionButton} ${!selectedDonor ? styles.disabled : ''} ${styles.quickActionButtonGreen}`}
-              disabled={!selectedDonor}
-            >
-              <EnvelopeIcon className={styles.quickActionIcon} />
-              <span className={styles.quickActionText}>Send Thank You</span>
-            </button>
-            
-            <button
-              onClick={() => handleQuickAction('meeting')}
-              className={`${styles.quickActionButton} ${!selectedDonor ? styles.disabled : ''} ${styles.quickActionButtonPurple}`}
-              disabled={!selectedDonor}
-            >
-              <CalendarIcon className={styles.quickActionIcon} />
-              <span className={styles.quickActionText}>Schedule Meeting</span>
-            </button>
-            
-            <button
-              onClick={() => handleQuickAction('view')}
-              className={`${styles.quickActionButton} ${!selectedDonor ? styles.disabled : ''} ${styles.quickActionButtonGray}`}
-              disabled={!selectedDonor}
-            >
-              <UserCircleIcon className={styles.quickActionIcon} />
-              <span className={styles.quickActionText}>View Donor Profile</span>
-            </button>
-            
-            <Link
-              href="/activities"
-              className={`${styles.quickActionLink} ${styles.quickActionLinkYellow}`}
-            >
-              <FireIcon className={styles.quickActionIcon} />
-              <span className={styles.quickActionText}>View Activity Feed</span>
-            </Link>
-            
-            <Link
-              href="/recorddonorpage"
-              className={`${styles.quickActionLink} ${styles.quickActionLinkBlue}`}
-            >
-              <ReceiptPercentIcon className={styles.quickActionIcon} />
-              <span className={styles.quickActionText}>Record Quick Donation</span>
-            </Link>
-          </div>
-
-          {/* Activity Summary */}
-          {activityFeed.length > 0 && (
-            <div className={styles.activitySummary}>
-              <h3 className={styles.activitySummaryTitle}>Activity Summary (Last 7 days)</h3>
-              <div className={styles.activitySummaryGrid}>
-                <div className={styles.activitySummaryItem}>
-                  <CurrencyDollarIcon className={styles.activitySummaryIcon} />
-                  <span className={styles.activitySummaryLabel}>Donations:</span>
-                  <span className={styles.activitySummaryValue}>{activityBreakdown.donations}</span>
-                </div>
-                <div className={styles.activitySummaryItem}>
-                  <EnvelopeIcon className={styles.activitySummaryIcon} />
-                  <span className={styles.activitySummaryLabel}>Communications:</span>
-                  <span className={styles.activitySummaryValue}>{activityBreakdown.communications}</span>
-                </div>
-                <div className={styles.activitySummaryItem}>
-                  <CalendarIcon className={styles.activitySummaryIcon} />
-                  <span className={styles.activitySummaryLabel}>Meetings:</span>
-                  <span className={styles.activitySummaryValue}>{activityBreakdown.meetings}</span>
-                </div>
-                <div className={styles.activitySummaryItem}>
-                  <DocumentTextIcon className={styles.activitySummaryIcon} />
-                  <span className={styles.activitySummaryLabel}>Notes:</span>
-                  <span className={styles.activitySummaryValue}>{activityBreakdown.notes}</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Hint for selecting donor */}
-          {!selectedDonor && processedDonors.length > 0 && (
-            <div className={styles.selectionHint}>
-              <p>Select a donor from the search above to enable quick actions.</p>
-            </div>
-          )}
+        <div className={styles.quickActionsSection}>
+          <QuickActions donors={donors} donations={donations} />
         </div>
       </div>
     </div>

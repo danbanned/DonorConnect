@@ -463,3 +463,237 @@
 .ai-icon-green { color: #10b981; }
 .ai-icon-blue { color: #3b82f6; }
 .ai-icon-yellow { color: #f59e0b; }
+
+
+/* Navbar.css - Add these styles */
+
+/* AI Notifications in Navbar */
+.ai-notifications-badge {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+}
+
+.navbar-notifications-controls {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.notification-control-btn {
+  padding: 4px;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 28px;
+}
+
+.notification-control-btn:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.notification-control-btn.sound-on {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  color: #1e40af;
+}
+
+.notification-control-btn.sound-off {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  color: #6b7280;
+}
+
+.notification-control-btn.mark-read {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
+.notification-control-btn.clear {
+  background: #fee2e2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+/* Notification items in dropdown */
+.navbar-notification-item {
+  padding: 12px;
+  border-bottom: 1px solid #f3f4f6;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.navbar-notification-item:hover {
+  background: #f9fafb;
+}
+
+.navbar-notification-item.unread {
+  background: #f0f9ff;
+}
+
+.navbar-notification-item.important {
+  border-left: 3px solid #ef4444;
+  margin-left: -3px;
+}
+
+.navbar-notification-item.donation {
+  border-left: 3px solid #10b981;
+  margin-left: -3px;
+}
+
+.navbar-notification-item.simulation {
+  border-left: 3px solid #3b82f6;
+  margin-left: -3px;
+}
+
+.navbar-notification-item.bonding {
+  border-left: 3px solid #8b5cf6;
+  margin-left: -3px;
+}
+
+.navbar-notification-item.system,
+.navbar-notification-item.ai {
+  border-left: 3px solid #f59e0b;
+  margin-left: -3px;
+}
+
+.notification-item-content {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.notification-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.notification-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.notification-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 4px;
+}
+
+.notification-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.notification-close {
+  opacity: 0;
+  padding: 2px;
+  border-radius: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #9ca3af;
+  transition: all 0.2s;
+}
+
+.navbar-notification-item:hover .notification-close {
+  opacity: 1;
+}
+
+.notification-close:hover {
+  color: #ef4444;
+  background: #fee2e2;
+}
+
+.notification-message {
+  font-size: 12px;
+  color: #4b5563;
+  margin: 0 0 6px 0;
+  line-height: 1.4;
+}
+
+.notification-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.notification-time {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.notification-importance {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-weight: 500;
+  font-size: 10px;
+}
+
+.notification-unread-indicator {
+  position: absolute;
+  top: 16px;
+  left: 6px;
+  width: 6px;
+  height: 6px;
+  background: #3b82f6;
+  border-radius: 50%;
+}
+
+/* Empty state */
+.navbar-notifications-empty {
+  padding: 20px;
+  text-align: center;
+  color: #6b7280;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Notification stats */
+.notification-stats {
+  padding: 8px 12px;
+  border-top: 1px solid #f3f4f6;
+  background: #f9fafb;
+  border-radius: 0 0 8px 8px;
+}
+
+/* Make notifications dropdown wider for AI notifications */
+.navbar-notifications-dropdown {
+  width: 380px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+/* Mobile styles */
+@media (max-width: 768px) {
+  .navbar-notifications-dropdown {
+    width: calc(100vw - 40px);
+    right: 0;
+    left: auto;
+    margin-right: 10px;
+  }
+}

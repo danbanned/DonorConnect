@@ -4,6 +4,7 @@ import { prisma } from '../../../../lib/db.js'
 import { NextResponse } from 'next/server'
 
 export async function GET(req, { params }) {
+  
   try {
     const { id } = params
     const donor = await prisma.donor.findUnique({
