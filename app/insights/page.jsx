@@ -19,7 +19,7 @@ import {
   ArrowPathIcon,
   DocumentChartBarIcon
 } from '@heroicons/react/24/outline'
-import styles from './Insights.module.css'
+import styles from './insights.module.css'
 
 export default function InsightsPage() {
   const router = useRouter()
