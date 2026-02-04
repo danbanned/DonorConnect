@@ -57,8 +57,8 @@ export default function ScheduleMeetingForm({ donorId = null, onScheduled = null
 
     setLoading(true);
     try {
-      const payload = {
-        donorId: 'cmji7c1h20001s5kgyuhd4e3q',
+      const payload = { 
+        donorId,
         userId,           // Automatically passed from session
         title,
         startsAt,
@@ -67,6 +67,8 @@ export default function ScheduleMeetingForm({ donorId = null, onScheduled = null
         meetingType,
         notes,
       };
+
+ 
 
       const res = await fetch("/api/communications/meetings", {
         method: "POST",

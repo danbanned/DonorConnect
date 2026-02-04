@@ -1,12 +1,32 @@
-// app/providers/AIProvider.jsx - FIXED VERSION
 'use client';
-
+// File: app/providers/AIProvider.jsx
 
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 
-const AIContext = createContext(null);
+// ==================== API CLIENT ====================
 
-// API Client with unified endpoint - FIXED
+// ✅ Fixed: Correct API path and added proper error handling
+async function getSession() {
+  try {
+    const res = await fetch('/api/auth/session', {
+      credentials: 'include',
+      cache: 'no-store'
+    });
+
+    if (!res.ok) {
+      console.error('Session fetch failed:', res.status);
+      return { user: null };
+    }
+
+    return await res.json();
+  } catch (error) {
+    console.error('Session fetch error:', error);
+    return { user: null };
+  }
+}
+
+
 class AIDataClient {
   constructor(baseUrl = '/api/ai') {
     this.baseUrl = baseUrl;
@@ -15,897 +35,739 @@ class AIDataClient {
   async fetchData(method, params = {}, options = {}) {
     const { usePost = false, headers = {} } = options;
     
-    console.log('🔍 AIDataClient.fetchData called:', { 
-      method, 
-      params, 
-      usePost, 
-      baseUrl: this.baseUrl 
-    });
-
     try {
+      // First check if we have a valid session
+      const session = await getSession();
+      if (!session?.user) {
+        // Clear any existing auth token
+        document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        window.location.href = '/login';
+        return { success: false, error: 'Not authenticated', requiresAuth: true };
+      }
+      
       if (usePost) {
-        // POST request
-        const url = this.baseUrl; // Use base URL directly for POST
-        const requestBody = {
-          method,
-          params
-        };
-
-        console.log('📤 AI API POST Request:', {
-          url,
-          body: requestBody
-        });
-        
-        const response = await fetch(url, {
+        const response = await fetch(this.baseUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             ...headers
           },
-          body: JSON.stringify(requestBody)
+          credentials: 'include',
+          body: JSON.stringify({ method, params })
         });
 
-        //console.log('📥 AI API Response status:', response.status, response.statusText);
+        if (response.status === 401) {
+          // Clear auth token and redirect
+          document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+          window.location.href = '/login';
+          return { success: false, error: 'Unauthorized', requiresAuth: true };
+        }
 
         if (!response.ok) {
           const text = await response.text();
-          console.error('❌ API error:', text);
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          throw new Error(`HTTP ${response.status}: ${response.statusText} - ${text}`);
         }
         
-        const result = await response.json();
-       // console.log('AI API Response:', { method, data: result });
-        return result;
+        return await response.json();
       } else {
-        // GET request - FIXED: Build URL properly
         const queryParams = new URLSearchParams();
         queryParams.append('method', method);
         
         Object.entries(params).forEach(([key, value]) => {
           if (value !== undefined && value !== null) {
-            if (typeof value === 'object') {
-              queryParams.append(key, JSON.stringify(value));
-            } else {
-              queryParams.append(key, value.toString());
-            }
+            queryParams.append(key, JSON.stringify(value));
           }
         });
         
         const url = `${this.baseUrl}?${queryParams.toString()}`;
-        //console.log('📤 AI API GET Request:', url);
-        
-        const response = await fetch(url, { headers });
+        const response = await fetch(url, { 
+          headers,
+          credentials: 'include'
+        });
+
+        if (response.status === 401) {
+          document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+          window.location.href = '/login';
+          return { success: false, error: 'Unauthorized', requiresAuth: true };
+        }
         
         if (!response.ok) {
           const text = await response.text();
-          console.error('❌ API error:', text);
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          throw new Error(`HTTP ${response.status}: ${response.statusText} - ${text}`);
         }
         
         return await response.json();
       }
     } catch (error) {
       console.error(`API Error (${method}):`, error);
-      throw error;
+      if (error.message.includes('Unauthorized') || error.message.includes('Not authenticated')) {
+        return { success: false, error: error.message, requiresAuth: true };
+      }
+      return { success: false, error: error.message };
     }
   }
 
-  // AI-specific methods - Updated with proper error handling
-  async generateFakeDonorData(options = {}) {
-    return this.fetchData('generateFakeDonorData', options, { usePost: true });
+  // ... rest of your methods remain the same
+  async sendMessage(message, context = {}) {
+    return this.fetchData('sendMessage', { message, context }, { usePost: true });
   }
 
-  async simulateDonor(donorId, scenario = 'default') {
-    return this.fetchData('simulateDonor', { donorId, scenario }, { usePost: true });
+  async chatWithDonor(donorId, message) {
+    return this.fetchData('chatWithDonor', { donorId, message }, { usePost: true });
   }
 
-  async generateDonorData(orgId, donorProfile = {}) {
-    return this.fetchData('generateDonorData', { orgId, donorProfile }, { usePost: true });
+  async generateFakeDonors(count = 5, options = {}) {
+    return this.fetchData('generateFakeDonors', { count, ...options }, { usePost: true });
   }
 
-  async startDonorRoleplay(donorId, context = {}) {
-    return this.fetchData('startRoleplay', { donorId, context }, { usePost: true });
+  async generateDonation(donorId, amount = null, campaign = 'General Fund') {
+    return this.fetchData('generateDonation', { donorId, amount, campaign }, { usePost: true });
   }
 
-  async askDonor(donorId, question) {
-    return this.fetchData('askDonor', { donorId, question }, { usePost: true });
+  async deleteDonor(donorId) {
+    return this.fetchData('deleteDonor', { donorId }, { usePost: true });
   }
 
-  async getAIData(orgId) {
-    return this.fetchData('aiInitialize', { orgId }, { usePost: true });
-  }
-
-  async getSimulationData(orgId, limits = {}) {
-    return this.fetchData('simulationData', { orgId, ...limits }, { usePost: true });
-  }
-
-  async getDonorSummary(donorId) {
-    return this.fetchData('donorSummary', { donorId }, { usePost: false });
-  }
-
-  async getDonationStats(orgId, filters = {}) {
-    return this.fetchData('donationStats', { orgId, filters }, { usePost: false });
-  }
-
-  async getBatchData(operations) {
-    return this.fetchData('batch', { operations }, { usePost: true });
-  }
-
-  // New simulation methods
-  async startSimulation(orgId, options = {}) {
-    return this.fetchData('startSimulation', { orgId, ...options }, { usePost: true });
+  async startSimulationFlow(options = {}) {
+    return this.fetchData('startSimulationFlow', options, { usePost: true });
   }
 
   async stopSimulation() {
     return this.fetchData('stopSimulation', {}, { usePost: true });
   }
 
-  async pauseSimulation() {
-    return this.fetchData('pauseSimulation', {}, { usePost: true });
+  async getDonors(limit = 50, filters = {}) {
+    return this.fetchData('getDonors', { limit, ...filters }, { usePost: true });
   }
 
-  async getSimulationStats() {
-    return this.fetchData('getSimulationStats', {}, { usePost: false });
+  async getDonorDetails(donorId) {
+    return this.fetchData('getDonorDetails', { donorId }, { usePost: true });
   }
 
-  async getSimulatedActivities(limit = 20) {
-    return this.fetchData('getSimulatedActivities', { limit }, { usePost: false });
+  async getRecentActivities(limit = 20) {
+    return this.fetchData('getRecentActivities', { limit }, { usePost: true });
   }
 
-  // New: Prediction and Recommendation methods
-  async getPredictions(timeframe = 'next_quarter', orgId = null) {
-    const actualOrgId = orgId || localStorage.getItem('currentOrgId') || 'default-org';
-    return this.fetchData('predictions', { 
-      timeframe,
-      orgId: actualOrgId 
-    }, { usePost: true });
+  async getRecommendations(limit = 5) {
+    return this.fetchData('getRecommendations', { limit }, { usePost: true });
   }
 
-  async getRecommendations(orgId = null, limit = 5) {
-    const actualOrgId = orgId || localStorage.getItem('currentOrgId') || 'default-org';
-    return this.fetchData('recommendations', { 
-      orgId: actualOrgId,
-      limit 
-    }, { usePost: true });
-  }
-
-  async healthCheck() {
+  async checkHealth() {
     return this.fetchData('health', {}, { usePost: false });
   }
 }
 
+// ==================== CHAT ENGINE ====================
+class ChatEngine {
+  constructor(apiClient) {
+    this.apiClient = apiClient;
+    this.currentSession = null;
+  }
+
+  async initializeChat(sessionType = 'assistant', context = {}) {
+    this.currentSession = {
+      type: sessionType,
+      context,
+      messages: [],
+      createdAt: new Date().toISOString()
+    };
+    return this.currentSession;
+  }
+
+  async sendMessage(message, sender = 'user') {
+    if (!this.currentSession) {
+      await this.initializeChat();
+    }
+
+    const userMessage = {
+      role: sender,
+      content: message,
+      timestamp: new Date().toISOString()
+    };
+
+    this.currentSession.messages.push(userMessage);
+
+    // Get AI response
+    let aiResponse;
+    if (this.currentSession.type === 'donor' && this.currentSession.context.donorId) {
+      aiResponse = await this.apiClient.chatWithDonor(
+        this.currentSession.context.donorId,
+        message
+      );
+    } else {
+      aiResponse = await this.apiClient.sendMessage(message, this.currentSession.context);
+    }
+
+    if (aiResponse.success) {
+      const aiMessage = {
+        role: 'ai',
+        content: aiResponse.data.response,
+        context: aiResponse.data,
+        timestamp: new Date().toISOString()
+      };
+
+      this.currentSession.messages.push(aiMessage);
+      return aiMessage;
+    }
+
+    return null;
+  }
+
+  getSession() {
+    return this.currentSession;
+  }
+
+  clearSession() {
+    this.currentSession = null;
+  }
+}
+
+// ==================== SIMULATION ENGINE ====================
+class SimulationEngine {
+  constructor(apiClient, emitEvent) {
+    this.apiClient = apiClient;
+    this.emitEvent = emitEvent;
+    this.isRunning = false;
+    this.isPaused = false;
+    this.interval = null;
+    this.activeDonors = [];
+    this.simulationId = null;
+  }
+
+  async start(options = {}) {
+    if (this.isRunning) return { success: false, error: 'Simulation already running' };
+
+    try {
+      this.isRunning = true;
+      this.isPaused = false;
+      this.simulationId = `sim_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      // Get existing donors or generate new ones
+      const donorResponse = await this.apiClient.getDonors(options.donorCount || 50);
+      if (donorResponse.success) {
+        this.activeDonors = donorResponse.data;
+      } else {
+        // Generate fake donors
+        const fakeResponse = await this.apiClient.generateFakeDonors(options.donorCount || 50);
+        this.activeDonors = fakeResponse.success ? fakeResponse.data : [];
+      }
+
+      // Start simulation loop
+      this.interval = setInterval(() => this.runCycle(), options.interval || 10000);
+
+      this.emitEvent({
+        type: 'simulation_started',
+        data: {
+          simulationId: this.simulationId,
+          donorCount: this.activeDonors.length,
+          options
+        }
+      });
+
+      return {
+        success: true,
+        data: {
+          simulationId: this.simulationId,
+          donorCount: this.activeDonors.length,
+          status: 'running'
+        }
+      };
+    } catch (error) {
+      this.isRunning = false;
+      return { success: false, error: error.message };
+    }
+  }
+
+  async runCycle() {
+    if (!this.isRunning || this.isPaused || this.activeDonors.length === 0) return;
+
+    const activityTypes = ['donation', 'communication', 'engagement', 'status_change'];
+    const randomActivity = activityTypes[Math.floor(Math.random() * activityTypes.length)];
+    const randomDonor = this.activeDonors[Math.floor(Math.random() * this.activeDonors.length)];
+
+    try {
+      let activity;
+      switch (randomActivity) {
+        case 'donation':
+          const donation = await this.apiClient.generateDonation(
+            randomDonor.id,
+            Math.floor(Math.random() * 5000) + 100
+          );
+          if (donation.success) {
+            activity = {
+              type: 'donation',
+              data: donation.data,
+              donor: randomDonor
+            };
+          }
+          break;
+
+        case 'communication':
+          activity = {
+            type: 'communication',
+            data: {
+              donorId: randomDonor.id,
+              donorName: `${randomDonor.firstName} ${randomDonor.lastName}`,
+              method: ['email', 'phone_call'][Math.floor(Math.random() * 2)],
+              direction: 'outbound',
+              subject: 'Update from our organization',
+              date: new Date().toISOString()
+            },
+            donor: randomDonor
+          };
+          break;
+
+        case 'engagement':
+          activity = {
+            type: 'engagement',
+            data: {
+              donorId: randomDonor.id,
+              donorName: `${randomDonor.firstName} ${randomDonor.lastName}`,
+              activity: 'attended_event',
+              date: new Date().toISOString()
+            },
+            donor: randomDonor
+          };
+          break;
+
+        default:
+          activity = {
+            type: 'status_change',
+            data: {
+              donorId: randomDonor.id,
+              donorName: `${randomDonor.firstName} ${randomDonor.lastName}`,
+              newStatus: ['ACTIVE', 'LYBUNT', 'SYBUNT'][Math.floor(Math.random() * 3)],
+              date: new Date().toISOString()
+            },
+            donor: randomDonor
+          };
+      }
+
+      if (activity) {
+        this.emitEvent({
+          type: activity.type,
+          data: activity.data,
+          timestamp: new Date().toISOString()
+        });
+      }
+    } catch (error) {
+      console.error('Simulation cycle error:', error);
+    }
+  }
+
+  pause() {
+    this.isPaused = true;
+    clearInterval(this.interval);
+    return { success: true };
+  }
+
+  resume() {
+    if (!this.isRunning || !this.isPaused) {
+      return { success: false, error: 'Not paused' };
+    }
+    this.isPaused = false;
+    this.interval = setInterval(() => this.runCycle(), 10000);
+    return { success: true };
+  }
+
+  stop() {
+    this.isRunning = false;
+    this.isPaused = false;
+    clearInterval(this.interval);
+    this.activeDonors = [];
+    this.simulationId = null;
+    return { success: true };
+  }
+}
+
+// ==================== AI PROVIDER CONTEXT ====================
+const AIContext = createContext(null);
+
 export function AIProvider({ children }) {
-  const [aiSystem, setAiSystem] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [authError, setAuthError] = useState(null);
+  const [user, setUser] = useState(null);
+  const [isAuthChecked, setIsAuthChecked] = useState(false);
+
   const [status, setStatus] = useState({
-    simulation: { 
-      isRunning: false,
-      isPaused: false,
-      activeDonors: 0,
-      totalActivities: 0,
-      totalDonations: 0
-    },
-    bonding: { activeSessions: 0 },
-    initialized: false,
+    simulation: { isRunning: false, isPaused: false, donorCount: 0 },
+    chat: { activeSession: null, messages: [] },
+    donors: { total: 0, active: 0, simulated: 0 },
     lastUpdate: null,
-    error: null
+    initialized: false
   });
-  
+
   const [apiClient] = useState(() => new AIDataClient());
-  const simulationEventListeners = useRef([]);
-  const simulationInterval = useRef(null);
+  const chatEngine = useRef(null);
+  const simulationEngine = useRef(null);
+  const router = useRouter();
 
-  // Set up simulation event system
-  const setupSimulationEventListeners = useCallback(() => {
-    if (!window._simulationCallbacks) {
-      window._simulationCallbacks = [];
-    }
-
-    // Listen for window events from simulation
-    const handleSimulationEvent = (event) => {
-      if (window._simulationCallbacks) {
-        window._simulationCallbacks.forEach(callback => {
-          try {
-            callback(event.detail);
-          } catch (error) {
-            console.error('Error in simulation callback:', error);
-          }
-        });
-      }
-
-      // Update status based on event
-      if (event.detail) {
-        switch (event.detail.type) {
-          case 'donation':
-            setStatus(prev => ({
-              ...prev,
-              simulation: {
-                ...prev.simulation,
-                totalDonations: (prev.simulation.totalDonations || 0) + (event.detail.data?.amount || 0),
-                totalActivities: (prev.simulation.totalActivities || 0) + 1
-              }
-            }));
-            break;
-          case 'communication':
-          case 'profile_update':
-            setStatus(prev => ({
-              ...prev,
-              simulation: {
-                ...prev.simulation,
-                totalActivities: (prev.simulation.totalActivities || 0) + 1
-              }
-            }));
-            break;
-          case 'simulation_started':
-            setStatus(prev => ({
-              ...prev,
-              simulation: {
-                ...prev.simulation,
-                isRunning: true,
-                isPaused: false,
-                ...event.detail.data
-              }
-            }));
-            break;
-          case 'simulation_paused':
-            setStatus(prev => ({
-              ...prev,
-              simulation: {
-                ...prev.simulation,
-                isRunning: false,
-                isPaused: true
-              }
-            }));
-            break;
-          case 'simulation_stopped':
-            setStatus(prev => ({
-              ...prev,
-              simulation: {
-                isRunning: false,
-                isPaused: false,
-                activeDonors: 0,
-                totalActivities: 0,
-                totalDonations: 0
-              }
-            }));
-            break;
-        }
-      }
-    };
-
-    // Listen for different event types
-    const eventTypes = [
-      'donorDonation',
-      'donorCommunication',
-      'donorProfileUpdate',
-      'donorEngagement',
-      'simulationStarted',
-      'simulationPaused',
-      'simulationStopped'
-    ];
-
-    eventTypes.forEach(eventType => {
-      window.addEventListener(eventType, handleSimulationEvent);
-      simulationEventListeners.current.push({
-        type: eventType,
-        handler: handleSimulationEvent
-      });
-    });
-
-    return () => {
-      // Clean up event listeners
-      simulationEventListeners.current.forEach(({ type, handler }) => {
-        window.removeEventListener(type, handler);
-      });
-      simulationEventListeners.current = [];
-    };
-  }, []);
-
-  // Initialize AI system
+  // ✅ Fixed: Check authentication on mount - more robust
   useEffect(() => {
-    const initializeAI = async () => {
+    const checkSession = async () => {
       try {
-        setIsLoading(true);
-        //console.log('🤖 Starting AI initialization...');
-        
-        // Dynamically import AI system
-        const { default: AIGateway } = await import('../ai/index.js');
-        //console.log('✅ AI Gateway imported');
-        
+        const session = await getSession();
 
-        // Create API-aware AI system
-        const system = new AIGateway(apiClient, {
-          simulationEnabled: true,
-          bondingEnabled: true,
-          environment: process.env.NODE_ENV
-        });
-       // console.log('✅ AI system created');
-        
-        // Get organization ID
-        const organizationId = localStorage.getItem('currentOrgId') || 
-                              sessionStorage.getItem('currentOrgId') || 
-                              'default-org';
-        //console.log('📋 Organization ID:', organizationId);
-        
-        // Initialize with batch data
-        const initData = await apiClient.getAIData(organizationId);
-       // console.log('📦 API Response:', initData);
-        
-        if (initData.success) {
-          await system.initialize(organizationId, initData.data);
-          setAiSystem(system);
-          
-          // Set up event listeners
-          setupSimulationEventListeners();
-          
-          setStatus(prev => ({
-            ...prev,
-            initialized: true,
-            lastUpdate: new Date().toISOString(),
-            dataSummary: initData.data.summary
-          }));
-          console.log('✅ AI System initialized with data');
+        if (session?.user) {
+          setUser(session.user);
+          setAuthError(null);
+          console.log('Session valid for user:', session.user.email);
         } else {
-          throw new Error(`AI initialization failed: ${initData.error}`);
+          setUser(null);
+          // If no user but we're not on login page, redirect
+          if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+            router.push('/login');
+          }
         }
-        
-      } catch (error) {
-        console.error('❌ Failed to initialize AI system:', error);
-        setStatus(prev => ({ 
-          ...prev, 
-          error: error.message, 
-          initialized: false 
-        }));
+      } catch (err) {
+        console.error('Session check failed:', err);
+        setUser(null);
+        setAuthError('Failed to verify authentication');
       } finally {
-        setIsLoading(false);
+        setIsAuthChecked(true);
       }
     };
 
-    initializeAI();
+    checkSession();
+  }, [router]);
+
+  // ✅ Fixed: Initialize engines only when user is authenticated
+  useEffect(() => {
+    if (!user || !isAuthChecked) return;
+
+    console.log('Initializing AI engines for user:', user.email);
     
+    chatEngine.current = new ChatEngine(apiClient);
+    simulationEngine.current = new SimulationEngine(apiClient, emitEvent);
+    
+    // Initialize system data
+    initializeSystem();
+
     return () => {
-      // Clean up on unmount
-      if (simulationInterval.current) {
-        clearInterval(simulationInterval.current);
+      if (simulationEngine.current) {
+        simulationEngine.current.stop();
+      }
+    };
+  }, [user, isAuthChecked]);
+
+  const initializeSystem = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Check if we're still authenticated
+      const session = await getSession();
+      if (!session?.user) {
+        setAuthError('Session expired');
+        setUser(null);
+        return;
       }
       
-      if (aiSystem) {
-        aiSystem.stopSimulation();
-      }
+      // Load initial data
+      const [donorsResponse, activitiesResponse] = await Promise.all([
+        apiClient.getDonors(10),
+        apiClient.getRecentActivities(10)
+      ]);
       
-      // Remove event listeners
-      if (simulationEventListeners.current.length > 0) {
-        simulationEventListeners.current.forEach(({ type, handler }) => {
-          window.removeEventListener(type, handler);
+      if (donorsResponse.success) {
+        setStatus(prev => ({
+          ...prev,
+          donors: {
+            total: donorsResponse.data.length,
+            active: donorsResponse.data.filter(d => d.status === 'ACTIVE').length,
+            simulated: donorsResponse.data.filter(d => d.isSimulated).length
+          }
+        }));
+      }
+
+      setStatus(prev => ({
+        ...prev,
+        lastUpdate: new Date().toISOString(),
+        initialized: true
+      }));
+    } catch (error) {
+      console.error('AI System initialization failed:', error);
+      if (error.requiresAuth || error.message?.includes('Unauthorized')) {
+        setAuthError('Authentication required. Please login.');
+        setUser(null);
+        router.push('/login');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const emitEvent = useCallback((eventData) => {
+    // Update status based on event
+    if (eventData.type === 'donation') {
+      setStatus(prev => ({
+        ...prev,
+        donors: {
+          ...prev.donors,
+          active: prev.donors.active + 1
+        }
+      }));
+    }
+    
+    // You can add more event handlers here
+  }, []);
+
+  // ============ CHAT METHODS ============
+  const startChatWithDonor = async (donorId) => {
+    try {
+      const donorResponse = await apiClient.getDonorDetails(donorId);
+      if (!donorResponse.success) {
+        throw new Error('Donor not found');
+      }
+
+      await chatEngine.current.initializeChat('donor', {
+        donorId,
+        donor: donorResponse.data
+      });
+
+      const welcomeMessage = await chatEngine.current.sendMessage(
+        `Hi, I'm ${donorResponse.data.firstName} ${donorResponse.data.lastName}. How can I help you today?`,
+        'ai'
+      );
+
+      setStatus(prev => ({
+        ...prev,
+        chat: {
+          activeSession: chatEngine.current.getSession(),
+          messages: chatEngine.current.getSession()?.messages || []
+        }
+      }));
+
+      return {
+        success: true,
+        data: chatEngine.current.getSession()
+      };
+    } catch (error) {
+      console.error('Failed to start donor chat:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  const sendChatMessage = async (message, sessionType = 'assistant') => {
+    try {
+      if (!chatEngine.current.getSession()) {
+        await chatEngine.current.initializeChat(sessionType);
+      }
+
+      const response = await chatEngine.current.sendMessage(message);
+      
+      setStatus(prev => ({
+        ...prev,
+        chat: {
+          ...prev.chat,
+          messages: chatEngine.current.getSession()?.messages || []
+        }
+      }));
+
+      return {
+        success: true,
+        data: response
+      };
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  // ============ DONOR MANAGEMENT ============
+  const generateDonors = async (count = 5, options = {}) => {
+    try {
+      const response = await apiClient.generateFakeDonors(count, options);
+      if (response.success) {
+        setStatus(prev => ({
+          ...prev,
+          donors: {
+            total: prev.donors.total + response.data.length,
+            active: prev.donors.active + response.data.length,
+            simulated: prev.donors.simulated + response.data.length
+          }
+        }));
+      }
+      return response;
+    } catch (error) {
+      console.error('Failed to generate donors:', error);
+      throw error;
+    }
+  };
+
+  const generateDonation = async (donorId, amount = null, campaign = 'General Fund') => {
+    try {
+      const response = await apiClient.generateDonation(donorId, amount, campaign);
+      if (response.success) {
+        emitEvent({
+          type: 'donation',
+          data: response.data,
+          timestamp: new Date().toISOString()
         });
       }
-    };
-  }, [apiClient, setupSimulationEventListeners]);
+      return response;
+    } catch (error) {
+      console.error('Failed to generate donation:', error);
+      throw error;
+    }
+  };
 
-  // Update status periodically
-  useEffect(() => {
-    if (!aiSystem || !status.initialized) return;
-    
-    const updateStatus = async () => {
-      try {
-        // Refresh data periodically
-        const orgId = localStorage.getItem('currentOrgId') || 'default-org';
-        
-        //console.log('🔄 Updating organization activity for orgId:', orgId);
-        
-        try {
-          // Make sure to pass usePost: true
-          const activity = await apiClient.fetchData('organizationActivity', { 
-            orgId, 
-            limit: 5 
-          }, { 
-            usePost: true, // Make sure this is true
-            headers: {
-              'x-org-id': orgId // Add organization ID to headers
-            }
-          });
-          
-          //console.log('📊 Activity API response:', activity);
-          
-          if (activity && activity.success) {
-            setStatus(prev => ({
-              ...prev,
-              lastUpdate: new Date().toISOString(),
-              recentActivity: activity.data || activity.data?.activities || [],
-              activityLoaded: true
-            }));
-          } else {
-            console.warn('Activity API returned unsuccessful:', activity);
-            setStatus(prev => ({
-              ...prev,
-              lastUpdate: new Date().toISOString(),
-              recentActivity: [],
-              activityError: activity?.error || 'Unknown error'
-            }));
+  const deleteDonor = async (donorId) => {
+    try {
+      const response = await apiClient.deleteDonor(donorId);
+      if (response.success) {
+        setStatus(prev => ({
+          ...prev,
+          donors: {
+            total: prev.donors.total - 1,
+            active: prev.donors.active - 1,
+            simulated: prev.donors.simulated - (response.data.wasSimulated ? 1 : 0)
           }
-        } catch (apiError) {
-          console.warn('Activity API call failed:', apiError.message);
-          setStatus(prev => ({
-            ...prev,
-            lastUpdate: new Date().toISOString(),
-            recentActivity: getFallbackActivities(),
-            activityError: apiError.message
-          }));
-        }
-        
-        // Get AI system status if available
-        if (aiSystem && typeof aiSystem.getStatus === 'function') {
-          try {
-            const aiStatus = await aiSystem.getStatus();
-            console.log('🤖 AI System status:', aiStatus);
-            setStatus(prev => ({ ...prev, ...aiStatus }));
-          } catch (aiError) {
-            console.warn('Failed to get AI system status:', aiError);
+        }));
+      }
+      return response;
+    } catch (error) {
+      console.error('Failed to delete donor:', error);
+      throw error;
+    }
+  };
+
+  // ============ SIMULATION CONTROL ============
+  const startSimulation = async (options = {}) => {
+    try {
+      const response = await simulationEngine.current.start(options);
+      if (response.success) {
+        setStatus(prev => ({
+          ...prev,
+          simulation: {
+            ...prev.simulation,
+            isRunning: true,
+            isPaused: false,
+            donorCount: response.data.donorCount
           }
-        }
-        
-      } catch (error) {
-        console.warn('Background update failed:', error);
+        }));
       }
-    };
-
-    // Helper function for fallback data
-    function getFallbackActivities() {
-      return [
-        {
-          id: 'fallback-1',
-          type: 'DONATION',
-          donor: 'Sample Donor',
-          description: 'Donated $500',
-          date: new Date().toISOString(),
-          icon: 'CurrencyDollarIcon'
-        },
-        {
-          id: 'fallback-2', 
-          type: 'COMMUNICATION',
-          donor: 'Another Donor',
-          description: 'Sent an email',
-          date: new Date(Date.now() - 86400000).toISOString(),
-          icon: 'EnvelopeIcon'
-        }
-      ];
+      return response;
+    } catch (error) {
+      console.error('Failed to start simulation:', error);
+      throw error;
     }
+  };
 
-    simulationInterval.current = setInterval(updateStatus, 10000); // Update every 10 seconds
-    
-    return () => {
-      if (simulationInterval.current) {
-        clearInterval(simulationInterval.current);
+  const pauseSimulation = async () => {
+    const response = simulationEngine.current.pause();
+    setStatus(prev => ({
+      ...prev,
+      simulation: {
+        ...prev.simulation,
+        isPaused: true,
+        isRunning: false
       }
-    };
-  }, [aiSystem, status.initialized, apiClient]);
+    }));
+    return response;
+  };
 
-  // Simulation event system
-  const onSimulationEvent = useCallback((callback) => {
-    if (!window._simulationCallbacks) {
-      window._simulationCallbacks = [];
-    }
-    
-    if (!window._simulationCallbacks.includes(callback)) {
-      window._simulationCallbacks.push(callback);
-    }
-    
-    // Return cleanup function
-    return () => {
-      if (window._simulationCallbacks) {
-        window._simulationCallbacks = window._simulationCallbacks.filter(cb => cb !== callback);
+  const resumeSimulation = async () => {
+    const response = simulationEngine.current.resume();
+    setStatus(prev => ({
+      ...prev,
+      simulation: {
+        ...prev.simulation,
+        isPaused: false,
+        isRunning: true
       }
-    };
-  }, []);
+    }));
+    return response;
+  };
 
-  const offSimulationEvent = useCallback((callback) => {
-    if (window._simulationCallbacks) {
-      window._simulationCallbacks = window._simulationCallbacks.filter(cb => cb !== callback);
-    }
-  }, []);
+  const stopSimulation = async () => {
+    const response = simulationEngine.current.stop();
+    setStatus(prev => ({
+      ...prev,
+      simulation: {
+        isRunning: false,
+        isPaused: false,
+        donorCount: 0
+      }
+    }));
+    return response;
+  };
 
-  const emitSimulationEvent = useCallback((eventData) => {
-    if (window._simulationCallbacks) {
-      window._simulationCallbacks.forEach(callback => {
-        try {
-          callback(eventData);
-        } catch (error) {
-          console.error('Error in simulation callback:', error);
-        }
-      });
-    }
-    
-    // Also dispatch as window event for other components
-    const eventType = `donor${eventData.type.charAt(0).toUpperCase() + eventData.type.slice(1)}`;
-    window.dispatchEvent(new CustomEvent(eventType, { detail: eventData }));
-  }, []);
+  // ============ DATA QUERIES ============
+  const getDonors = async (limit = 50, filters = {}) => {
+    return apiClient.getDonors(limit, filters);
+  };
 
-  // Main API value
+  const getRecentActivities = async (limit = 20) => {
+    return apiClient.getRecentActivities(limit);
+  };
+
+  const getRecommendations = async (limit = 5) => {
+    return apiClient.getRecommendations(limit);
+  };
+
+  const refreshData = async () => {
+    await initializeSystem();
+    return { success: true };
+  };
+
+  const logout = async () => {
+    // Clear cookie
+    document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    setUser(null);
+    router.push('/login');
+  };
+
   const value = {
-    // Core state
-    aiSystem,
+    // State
     isLoading,
     status,
-    apiClient,
+    authError,
+    user,
+    isAuthChecked,
+    
+    // Chat
+    startChatWithDonor,
+    sendChatMessage,
+    getChatSession: () => chatEngine.current?.getSession(),
+    clearChat: () => {
+      chatEngine.current?.clearSession();
+      setStatus(prev => ({
+        ...prev,
+        chat: { activeSession: null, messages: [] }
+      }));
+    },
 
-    // Simulation Controls
-    startSimulation: async (orgId, options = {}) => {
-      try {
-        console.log('[SIM START ENTRY]', Date.now(), { orgId, options });
-        
-        let result;
-        if (aiSystem?.services?.simulation) {
-          // Use AI system's simulation service
-          //console.log('[BEFORE await simulation.start]', Date.now());
-          result = await aiSystem.services.simulation.start(orgId, options);
-         // console.log('[AFTER await simulation.start]', Date.now(), result);
-
-        } else {
-          // Fallback to direct API
-          result = await apiClient.startSimulation(orgId, options);
-        }
-        
-        if (result.success) {
-          // Emit simulation started event
-          emitSimulationEvent({
-            type: 'simulation_started',
-            data: result.data,
-            timestamp: new Date().toISOString()
-          });
-          
-          setStatus(prev => ({
-            ...prev,
-            simulation: {
-              ...prev.simulation,
-              isRunning: true,
-              isPaused: false,
-              ...result.data
-            }
-          }));
-          
-          console.log('✅ Simulation started successfully');
-        }
-        
-        return result;
-      } catch (error) {
-        console.error('Failed to start simulation:', error);
-        setStatus(prev => ({
-          ...prev,
-          error: error.message
-        }));
-        throw error;
-      }
-    },
+    // Donor Management
+    generateDonors,
+    generateDonation,
+    deleteDonor,
+    getDonors,
     
-    stopSimulation: async () => {
-      try {
-        console.log('🛑 Stopping simulation...');
-        
-        let result;
-        if (aiSystem?.services?.simulation) {
-          result = await aiSystem.services.simulation.stop();
-        } else {
-          result = await apiClient.stopSimulation();
-        }
-        
-        if (result.success) {
-          // Emit simulation stopped event
-          emitSimulationEvent({
-            type: 'simulation_stopped',
-            data: result.data,
-            timestamp: new Date().toISOString()
-          });
-          
-          setStatus(prev => ({
-            ...prev,
-            simulation: {
-              isRunning: false,
-              isPaused: false,
-              activeDonors: 0,
-              totalActivities: 0,
-              totalDonations: 0
-            }
-          }));
-          
-          console.log('✅ Simulation stopped successfully');
-        }
-        
-        return result;
-      } catch (error) {
-        console.error('Failed to stop simulation:', error);
-        setStatus(prev => ({
-          ...prev,
-          error: error.message
-        }));
-        throw error;
-      }
-    },
+    // Simulation
+    startSimulation,
+    pauseSimulation,
+    resumeSimulation,
+    stopSimulation,
     
-    pauseSimulation: async () => {
-      try {
-        console.log('⏸️ Pausing simulation...');
-        
-        let result;
-        if (aiSystem?.services?.simulation) {
-          result = await aiSystem.services.simulation.pause();
-        } else {
-          result = await apiClient.pauseSimulation();
-        }
-        
-        if (result.success) {
-          // Emit simulation paused event
-          emitSimulationEvent({
-            type: 'simulation_paused',
-            data: result.data,
-            timestamp: new Date().toISOString()
-          });
-          
-          setStatus(prev => ({
-            ...prev,
-            simulation: {
-              ...prev.simulation,
-              isRunning: false,
-              isPaused: true
-            }
-          }));
-          
-          console.log('✅ Simulation paused successfully');
-        }
-        
-        return result;
-      } catch (error) {
-        console.error('Failed to pause simulation:', error);
-        setStatus(prev => ({
-          ...prev,
-          error: error.message
-        }));
-        throw error;
-      }
-    },
+    // Data
+    getRecentActivities,
+    getRecommendations,
+    refreshData,
     
-    resumeSimulation: async () => {
-      try {
-        console.log('▶️ Resuming simulation...');
-        
-        const orgId = localStorage.getItem('currentOrgId') || 'default-org';
-        const result = await apiClient.startSimulation(orgId, { resume: true });
-        
-        if (result.success) {
-          emitSimulationEvent({
-            type: 'simulation_started',
-            data: result.data,
-            timestamp: new Date().toISOString()
-          });
-          
-          setStatus(prev => ({
-            ...prev,
-            simulation: {
-              ...prev.simulation,
-              isRunning: true,
-              isPaused: false,
-              ...result.data
-            }
-          }));
-          
-          console.log('✅ Simulation resumed successfully');
-        }
-        
-        return result;
-      } catch (error) {
-        console.error('Failed to resume simulation:', error);
-        throw error;
-      }
-    },
+    // Auth
+    logout,
     
-    getSimulationStats: async () => {
-      try {
-        let stats;
-        if (aiSystem?.services?.simulation) {
-          stats = await aiSystem.services.simulation.getStats();
-        } else {
-          const result = await apiClient.getSimulationStats();
-          stats = result.success ? result.data : null;
-        }
-        
-        if (stats) {
-          setStatus(prev => ({
-            ...prev,
-            simulation: {
-              ...prev.simulation,
-              ...stats
-            }
-          }));
-        }
-        
-        return stats;
-      } catch (error) {
-        console.error('Failed to get simulation stats:', error);
-        return null;
-      }
-    },
-    
-    // Data Generation
-    generateFakeDonorData: async (options = {}) => {
-      if (aiSystem?.services?.dataGenerator) {
-        return await aiSystem.services.dataGenerator.generateFakeDonorData(options);
-      }
-      return apiClient.generateFakeDonorData(options);
-    },
-    
-    generateSimulationData: async (options = {}) => {
-      try {
-        const data = await apiClient.generateDonorData(
-          localStorage.getItem('currentOrgId') || 'default-org',
-          options
-        );
-        
-        if (data.success) {
-          emitSimulationEvent({
-            type: 'data_generated',
-            data: data.data,
-            timestamp: new Date().toISOString()
-          });
-        }
-        
-        return data;
-      } catch (error) {
-        console.error('Failed to generate simulation data:', error);
-        throw error;
-      }
-    },
-    
-    // Donor Simulation
-    simulateDonor: async (donorId, scenario) => {
-      if (aiSystem?.services?.simulation) {
-        return await aiSystem.services.simulation.simulateDonor(donorId, scenario);
-      }
-      return apiClient.simulateDonor(donorId, scenario);
-    },
-    
-    // Bonding Features
-    startRoleplay: async (donorId, context) => {
-      if (aiSystem?.services?.roleplay) {
-        return await aiSystem.services.roleplay.startSession(donorId, context);
-      }
-      return apiClient.startDonorRoleplay(donorId, context);
-    },
-    
-    askDonor: async (donorId, question) => {
-      if (aiSystem?.services?.bonding) {
-        return await aiSystem.services.bonding.processMessage(donorId, question);
-      }
-      return apiClient.askDonor(donorId, question);
-    },
-    
-    getDonorPersona: async (donorId) => {
-      if (aiSystem?.services?.bonding) {
-        return await aiSystem.services.bonding.getDonorPersona(donorId);
-      }
-      
-      // Fallback implementation
-      return {
-        id: donorId,
-        name: 'Donor',
-        traits: ['generous', 'engaged'],
-        communicationStyle: 'neutral',
-        description: 'AI-generated donor persona'
-      };
-    },
-    
-    startBondingSession: async (donorId) => {
-      try {
-        // Get donor data first
-        const donorData = await apiClient.getDonorSummary(donorId);
-        if (donorData.success) {
-          return await aiSystem?.services?.bonding?.startSession(donorId, donorData.data) || 
-                 { success: false, error: 'Bonding service not available' };
-        }
-        throw new Error('Failed to fetch donor data');
-      } catch (error) {
-        console.error('Failed to start bonding session:', error);
-        throw error;
-      }
-    },
-    
-    // New: Prediction and Recommendation methods
-    getPredictions: async (timeframe = 'next_quarter') => {
-      try {
-        const orgId = localStorage.getItem('currentOrgId') || 'default-org';
-        const result = await apiClient.getPredictions(timeframe, orgId);
-        
-        if (result.success) {
-          return result.data;
-        } else {
-          throw new Error(result.error || 'Failed to get predictions');
-        }
-      } catch (error) {
-        console.error('Failed to get predictions:', error);
-        throw error;
-      }
-    },
-    
-    getRecommendations: async (limit = 5) => {
-      try {
-        const orgId = localStorage.getItem('currentOrgId') || 'default-org';
-        const result = await apiClient.getRecommendations(orgId, limit);
-        
-        if (result.success) {
-          return result.data;
-        } else {
-          throw new Error(result.error || 'Failed to get recommendations');
-        }
-      } catch (error) {
-        console.error('Failed to get recommendations:', error);
-        throw error;
-      }
-    },
-    
-    // Event System
-    onSimulationEvent,
-    offSimulationEvent,
-    emitSimulationEvent,
-    
-    // Data Management
-    refreshData: async () => {
-      const orgId = localStorage.getItem('currentOrgId') || 'default-org';
-      try {
-        const data = await apiClient.getAIData(orgId);
-        if (data.success) {
-          setStatus(prev => ({
-            ...prev,
-            lastUpdate: new Date().toISOString(),
-            dataSummary: data.data.summary
-          }));
-          return data;
-        }
-      } catch (error) {
-        console.error('Refresh failed:', error);
-        throw error;
-      }
-    },
-    
-    // Batch operations
-    getBatchInsights: async (operations) => {
-      return apiClient.getBatchData(operations);
-    },
-    
-    // Get simulated activities
-    getSimulatedActivities: async (limit = 20) => {
-      try {
-        const result = await apiClient.getSimulatedActivities(limit);
-        return result.success ? result.data : [];
-      } catch (error) {
-        console.error('Failed to get simulated activities:', error);
-        return [];
-      }
-    },
-    
-    // Quick simulation actions
-    quickSimulate: async (type = 'donation') => {
-      try {
-        const orgId = localStorage.getItem('currentOrgId') || 'default-org';
-        const result = await apiClient.fetchData('quickSimulate', { orgId, type }, { usePost: true });
-        
-        if (result.success && result.data) {
-          // Emit the simulated activity
-          emitSimulationEvent({
-            type: result.data.type,
-            data: result.data,
-            timestamp: new Date().toISOString()
-          });
-        }
-        
-        return result;
-      } catch (error) {
-        console.error('Quick simulate failed:', error);
-        return { success: false, error: error.message };
-      }
-    }
+    // Direct API client
+    apiClient
   };
 
   return (
     <AIContext.Provider value={value}>
-      {children}
+      {!isAuthChecked ? (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-lg">Checking authentication...</div>
+        </div>
+      ) : children}
     </AIContext.Provider>
   );
 }
@@ -917,6 +779,3 @@ export function useAI() {
   }
   return context;
 }
-
-// Export the API client for direct use if needed
-export { AIDataClient };

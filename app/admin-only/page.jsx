@@ -87,9 +87,13 @@ export default function AdminSettings() {
         setUser(currentUser);
         
         // Fetch organization data
-        const orgResponse = await fetch(`/api/organizations/${currentUser.organizationId}`, {
+        console.log('USER:', user);
+        console.log('ORG ID:', user?.organizationId);
+
+        const orgResponse = await fetch(`/api/organization/${currentUser.organizationId}`, {
           credentials: 'include'
         });
+        console.log(orgResponse,'sdfghjkl')
         
         if (orgResponse.ok) {
           const orgData = await orgResponse.json();

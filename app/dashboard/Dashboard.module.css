@@ -1546,3 +1546,199 @@
   width: 16px;
   height: 16px;
 }
+
+/* Add these styles to your existing Dashboard.module.css */
+
+/* Charts Grid */
+.chartsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.chartCard {
+  background: white;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  border: 1px solid #e5e7eb;
+}
+
+.chartHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.chartHeader h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.chartSubtitle {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.chartTimeframe {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.timeframeButton {
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.timeframeButton:hover {
+  background: #e5e7eb;
+}
+
+.timeframeButton.active {
+  background: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+
+.chartContainer {
+  height: 300px;
+  width: 100%;
+}
+
+/* Pie Chart Styles */
+.pieChartContainer {
+  height: 200px;
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.departmentList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.departmentItem {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.departmentItem:last-child {
+  border-bottom: none;
+}
+
+.departmentMarker {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.departmentName {
+  flex: 1;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.departmentValue {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+/* Campaign Performance Styles */
+.campaignList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.campaignItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.campaignInfo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.campaignName {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.campaignAmount {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.progressBar {
+  height: 8px;
+  background: #f3f4f6;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.percentage {
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: right;
+}
+
+.percentageSuccess {
+  color: #10b981;
+}
+
+.percentageGood {
+  color: #3b82f6;
+}
+
+.percentageWarning {
+  color: #f59e0b;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .chartsGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .chartCard {
+    padding: 1rem;
+  }
+  
+  .chartContainer {
+    height: 250px;
+  }
+}
+
+/* Add to existing styles if needed */
+.dashboardMainGrid {
+  display: grid;
+  gap: 1.5rem;
+  margin-top: 2rem;
+}

@@ -864,7 +864,7 @@
 .composerModal {
   width: 90%;
   max-width: 1200px;
-  height: 90vh;
+  max-height: 90vh; /* <-- use max-height */
   display: flex;
   flex-direction: column;
 }
@@ -873,8 +873,10 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow: hidden;
+  overflow-y: auto; /* <-- change from hidden */
+  padding-right: 8px; /* prevents scrollbar overlapping */
 }
+
 
 .composerHeader {
   background: #f8fafc;
@@ -944,9 +946,9 @@
 
 .composerContent {
   flex: 1;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
+  overflow-y: auto; /* <-- change from hidden */
 }
 
 .templatePreview {

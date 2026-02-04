@@ -17,14 +17,159 @@ import {
   ChevronRightIcon,
   MagnifyingGlassIcon,
   ExclamationTriangleIcon,
-  AtSymbolIcon, // Add this
-  UserGroupIcon, // Add this
-  DocumentTextIcon, // Add this
-  PhotoIcon // Add this
+  AtSymbolIcon,
+  UserGroupIcon,
+  DocumentTextIcon,
+  PhotoIcon,
+  CodeBracketIcon,
+  BugAntIcon
 } from '@heroicons/react/24/outline'
 import styles from './templates.module.css'
 
+// Console logger with styling
+const consoleLog = (message, data = null, type = 'log') => {
+  const timestamp = new Date().toLocaleTimeString();
+  const styles = {
+    log: 'color: #667eea; font-weight: bold;',
+    error: 'color: #ef4444; font-weight: bold;',
+    success: 'color: #10b981; font-weight: bold;',
+    warning: 'color: #f59e0b; font-weight: bold;',
+    info: 'color: #3b82f6; font-weight: bold;'
+  };
+  
+  console.groupCollapsed(`%c📧 DonorConnect Template System - ${type.toUpperCase()}`, styles[type]);
+  console.log(`%c${timestamp}`, 'color: #9ca3af; font-size: 0.8em;');
+  console.log(`%c${message}`, 'color: #ffffff;');
+  if (data) {
+    console.log('Data:', data);
+  }
+  console.groupEnd();
+  
+  // Add to UI console if available
+  if (typeof window !== 'undefined') {
+    const consoleDiv = document.getElementById('template-console-entries');
+    if (consoleDiv) {
+      const logEntry = document.createElement('div');
+      logEntry.className = `console-entry ${type}`;
+      logEntry.innerHTML = `
+        <span class="timestamp">[${timestamp}]</span>
+        <span class="type">${type.toUpperCase()}:</span>
+        <span class="message">${message}</span>
+        ${data ? `<pre class="data">${JSON.stringify(data, null, 2)}</pre>` : ''}
+      `;
+      consoleDiv.appendChild(logEntry);
+      consoleDiv.scrollTop = consoleDiv.scrollHeight;
+    }
+  }
+};
+
+// Alert system with feedback
+const showAlert = (title, message, type = 'info', duration = 5000) => {
+  const alertTypes = {
+    success: {
+      bg: 'linear-gradient(135deg, #10b981, #059669)',
+      icon: '✅',
+      border: '#059669'
+    },
+    error: {
+      bg: 'linear-gradient(135deg, #ef4444, #dc2626)',
+      icon: '❌',
+      border: '#dc2626'
+    },
+    warning: {
+      bg: 'linear-gradient(135deg, #f59e0b, #d97706)',
+      icon: '⚠️',
+      border: '#d97706'
+    },
+    info: {
+      bg: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+      icon: 'ℹ️',
+      border: '#2563eb'
+    }
+  };
+  
+  const alertBox = document.createElement('div');
+  alertBox.className = 'alert-box';
+  alertBox.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: ${alertTypes[type].bg};
+    color: white;
+    padding: 16px 20px;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    z-index: 9999;
+    max-width: 400px;
+    animation: slideInRight 0.3s ease-out;
+    backdrop-filter: blur(10px);
+    border-left: 5px solid ${alertTypes[type].border};
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  `;
+  
+  alertBox.innerHTML = `
+    <div style="display: flex; align-items: flex-start; gap: 12px;">
+      <span style="font-size: 24px; flex-shrink: 0;">${alertTypes[type].icon}</span>
+      <div style="flex: 1;">
+        <h4 style="margin: 0 0 6px 0; font-size: 16px; font-weight: 600; line-height: 1.3;">${title}</h4>
+        <p style="margin: 0; font-size: 14px; opacity: 0.9; line-height: 1.4;">${message}</p>
+      </div>
+      <button onclick="this.parentElement.parentElement.remove()" 
+              style="background: rgba(255, 255, 255, 0.2); color: white; border: none; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-left: 12px; flex-shrink: 0; font-size: 18px; line-height: 1;">
+        ×
+      </button>
+    </div>
+  `;
+  
+  document.body.appendChild(alertBox);
+  
+  // Add animation styles if not present
+  if (!document.querySelector('#alert-animations')) {
+    const style = document.createElement('style');
+    style.id = 'alert-animations';
+    style.textContent = `
+      @keyframes slideInRight {
+        from {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+      @keyframes slideOutRight {
+        from {
+          transform: translateX(0);
+          opacity: 1;
+        }
+        to {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+  
+  // Auto-remove after duration
+  setTimeout(() => {
+    if (alertBox.parentElement) {
+      alertBox.style.animation = 'slideOutRight 0.3s ease-out';
+      setTimeout(() => {
+        if (alertBox.parentElement) {
+          alertBox.parentElement.removeChild(alertBox);
+        }
+      }, 300);
+    }
+  }, duration);
+  
+  return alertBox;
+};
+
 export default function TemplatesSection({ donorId, donorInfo }) {
+  consoleLog('🔄 TemplatesSection component initialized', { donorId, donorInfo }, 'info');
+  
   const [templates, setTemplates] = useState([])
   const [selectedTemplate, setSelectedTemplate] = useState(null)
   const [previewContent, setPreviewContent] = useState('')
@@ -36,7 +181,7 @@ export default function TemplatesSection({ donorId, donorInfo }) {
   const [sendingEmail, setSendingEmail] = useState(false)
   const [sendStatus, setSendStatus] = useState({ type: null, message: '' })
   const [showEmailComposer, setShowEmailComposer] = useState(false)
-  const [composerMode, setComposerMode] = useState('template') // 'template' or 'custom'
+  const [composerMode, setComposerMode] = useState('template')
   const [emailData, setEmailData] = useState({
     to: donorInfo?.email || '',
     subject: '',
@@ -46,9 +191,12 @@ export default function TemplatesSection({ donorId, donorInfo }) {
   })
   const [customHtml, setCustomHtml] = useState('')
   const [composerLoading, setComposerLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState('compose') // 'compose', 'preview', 'code'
-    
-  // Template form state
+  const [activeTab, setActiveTab] = useState('compose')
+  const [debugMode, setDebugMode] = useState(false)
+  const [consoleVisible, setConsoleVisible] = useState(false)
+
+  consoleLog('📧 Email data initialized', emailData, 'info');
+
   const [templateForm, setTemplateForm] = useState({
     name: '',
     type: 'EMAIL',
@@ -57,7 +205,6 @@ export default function TemplatesSection({ donorId, donorInfo }) {
     category: 'THANK_YOU'
   })
 
-  // Template categories
   const templateCategories = [
     { 
       id: 'THANK_YOU', 
@@ -138,11 +285,13 @@ export default function TemplatesSection({ donorId, donorInfo }) {
   ]
 
   useEffect(() => {
+    consoleLog('🔍 useEffect triggered for loading templates', null, 'info');
     loadTemplates()
   }, [])
 
   useEffect(() => {
     if (selectedTemplate) {
+      consoleLog('📋 Generating preview for selected template', { template: selectedTemplate.name }, 'info');
       generatePreview(selectedTemplate)
     }
   }, [selectedTemplate, donorInfo])
@@ -150,9 +299,13 @@ export default function TemplatesSection({ donorId, donorInfo }) {
   async function loadTemplates() {
     try {
       setLoading(true)
+      consoleLog('📂 Loading templates from localStorage', null, 'info');
+      
       const savedTemplates = localStorage.getItem('emailTemplates')
       if (savedTemplates) {
-        setTemplates(JSON.parse(savedTemplates))
+        const parsed = JSON.parse(savedTemplates)
+        consoleLog('✅ Templates loaded from localStorage', { count: parsed.length }, 'success');
+        setTemplates(parsed)
       } else {
         const defaultTemplates = templateCategories.flatMap(category => 
           category.defaultTemplates.map(template => ({
@@ -162,11 +315,14 @@ export default function TemplatesSection({ donorId, donorInfo }) {
             subject: template.subject || template.name
           }))
         )
+        consoleLog('📝 Loading default templates', { count: defaultTemplates.length }, 'info');
         setTemplates(defaultTemplates)
         localStorage.setItem('emailTemplates', JSON.stringify(defaultTemplates))
+        showAlert('Default Templates Loaded', `Loaded ${defaultTemplates.length} default templates`, 'success', 3000);
       }
     } catch (err) {
-      console.error('Failed to load templates:', err)
+      consoleLog('❌ Failed to load templates', err.message, 'error');
+      showAlert('Load Error', 'Failed to load templates: ' + err.message, 'error');
     } finally {
       setLoading(false)
     }
@@ -191,179 +347,207 @@ export default function TemplatesSection({ donorId, donorInfo }) {
       '{{organization}}': process.env.NEXT_PUBLIC_ORGANIZATION_NAME || '[Your Organization Name]'
     }
 
+    consoleLog('🔧 Generating preview with replacements', { replacements }, 'info');
+
     Object.entries(replacements).forEach(([key, value]) => {
       preview = preview.replace(new RegExp(key, 'g'), value)
     })
 
     setPreviewContent(preview)
+    consoleLog('✅ Preview generated', { previewLength: preview.length }, 'success');
   }
 
-  // Enhanced send email function
-const handleSendEmailEnhanced = async (templateData = null) => {
-  const templateToUse = templateData || selectedTemplate
-  const recipientEmail = emailData.to || donorInfo?.email
-  
-  if (!recipientEmail) {
-    setSendStatus({
-      type: 'error',
-      message: 'Please enter recipient email address'
-    })
-    return
-  }
+  const handleSendEmailEnhanced = async (templateData = null) => {
+    const templateToUse = templateData || selectedTemplate
+    const recipientEmail = emailData.to || donorInfo?.email
+    
+    consoleLog('🚀 Starting email send process', { 
+      template: templateToUse?.name, 
+      recipientEmail,
+      mode: composerMode,
+      subject: emailData.subject
+    }, 'info');
+    
+    showAlert('Sending Email', 'Preparing to send email...', 'info', 2000);
 
-  if (!emailData.subject && !templateToUse?.subject) {
-    setSendStatus({
-      type: 'error',
-      message: 'Please enter email subject'
-    })
-    return
-  }
-
-  try {
-    setComposerLoading(true)
-    setSendStatus({ type: null, message: '' })
-
-    const isCustomEmail = composerMode === 'custom' || templateToUse?.id === 'custom'
-    let emailHtml = ''
-    let templateType = 'custom'
-
-    if (isCustomEmail) {
-      // Use custom HTML or convert template content
-      emailHtml = formatEmailHtml(customHtml || previewContent, composerMode === 'custom')
-      templateType = 'custom'
-    } else if (templateToUse) {
-      // Generate HTML from template
-      const previewContent = generatePreview(templateToUse)
-      emailHtml = formatEmailHtml(previewContent, false)
-      
-      // Map to API template types
-      if (templateToUse.category === 'YEAR_END' || templateToUse.category === 'RECURRING') {
-        templateType = 'newsletter'
-      } else if (templateToUse.category === 'EVENT') {
-        templateType = 'promotion'
-      } else {
-        templateType = 'welcome'
-      }
-    }
-
-    // Send using your API endpoint
-    const response = await fetch('/api/communications/email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        to: emailData.to.split(',').map(e => e.trim()),
-        subject: emailData.subject || templateToUse?.subject || templateToUse?.name,
-        template: templateType,
-        html: emailHtml,
-        variables: {
-          firstName: donorInfo?.firstName || 'Valued Supporter',
-          // Add more variables as needed
-        },
-        from: emailData.from,
-        cc: emailData.cc || undefined,
-        bcc: emailData.bcc || undefined
+    if (!recipientEmail) {
+      const errorMsg = 'Please enter recipient email address'
+      consoleLog('❌ Email validation failed', errorMsg, 'error');
+      showAlert('Email Error', errorMsg, 'error');
+      setSendStatus({
+        type: 'error',
+        message: errorMsg
       })
-    })
-
-    const result = await response.json()
-
-    if (!response.ok) {
-      throw new Error(result.error || 'Failed to send email')
+      return
     }
 
-    // Log the communication
-    await fetch('/api/communications', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        donorId,
-        type: 'EMAIL',
-        direction: 'OUTBOUND',
-        subject: emailData.subject || templateToUse?.subject || templateToUse?.name,
-        content: composerMode === 'custom' ? customHtml : previewContent,
-        templateId: templateToUse?.id,
-        templateUsed: templateType,
-        status: 'SENT',
-        messageId: result.data?.id,
-        sentAt: new Date().toISOString(),
-        metadata: {
-          resendId: result.data?.id,
-          from: emailData.from,
-          cc: emailData.cc,
-          bcc: emailData.bcc
-        }
+    if (!emailData.subject && !templateToUse?.subject) {
+      const errorMsg = 'Please enter email subject'
+      consoleLog('❌ Email validation failed', errorMsg, 'error');
+      showAlert('Email Error', errorMsg, 'error');
+      setSendStatus({
+        type: 'error',
+        message: errorMsg
       })
-    })
-
-    setSendStatus({
-      type: 'success',
-      message: `Email sent successfully to ${emailData.to}`
-    })
-
-    // Close composer if open
-    if (showEmailComposer) {
-      setTimeout(() => {
-        setShowEmailComposer(false)
-        resetComposerState()
-      }, 2000)
+      return
     }
 
-    setTimeout(() => {
+    try {
+      setComposerLoading(true)
       setSendStatus({ type: null, message: '' })
-    }, 5000)
 
-  } catch (err) {
-    console.error('Error sending email:', err)
-    setSendStatus({
-      type: 'error',
-      message: err.message || 'Failed to send email'
-    })
-  } finally {
-    setComposerLoading(false)
-  }
-}
+      const isCustomEmail = composerMode === 'custom' || templateToUse?.id === 'custom'
+      let emailHtml = ''
+      let templateType = 'custom'
 
-// Reset composer state
-const resetComposerState = () => {
-  setEmailData({
-    to: donorInfo?.email || '',
-    subject: selectedTemplate?.subject || selectedTemplate?.name || '',
-    from: process.env.NEXT_PUBLIC_EMAIL_FROM || 'Acme <onboarding@resend.dev>',
-    cc: '',
-    bcc: ''
-  })
-  setCustomHtml('')
-  setComposerMode('template')
-  setActiveTab('compose')
-}
-
-  // Send email using your /api/communications/email endpoint
-  const handleSendEmail = async () => {
-   await handleSendEmailEnhanced()
-}
-
-
-  // Helper to convert text to HTML (for future use)
-  // Convert text to HTML with basic styling
-const convertTextToHtml = (text) => {
-  return text
-    .split('\n\n')
-    .map(paragraph => {
-      if (paragraph.trim() === '') return '<p><br></p>'
-      // Check if it's a heading (line ending with :)
-      if (paragraph.trim().endsWith(':')) {
-        return `<h3 style="color: #333; margin: 16px 0 8px 0; font-size: 16px; font-weight: bold;">${paragraph.trim()}</h3>`
+      if (isCustomEmail) {
+        consoleLog('🎨 Using custom HTML email', { contentLength: customHtml.length }, 'info');
+        emailHtml = formatEmailHtml(customHtml || previewContent, composerMode === 'custom')
+        templateType = 'custom'
+      } else if (templateToUse) {
+        consoleLog('📄 Using template for email', { template: templateToUse.name, category: templateToUse.category }, 'info');
+        const previewContent = generatePreview(templateToUse)
+        emailHtml = formatEmailHtml(previewContent, false)
+        
+        if (templateToUse.category === 'YEAR_END' || templateToUse.category === 'RECURRING') {
+          templateType = 'newsletter'
+        } else if (templateToUse.category === 'EVENT') {
+          templateType = 'promotion'
+        } else {
+          templateType = 'welcome'
+        }
       }
-      return `<p style="margin: 0 0 16px 0; line-height: 1.6; color: #333;">${paragraph.replace(/\n/g, '<br>')}</p>`
-    })
-    .join('')
-}
 
-// Format the HTML for email
-const formatEmailHtml = (content, isHtml = false) => {
-  const bodyContent = isHtml ? content : convertTextToHtml(content)
-  
-  return `
+      consoleLog('📤 Sending API request to /api/communications/email', {
+        to: emailData.to,
+        subject: emailData.subject || templateToUse?.subject || templateToUse?.name,
+        templateType,
+        htmlLength: emailHtml.length
+      }, 'info');
+
+      const response = await fetch('/api/communications/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: emailData.to.split(',').map(e => e.trim()),
+          subject: emailData.subject || templateToUse?.subject || templateToUse?.name,
+          template: templateType,
+          html: emailHtml,
+          variables: {
+            firstName: donorInfo?.firstName || 'Valued Supporter',
+          },
+          from: emailData.from,
+          cc: emailData.cc || undefined,
+          bcc: emailData.bcc || undefined
+        })
+      })
+
+      const result = await response.json()
+      consoleLog('📨 API Response received', { status: response.status, result }, response.ok ? 'success' : 'error');
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to send email')
+      }
+
+      consoleLog('📝 Logging communication to /api/communications', {
+        donorId,
+        templateId: templateToUse?.id,
+        templateType
+      }, 'info');
+
+      await fetch('/api/communications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          donorId,
+          type: 'EMAIL',
+          direction: 'OUTBOUND',
+          subject: emailData.subject || templateToUse?.subject || templateToUse?.name,
+          content: composerMode === 'custom' ? customHtml : previewContent,
+          templateId: templateToUse?.id,
+          templateUsed: templateType,
+          status: 'SENT',
+          messageId: result.data?.id,
+          sentAt: new Date().toISOString(),
+          metadata: {
+            resendId: result.data?.id,
+            from: emailData.from,
+            cc: emailData.cc,
+            bcc: emailData.bcc
+          }
+        })
+      })
+
+      const successMsg = `Email sent successfully to ${emailData.to}`
+      consoleLog('✅ Email sent successfully', { recipient: emailData.to, messageId: result.data?.id }, 'success');
+      showAlert('Email Sent!', successMsg, 'success');
+
+      setSendStatus({
+        type: 'success',
+        message: successMsg
+      })
+
+      if (showEmailComposer) {
+        setTimeout(() => {
+          setShowEmailComposer(false)
+          resetComposerState()
+        }, 2000)
+      }
+
+      setTimeout(() => {
+        setSendStatus({ type: null, message: '' })
+      }, 5000)
+
+    } catch (err) {
+      consoleLog('❌ Error sending email', err.message, 'error');
+      showAlert('Email Failed', err.message || 'Failed to send email', 'error');
+      setSendStatus({
+        type: 'error',
+        message: err.message || 'Failed to send email'
+      })
+    } finally {
+      setComposerLoading(false)
+    }
+  }
+
+  const resetComposerState = () => {
+    consoleLog('🔄 Resetting composer state', null, 'info');
+    setEmailData({
+      to: donorInfo?.email || '',
+      subject: selectedTemplate?.subject || selectedTemplate?.name || '',
+      from: process.env.NEXT_PUBLIC_EMAIL_FROM || 'Acme <onboarding@resend.dev>',
+      cc: '',
+      bcc: ''
+    })
+    setCustomHtml('')
+    setComposerMode('template')
+    setActiveTab('compose')
+  }
+
+  const handleSendEmail = async () => {
+    consoleLog('📨 handleSendEmail called', { selectedTemplate: selectedTemplate?.name }, 'info');
+    await handleSendEmailEnhanced()
+  }
+
+  const convertTextToHtml = (text) => {
+    consoleLog('🔧 Converting text to HTML', { textLength: text.length }, 'info');
+    return text
+      .split('\n\n')
+      .map(paragraph => {
+        if (paragraph.trim() === '') return '<p><br></p>'
+        if (paragraph.trim().endsWith(':')) {
+          return `<h3 style="color: #333; margin: 16px 0 8px 0; font-size: 16px; font-weight: bold;">${paragraph.trim()}</h3>`
+        }
+        return `<p style="margin: 0 0 16px 0; line-height: 1.6; color: #333;">${paragraph.replace(/\n/g, '<br>')}</p>`
+      })
+      .join('')
+  }
+
+  const formatEmailHtml = (content, isHtml = false) => {
+    consoleLog('🎨 Formatting email HTML', { contentLength: content.length, isHtml }, 'info');
+    const bodyContent = isHtml ? content : convertTextToHtml(content)
+    
+    const html = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -386,16 +570,26 @@ const formatEmailHtml = (content, isHtml = false) => {
       </div>
     </body>
     </html>
-  `
-}
+    `
+    
+    consoleLog('✅ HTML formatted', { htmlLength: html.length }, 'success');
+    return html
+  }
 
   const handleSaveTemplate = async (e) => {
     e.preventDefault()
+    
+    consoleLog('💾 Saving template', { 
+      name: templateForm.name,
+      category: templateForm.category,
+      contentLength: templateForm.content.length 
+    }, 'info');
     
     try {
       let updatedTemplates
       
       if (editingTemplate) {
+        consoleLog('✏️ Updating existing template', { templateId: editingTemplate.id }, 'info');
         updatedTemplates = templates.map(t => 
           t.id === editingTemplate.id ? { ...templateForm, id: editingTemplate.id } : t
         )
@@ -405,6 +599,7 @@ const formatEmailHtml = (content, isHtml = false) => {
           id: `template-${Date.now()}`,
           type: 'EMAIL'
         }
+        consoleLog('🆕 Creating new template', { templateId: newTemplate.id }, 'info');
         updatedTemplates = [...templates, newTemplate]
       }
       
@@ -421,9 +616,13 @@ const formatEmailHtml = (content, isHtml = false) => {
         category: 'THANK_YOU'
       })
       
+      const successMsg = editingTemplate ? 'Template updated successfully!' : 'Template created successfully!'
+      consoleLog('✅ Template saved', { totalTemplates: updatedTemplates.length }, 'success');
+      showAlert('Template Saved', successMsg, 'success');
+      
       setSendStatus({
         type: 'success',
-        message: 'Template saved successfully!'
+        message: successMsg
       })
       
       setTimeout(() => {
@@ -431,7 +630,8 @@ const formatEmailHtml = (content, isHtml = false) => {
       }, 3000)
       
     } catch (err) {
-      console.error('Error saving template:', err)
+      consoleLog('❌ Error saving template', err.message, 'error');
+      showAlert('Save Error', 'Failed to save template: ' + err.message, 'error');
       setSendStatus({
         type: 'error',
         message: 'Failed to save template'
@@ -440,7 +640,12 @@ const formatEmailHtml = (content, isHtml = false) => {
   }
 
   const handleDeleteTemplate = async (templateId) => {
-    if (!confirm('Are you sure you want to delete this template?')) return
+    consoleLog('🗑️ Deleting template', { templateId }, 'warning');
+    
+    if (!confirm('Are you sure you want to delete this template?')) {
+      consoleLog('❌ Template deletion cancelled', null, 'info');
+      return
+    }
 
     try {
       const updatedTemplates = templates.filter(t => t.id !== templateId)
@@ -448,8 +653,12 @@ const formatEmailHtml = (content, isHtml = false) => {
       localStorage.setItem('emailTemplates', JSON.stringify(updatedTemplates))
       
       if (selectedTemplate?.id === templateId) {
+        consoleLog('📋 Clearing selected template', null, 'info');
         setSelectedTemplate(null)
       }
+      
+      consoleLog('✅ Template deleted', { remainingTemplates: updatedTemplates.length }, 'success');
+      showAlert('Template Deleted', 'Template was deleted successfully', 'success');
       
       setSendStatus({
         type: 'success',
@@ -460,7 +669,8 @@ const formatEmailHtml = (content, isHtml = false) => {
         setSendStatus({ type: null, message: '' })
       }, 3000)
     } catch (err) {
-      console.error('Error deleting template:', err)
+      consoleLog('❌ Error deleting template', err.message, 'error');
+      showAlert('Delete Error', 'Failed to delete template: ' + err.message, 'error');
       setSendStatus({
         type: 'error',
         message: 'Failed to delete template'
@@ -469,6 +679,7 @@ const formatEmailHtml = (content, isHtml = false) => {
   }
 
   const handleEditTemplate = (template) => {
+    consoleLog('✏️ Editing template', { template: template.name, id: template.id }, 'info');
     setEditingTemplate(template)
     setTemplateForm({
       name: template.name,
@@ -481,18 +692,25 @@ const formatEmailHtml = (content, isHtml = false) => {
   }
 
   const handleUseTemplate = (template) => {
+    consoleLog('🎯 Using template', { template: template.name }, 'info');
     setSelectedTemplate(template)
     generatePreview(template)
   }
 
   const handleQuickSend = async (template) => {
     if (!donorId || !donorInfo?.email) {
+      const errorMsg = 'Please select a donor with an email address first'
+      consoleLog('❌ Quick send validation failed', errorMsg, 'error');
+      showAlert('Quick Send Error', errorMsg, 'error');
       setSendStatus({
         type: 'error',
-        message: 'Please select a donor with an email address first'
+        message: errorMsg
       })
       return
     }
+    
+    consoleLog('⚡ Quick send initiated', { template: template.name, recipient: donorInfo.email }, 'info');
+    showAlert('Quick Send', `Sending "${template.name}" to ${donorInfo.email}...`, 'info', 2000);
     
     handleUseTemplate(template)
     
@@ -504,19 +722,21 @@ const formatEmailHtml = (content, isHtml = false) => {
   const getFilteredTemplates = () => {
     let filtered = templates.filter(template => template.type === 'EMAIL')
     
-    // Apply search filter
     if (searchQuery.trim()) {
+      consoleLog('🔍 Filtering templates', { searchQuery, before: filtered.length }, 'info');
       filtered = filtered.filter(template =>
         template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         template.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
         template.category.toLowerCase().includes(searchQuery.toLowerCase())
       )
+      consoleLog('✅ Templates filtered', { after: filtered.length }, 'success');
     }
     
     return filtered
   }
 
   const toggleCategory = (categoryId) => {
+    consoleLog('📂 Toggling category', { categoryId, currentlyExpanded: expandedCategories[categoryId] }, 'info');
     setExpandedCategories(prev => ({
       ...prev,
       [categoryId]: !prev[categoryId]
@@ -528,6 +748,7 @@ const formatEmailHtml = (content, isHtml = false) => {
   }
 
   const expandAllCategories = () => {
+    consoleLog('📂 Expanding all categories', null, 'info');
     const expanded = {}
     templateCategories.forEach(cat => {
       expanded[cat.id] = true
@@ -536,7 +757,34 @@ const formatEmailHtml = (content, isHtml = false) => {
   }
 
   const collapseAllCategories = () => {
+    consoleLog('📂 Collapsing all categories', null, 'info');
     setExpandedCategories({})
+  }
+
+  const handleTestNotification = () => {
+    consoleLog('🧪 Test notification triggered', null, 'info');
+    showAlert('Test Notification', 'This is a test notification from the Template System', 'info');
+    
+    // Test various console log types
+    consoleLog('Test info message', { test: 'data' }, 'info');
+    consoleLog('Test success message', null, 'success');
+    consoleLog('Test warning message', null, 'warning');
+    consoleLog('Test error message', { errorCode: 404 }, 'error');
+  }
+
+  const handleDebugToggle = () => {
+    setDebugMode(!debugMode);
+    consoleLog('🐛 Debug mode toggled', { debugMode: !debugMode }, debugMode ? 'info' : 'warning');
+    showAlert('Debug Mode', debugMode ? 'Debug mode disabled' : 'Debug mode enabled', debugMode ? 'info' : 'warning');
+  }
+
+  const handleClearConsole = () => {
+    const consoleDiv = document.getElementById('template-console-entries');
+    if (consoleDiv) {
+      consoleDiv.innerHTML = '';
+      consoleLog('🧹 Console cleared', null, 'info');
+      showAlert('Console Cleared', 'All console logs have been cleared', 'info');
+    }
   }
 
   if (loading) {
@@ -550,6 +798,45 @@ const formatEmailHtml = (content, isHtml = false) => {
 
   return (
     <div className={styles.container}>
+      {/* Debug console panel */}
+      {debugMode && consoleVisible && (
+        <div className={styles.consolePanel}>
+          <div className={styles.consoleHeader}>
+            <div className={styles.consoleTitle}>
+              <CodeBracketIcon className={styles.icon} />
+              <h4>Template System Console</h4>
+              <span className={styles.consoleBadge}>DEBUG</span>
+            </div>
+            <div className={styles.consoleControls}>
+              <button 
+                className={styles.consoleButton}
+                onClick={handleTestNotification}
+                title="Test notifications"
+              >
+                <BugAntIcon className={styles.icon} />
+              </button>
+              <button 
+                className={styles.consoleButton}
+                onClick={handleClearConsole}
+                title="Clear console"
+              >
+                <TrashIcon className={styles.icon} />
+              </button>
+              <button 
+                className={styles.consoleButton}
+                onClick={() => setConsoleVisible(false)}
+                title="Hide console"
+              >
+                <XMarkIcon className={styles.icon} />
+              </button>
+            </div>
+          </div>
+          <div className={styles.consoleBody} id="template-console-entries">
+            {/* Console entries will be appended here */}
+          </div>
+        </div>
+      )}
+
       {/* Status display */}
       {sendStatus.type && (
         <div className={`${styles.statusAlert} ${sendStatus.type === 'success' ? styles.success : styles.error}`}>
@@ -577,6 +864,27 @@ const formatEmailHtml = (content, isHtml = false) => {
           <p className={styles.subtitle}>Create and manage email templates for donor communications</p>
         </div>
         <div className={styles.headerRight}>
+          {/* Debug toggle button */}
+          <button 
+            className={`${styles.secondaryButton} ${debugMode ? styles.debugActive : ''}`}
+            onClick={handleDebugToggle}
+            title={debugMode ? 'Disable debug mode' : 'Enable debug mode'}
+          >
+            <BugAntIcon className={styles.icon} />
+            {debugMode ? 'Debug On' : 'Debug'}
+          </button>
+          
+          {debugMode && (
+            <button 
+              className={styles.secondaryButton}
+              onClick={() => setConsoleVisible(!consoleVisible)}
+              title={consoleVisible ? 'Hide console' : 'Show console'}
+            >
+              <CodeBracketIcon className={styles.icon} />
+              Console
+            </button>
+          )}
+          
           <div className={styles.expandButtons}>
             <button className={styles.secondaryButton} onClick={expandAllCategories}>
               Expand All
@@ -588,6 +896,7 @@ const formatEmailHtml = (content, isHtml = false) => {
           <button 
             className={styles.primaryButton}
             onClick={() => {
+              consoleLog('➕ Creating new template', null, 'info');
               setEditingTemplate(null)
               setTemplateForm({
                 name: '',
@@ -613,12 +922,18 @@ const formatEmailHtml = (content, isHtml = false) => {
             placeholder="Search templates by name, content, or category..."
             className={styles.searchInput}
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value)
+              consoleLog('🔍 Search query updated', { query: e.target.value }, 'info');
+            }}
           />
           {searchQuery && (
             <button 
               className={styles.clearButton}
-              onClick={() => setSearchQuery('')}
+              onClick={() => {
+                consoleLog('🧹 Clearing search', null, 'info');
+                setSearchQuery('')
+              }}
               title="Clear search"
             >
               <XMarkIcon className={styles.icon} />
@@ -727,6 +1042,7 @@ const formatEmailHtml = (content, isHtml = false) => {
                           <button 
                             className={styles.smallButton}
                             onClick={() => {
+                              consoleLog('➕ Creating new template for category', { category: category.name }, 'info');
                               setTemplateForm(prev => ({...prev, category: category.id}))
                               setShowTemplateModal(true)
                             }}
@@ -749,7 +1065,10 @@ const formatEmailHtml = (content, isHtml = false) => {
                 <p>{searchQuery ? 'Try a different search term' : 'Create your first template to get started'}</p>
                 <button 
                   className={styles.primaryButton}
-                  onClick={() => setShowTemplateModal(true)}
+                  onClick={() => {
+                    consoleLog('➕ Creating first template', null, 'info');
+                    setShowTemplateModal(true)
+                  }}
                 >
                   <PlusIcon className={styles.icon} />
                   Create Template
@@ -770,7 +1089,10 @@ const formatEmailHtml = (content, isHtml = false) => {
               <div className={styles.previewHeaderActions}>
                 <button 
                   className={styles.iconButton}
-                  onClick={() => setSelectedTemplate(null)}
+                  onClick={() => {
+                    consoleLog('❌ Closing template preview', { template: selectedTemplate.name }, 'info');
+                    setSelectedTemplate(null)
+                  }}
                   title="Close preview"
                 >
                   <XMarkIcon className={styles.icon} />
@@ -796,14 +1118,46 @@ const formatEmailHtml = (content, isHtml = false) => {
               <div className={styles.placeholders}>
                 <h4>Available Placeholders:</h4>
                 <div className={styles.placeholderGrid}>
-                  <code onClick={() => navigator.clipboard.writeText('{{firstName}}')} title="Click to copy">{'{{firstName}}'}</code>
-                  <code onClick={() => navigator.clipboard.writeText('{{lastName}}')} title="Click to copy">{'{{lastName}}'}</code>
-                  <code onClick={() => navigator.clipboard.writeText('{{fullName}}')} title="Click to copy">{'{{fullName}}'}</code>
-                  <code onClick={() => navigator.clipboard.writeText('{{email}}')} title="Click to copy">{'{{email}}'}</code>
-                  <code onClick={() => navigator.clipboard.writeText('{{amount}}')} title="Click to copy">{'{{amount}}'}</code>
-                  <code onClick={() => navigator.clipboard.writeText('{{date}}')} title="Click to copy">{'{{date}}'}</code>
-                  <code onClick={() => navigator.clipboard.writeText('{{year}}')} title="Click to copy">{'{{year}}'}</code>
-                  <code onClick={() => navigator.clipboard.writeText('{{organization}}')} title="Click to copy">{'{{organization}}'}</code>
+                  <code onClick={() => {
+                    navigator.clipboard.writeText('{{firstName}}')
+                    consoleLog('📋 Copied placeholder', { placeholder: '{{firstName}}' }, 'info');
+                    showAlert('Copied!', 'Placeholder {{firstName}} copied to clipboard', 'success', 2000);
+                  }} title="Click to copy">{'{{firstName}}'}</code>
+                  <code onClick={() => {
+                    navigator.clipboard.writeText('{{lastName}}')
+                    consoleLog('📋 Copied placeholder', { placeholder: '{{lastName}}' }, 'info');
+                    showAlert('Copied!', 'Placeholder {{lastName}} copied to clipboard', 'success', 2000);
+                  }} title="Click to copy">{'{{lastName}}'}</code>
+                  <code onClick={() => {
+                    navigator.clipboard.writeText('{{fullName}}')
+                    consoleLog('📋 Copied placeholder', { placeholder: '{{fullName}}' }, 'info');
+                    showAlert('Copied!', 'Placeholder {{fullName}} copied to clipboard', 'success', 2000);
+                  }} title="Click to copy">{'{{fullName}}'}</code>
+                  <code onClick={() => {
+                    navigator.clipboard.writeText('{{email}}')
+                    consoleLog('📋 Copied placeholder', { placeholder: '{{email}}' }, 'info');
+                    showAlert('Copied!', 'Placeholder {{email}} copied to clipboard', 'success', 2000);
+                  }} title="Click to copy">{'{{email}}'}</code>
+                  <code onClick={() => {
+                    navigator.clipboard.writeText('{{amount}}')
+                    consoleLog('📋 Copied placeholder', { placeholder: '{{amount}}' }, 'info');
+                    showAlert('Copied!', 'Placeholder {{amount}} copied to clipboard', 'success', 2000);
+                  }} title="Click to copy">{'{{amount}}'}</code>
+                  <code onClick={() => {
+                    navigator.clipboard.writeText('{{date}}')
+                    consoleLog('📋 Copied placeholder', { placeholder: '{{date}}' }, 'info');
+                    showAlert('Copied!', 'Placeholder {{date}} copied to clipboard', 'success', 2000);
+                  }} title="Click to copy">{'{{date}}'}</code>
+                  <code onClick={() => {
+                    navigator.clipboard.writeText('{{year}}')
+                    consoleLog('📋 Copied placeholder', { placeholder: '{{year}}' }, 'info');
+                    showAlert('Copied!', 'Placeholder {{year}} copied to clipboard', 'success', 2000);
+                  }} title="Click to copy">{'{{year}}'}</code>
+                  <code onClick={() => {
+                    navigator.clipboard.writeText('{{organization}}')
+                    consoleLog('📋 Copied placeholder', { placeholder: '{{organization}}' }, 'info');
+                    showAlert('Copied!', 'Placeholder {{organization}} copied to clipboard', 'success', 2000);
+                  }} title="Click to copy">{'{{organization}}'}</code>
                 </div>
                 <small>Click on a placeholder to copy it to clipboard</small>
               </div>
@@ -832,6 +1186,8 @@ const formatEmailHtml = (content, isHtml = false) => {
                   className={styles.secondaryButton}
                   onClick={() => {
                     navigator.clipboard.writeText(previewContent)
+                    consoleLog('📋 Copied template content to clipboard', { contentLength: previewContent.length }, 'info');
+                    showAlert('Copied!', 'Template content copied to clipboard', 'success', 2000);
                     setSendStatus({
                       type: 'success',
                       message: 'Template content copied to clipboard!'
@@ -863,6 +1219,7 @@ const formatEmailHtml = (content, isHtml = false) => {
                 <button 
                   className={styles.iconButton}
                   onClick={() => {
+                    consoleLog('❌ Closing template modal', { editing: !!editingTemplate }, 'info');
                     setShowTemplateModal(false)
                     setEditingTemplate(null)
                   }}
@@ -873,12 +1230,13 @@ const formatEmailHtml = (content, isHtml = false) => {
                 <button 
                   className={styles.composerButton}
                   onClick={() => {
-                    setShowEmailComposer(true)
+                    consoleLog('📧 Opening email composer from template modal', null, 'info');
+                    setShowEmailComposer(true);
                     setEmailData(prev => ({
                       ...prev,
-                      to: donorInfo?.email || '',
-                      subject: selectedTemplate?.subject || selectedTemplate?.name || ''
-                    }))
+                      to: donorInfo?.email || prev.to,
+                      subject: prev.subject || selectedTemplate?.subject || selectedTemplate?.name || ''
+                    }));
                   }}
                   disabled={!donorInfo?.email}
                 >
@@ -903,7 +1261,10 @@ const formatEmailHtml = (content, isHtml = false) => {
                     <label>Category *</label>
                     <select
                       value={templateForm.category}
-                      onChange={(e) => setTemplateForm({...templateForm, category: e.target.value})}
+                      onChange={(e) => {
+                        consoleLog('📂 Category selected', { category: e.target.value }, 'info');
+                        setTemplateForm({...templateForm, category: e.target.value})
+                      }}
                       required
                     >
                       {templateCategories.map(category => (
@@ -944,6 +1305,7 @@ const formatEmailHtml = (content, isHtml = false) => {
                     type="button" 
                     className={styles.secondaryButton}
                     onClick={() => {
+                      consoleLog('❌ Cancelling template creation/editing', null, 'info');
                       setShowTemplateModal(false)
                       setEditingTemplate(null)
                     }}
@@ -971,6 +1333,7 @@ const formatEmailHtml = (content, isHtml = false) => {
           <button 
             className={styles.iconButton}
             onClick={() => {
+              consoleLog('❌ Closing email composer', null, 'info');
               setShowEmailComposer(false)
               resetComposerState()
             }}
@@ -988,7 +1351,10 @@ const formatEmailHtml = (content, isHtml = false) => {
                 <input
                   type="text"
                   value={emailData.to}
-                  onChange={(e) => setEmailData({...emailData, to: e.target.value})}
+                  onChange={(e) => {
+                    consoleLog('📧 To field updated', { to: e.target.value }, 'info');
+                    setEmailData({...emailData, to: e.target.value})
+                  }}
                   placeholder="recipient@example.com, another@example.com"
                   className={styles.emailInput}
                 />
@@ -999,7 +1365,10 @@ const formatEmailHtml = (content, isHtml = false) => {
                 <input
                   type="text"
                   value={emailData.subject}
-                  onChange={(e) => setEmailData({...emailData, subject: e.target.value})}
+                  onChange={(e) => {
+                    consoleLog('📧 Subject field updated', { subject: e.target.value }, 'info');
+                    setEmailData({...emailData, subject: e.target.value})
+                  }}
                   placeholder="Email subject"
                   className={styles.emailInput}
                 />
@@ -1011,7 +1380,10 @@ const formatEmailHtml = (content, isHtml = false) => {
                   <input
                     type="email"
                     value={emailData.from}
-                    onChange={(e) => setEmailData({...emailData, from: e.target.value})}
+                    onChange={(e) => {
+                      consoleLog('📧 From field updated', { from: e.target.value }, 'info');
+                      setEmailData({...emailData, from: e.target.value})
+                    }}
                     className={styles.emailInput}
                   />
                 </div>
@@ -1021,7 +1393,10 @@ const formatEmailHtml = (content, isHtml = false) => {
                   <input
                     type="text"
                     value={emailData.cc}
-                    onChange={(e) => setEmailData({...emailData, cc: e.target.value})}
+                    onChange={(e) => {
+                      consoleLog('📧 CC field updated', { cc: e.target.value }, 'info');
+                      setEmailData({...emailData, cc: e.target.value})
+                    }}
                     placeholder="cc@example.com"
                     className={styles.emailInput}
                   />
@@ -1032,7 +1407,10 @@ const formatEmailHtml = (content, isHtml = false) => {
                   <input
                     type="text"
                     value={emailData.bcc}
-                    onChange={(e) => setEmailData({...emailData, bcc: e.target.value})}
+                    onChange={(e) => {
+                      consoleLog('📧 BCC field updated', { bcc: e.target.value }, 'info');
+                      setEmailData({...emailData, bcc: e.target.value})
+                    }}
                     placeholder="bcc@example.com"
                     className={styles.emailInput}
                   />
@@ -1046,14 +1424,20 @@ const formatEmailHtml = (content, isHtml = false) => {
             <div className={styles.modeButtons}>
               <button
                 className={`${styles.modeButton} ${composerMode === 'template' ? styles.active : ''}`}
-                onClick={() => setComposerMode('template')}
+                onClick={() => {
+                  consoleLog('📄 Switching to template mode', null, 'info');
+                  setComposerMode('template')
+                }}
               >
                 <DocumentTextIcon className={styles.icon} />
                 Template
               </button>
               <button
                 className={`${styles.modeButton} ${composerMode === 'custom' ? styles.active : ''}`}
-                onClick={() => setComposerMode('custom')}
+                onClick={() => {
+                  consoleLog('🎨 Switching to custom HTML mode', null, 'info');
+                  setComposerMode('custom')
+                }}
               >
                 <PhotoIcon className={styles.icon} />
                 Custom HTML
@@ -1077,19 +1461,28 @@ const formatEmailHtml = (content, isHtml = false) => {
                 <div className={styles.editorTabs}>
                   <button
                     className={`${styles.tabButton} ${activeTab === 'compose' ? styles.active : ''}`}
-                    onClick={() => setActiveTab('compose')}
+                    onClick={() => {
+                      consoleLog('📝 Switching to compose tab', null, 'info');
+                      setActiveTab('compose')
+                    }}
                   >
                     Compose
                   </button>
                   <button
                     className={`${styles.tabButton} ${activeTab === 'preview' ? styles.active : ''}`}
-                    onClick={() => setActiveTab('preview')}
+                    onClick={() => {
+                      consoleLog('👁️ Switching to preview tab', null, 'info');
+                      setActiveTab('preview')
+                    }}
                   >
                     Preview
                   </button>
                   <button
                     className={`${styles.tabButton} ${activeTab === 'code' ? styles.active : ''}`}
-                    onClick={() => setActiveTab('code')}
+                    onClick={() => {
+                      consoleLog('💻 Switching to code tab', null, 'info');
+                      setActiveTab('code')
+                    }}
                   >
                     HTML
                   </button>
@@ -1099,7 +1492,10 @@ const formatEmailHtml = (content, isHtml = false) => {
                   {activeTab === 'compose' ? (
                     <textarea
                       value={customHtml}
-                      onChange={(e) => setCustomHtml(e.target.value)}
+                      onChange={(e) => {
+                        consoleLog('📝 Custom HTML updated', { length: e.target.value.length }, 'info');
+                        setCustomHtml(e.target.value)
+                      }}
                       placeholder="Write your email content here..."
                       rows={15}
                       className={styles.htmlTextarea}
@@ -1126,9 +1522,13 @@ const formatEmailHtml = (content, isHtml = false) => {
             <button 
               className={styles.secondaryButton}
               onClick={() => {
-                navigator.clipboard.writeText(
-                  composerMode === 'template' ? previewContent : customHtml
-                )
+                const content = composerMode === 'template' ? previewContent : customHtml
+                navigator.clipboard.writeText(content)
+                consoleLog('📋 Copied content to clipboard', { 
+                  mode: composerMode, 
+                  contentLength: content.length 
+                }, 'info');
+                showAlert('Copied!', 'Content copied to clipboard', 'success', 2000);
                 setSendStatus({
                   type: 'success',
                   message: 'Content copied to clipboard!'

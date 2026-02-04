@@ -1,28 +1,26 @@
-export const runtime = 'nodejs'
-export const dynamic = 'force-dynamic'
+'use client';
 
-import React from 'react'
-import CommunicationsNewClient from '../../components/communications/CommunicationsNewClient'
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import TemplatesSection from '../../components/communications/TemplatesSection'
 
-const JAVA_API = process.env.NEXT_PUBLIC_JAVA_API || 'http://localhost:8081'
 
-export default async function Page() {
-  let donors = []
-  try {
-    const res = await fetch(`${JAVA_API}/api/donors`, { cache: 'no-store' })
-    if (res.ok) donors = await res.json()
-  } catch (e) {
-    // ignore — donors will be empty
-    console.error('Failed to fetch donors for communications page', e)
-  }
+export default function Page() {
+  const [donors, setDonors] = useState([
+    { firstName: '', lastName: '', email: '' },
+  ]);
+
+  const searchParams = useSearchParams();
+
+  const donorId = searchParams.get('donorId');
+  const tab = searchParams.get('tab');
 
   return (
     <main style={{ padding: 24 }}>
-      <h1>Schedule a Communication</h1>
-      <p style={{ marginBottom: 12 }}>Pick a donor and schedule a meeting or call.</p>
-
-      {/* @ts-ignore */}
-      <CommunicationsNewClient donors={donors} />
+      <TemplatesSection/>
+      <p style={{ marginBottom: 12 }}>
+        Pick a donor and schedule a meeting or call.
+      </p>
     </main>
-  )
+  );
 }

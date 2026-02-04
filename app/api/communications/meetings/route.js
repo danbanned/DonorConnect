@@ -1,121 +1,266 @@
-export const dynamic = 'force-dynamic'
-export const runtime = 'nodejs'
+import { NextResponse } from 'next/server';
+import { getAuthUser } from '../../../../lib/auth';
+import prisma from '../../../../lib/db';
+ 
+/* ========================
+   GET /meetings
+======================== */
+export async function GET(req) {
+  // ✅ Custom JWT auth
+  const user = await getAuthUser();
 
-import { NextResponse } from "next/server";
-import { prisma } from '../../../../lib/db'
-
-const ZOOM_ACCOUNT_ID = process.env.ZOOM_ACCOUNT_ID;
-const ZOOM_CLIENT_ID = process.env.ZOOM_CLIENT_ID;
-const ZOOM_CLIENT_SECRET = process.env.ZOOM_CLIENT_SECRET;
-
-async function getZoomAccessToken() {
-  const res = await fetch("https://zoom.us/oauth/token", {
-    method: "POST",
-    headers: {
-      Authorization:
-        "Basic " +
-        Buffer.from(`${ZOOM_CLIENT_ID}:${ZOOM_CLIENT_SECRET}`).toString("base64"),
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: `grant_type=account_credentials&account_id=${ZOOM_ACCOUNT_ID}`,
-  });
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error("Failed to get Zoom access token: " + err);
+  if (!user) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    );
   }
 
-  const data = await res.json();
-  return data.access_token;
-}
+  const { searchParams } = new URL(req.url);
 
-async function createZoomMeeting({ topic, startTime, duration }) {
-  const accessToken = await getZoomAccessToken();
+  const date = searchParams.get('date');
+  const donorId = searchParams.get('donorId');
+  const startDate = searchParams.get('startDate');
+  const endDate = searchParams.get('endDate');
+  const status = searchParams.get('status') || 'all';
+  const limit = Number(searchParams.get('limit') || 50);
+  const page = Number(searchParams.get('page') || 1);
 
-  const response = await fetch("https://api.zoom.us/v2/users/me/meetings", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      topic,
-      type: 2,
-      start_time: startTime,
-      duration,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      settings: {
-        join_before_host: true,
-        approval_type: 0,
-      },
-    }),
-  });
+  const organizationId = user.organizationId;
 
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.message || "Zoom API failed");
-  }
-
-  return response.json();
-}
-
-export async function POST(req) {
   try {
-    const data = await req.json();
-    const { donorId, startsAt, duration = 30, meetingType, notes, title, userId } = data;
+    const where = {
+      organizationId,
 
-    if (!donorId || !startsAt || !title || !userId) {
-      return NextResponse.json(
-        { error: "donorId, startsAt, title, and userId are required" },
-        { status: 400 }
-      );
-    }
+      ...(donorId && { donorId }),
 
-    // Fetch donor to get organizationId
-    const donor = await prisma.donor.findUnique({
-      where: { id: donorId },
+      ...(status !== 'all' && { status }),
+
+      ...(date && {
+        startTime: {
+          gte: new Date(`${date}T00:00:00.000Z`),
+          lt: new Date(
+            new Date(date).setDate(new Date(date).getDate() + 1)
+          ),
+        },
+      }),
+
+      ...(startDate &&
+        endDate && {
+          startTime: {
+            gte: new Date(startDate),
+            lte: new Date(endDate),
+          },
+        }),
+    };
+
+    const [meetings, total] = await Promise.all([
+      prisma.meeting.findMany({
+        where,
+
+        include: {
+          donor: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
+            },
+          },
+
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+
+          communication: {
+            select: {
+              id: true,
+              type: true,
+              subject: true,
+              status: true,
+
+            },
+          },
+        },
+
+        orderBy: { startTime: 'asc' },
+
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+
+      prisma.meeting.count({ where }),
+    ]);
+
+    const upcomingCount = await prisma.meeting.count({
+      where: {
+        organizationId,
+        startTime: { gt: new Date() },
+        status: 'SCHEDULED',
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+
+      meetings,
+
+      pagination: {
+        total,
+        page,
+        limit,
+        pages: Math.ceil(total / limit),
+      },
+
+      counts: {
+        total,
+        upcoming: upcomingCount,
+        today: date ? meetings.length : 0,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+
+    return NextResponse.json(
+      { error: 'Failed to fetch meetings' },
+      { status: 500 }
+    );
+  }
+}
+
+/* ========================
+   POST /meetings
+======================== */
+export async function POST(req) {
+  // ✅ Custom JWT auth
+  const user = await getAuthUser();
+
+  if (!user) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    );
+  }
+
+  const body = await req.json();
+
+  const {
+    donorId,
+    title,
+    description,
+    startTime,
+    duration = 30,
+    meetingType = 'VIRTUAL', // ✅ CORRECT
+
+    zoomMeetingId,
+    zoomJoinUrl,
+    zoomStartUrl,
+
+    notes,
+    status = 'SCHEDULED',
+  } = body;
+
+  const userId = user.id;
+  const organizationId = user.organizationId;
+
+  if (!donorId || !title || !startTime) {
+    return NextResponse.json(
+      { error: 'Missing required fields' },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const donor = await prisma.donor.findFirst({
+      where: {
+        id: donorId,
+        organizationId,
+      },
     });
 
     if (!donor) {
-      return NextResponse.json({ error: "Donor not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Donor not found' },
+        { status: 404 }
+      );
     }
 
-    const organizationId = donor.organizationId;
-
-    // Calculate endTime
-    const startTime = new Date(startsAt);
-    const endTime = new Date(startTime.getTime() + duration * 60000);
-
-    // Create Zoom meeting
-    const zoomMeeting = await createZoomMeeting({
-      topic: title,
-      startTime,
-      duration,
-    });
-
-    // Save meeting in DB
     const meeting = await prisma.meeting.create({
       data: {
-        organizationId,
-        userId,
         donorId,
+        userId,
+        organizationId,
+
         title,
-        startTime,
-        endTime,
+        description,
+
+        startTime: new Date(startTime),
+
+        endTime: new Date(
+          new Date(startTime).getTime() + duration * 60000
+        ),
+
         duration,
-        meetingType,
+        meetingType, // ✅ CORRECT FIELD
+
+
+        zoomMeetingId,
+        zoomJoinUrl,
+        zoomStartUrl,
+
         notes,
-        zoomJoinUrl: zoomMeeting.join_url,
-        zoomStartUrl: zoomMeeting.start_url,
-        zoomMeetingId: zoomMeeting.id.toString(),
+        status,
+      },
+
+      include: {
+        donor: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
       },
     });
 
-    return NextResponse.json(meeting, { status: 201 });
-  } catch (err) {
-    console.error("Failed to schedule meeting:", err);
+    await prisma.activityFeed.create({
+      data: {
+        userId,
+        organizationId,
+        donorId,
+
+        action: 'CREATE', // ✅ ADD THIS
+
+        title: `Meeting scheduled with ${donor.firstName} ${donor.lastName}`,
+
+        description: `Scheduled ${title}`,
+
+        metadata: {
+          meetingId: meeting.id,
+          meetingTitle: title,
+          startTime,
+        },
+      },
+    });
+
     return NextResponse.json(
-      { error: err.message || "Failed to schedule meeting" },
+      {
+        success: true,
+        meeting,
+      },
+      { status: 201 }
+    );
+  } catch (err) {
+    console.error(err);
+
+    return NextResponse.json(
+      { error: 'Failed to create meeting' },
       { status: 500 }
     );
   }

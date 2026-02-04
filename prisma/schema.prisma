@@ -68,6 +68,7 @@ enum DonorStatus {
   LAPSED
   PROSPECT
   INACTIVE
+  LYBUNT
 }
 
 enum PaymentMethod {
@@ -533,6 +534,7 @@ model Campaign {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
+  @@unique([organizationId, name]) 
   @@index([organizationId])
   @@index([organizationId, status])
 }

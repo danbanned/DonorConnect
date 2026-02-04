@@ -26,7 +26,6 @@ import {
 import './communications.css'
 import TemplatesSection from '../components/communications/TemplatesSection'
 import { templates as templateLibrary } from '../../lib/templates'
-import QuickActions from '../components/QuickActions'
 import { useDonations } from '../hooks/usedonation.js'
 
 
@@ -507,10 +506,7 @@ export default function CommunicationsPage() {
             ))}
           </div>
 
-          {/* Quick Actions for Selected Donor */}
-            <div className="p-6">
-          <QuickActions donors={donors} donations={donations} />
-        </div>
+       
 
        
         </div>
@@ -636,7 +632,7 @@ export default function CommunicationsPage() {
                     <h3>No communications found</h3>
                     <p>Start building relationships by reaching out to donors</p>
                     <button 
-                      onClick={() => router.push('/communications/new')}
+                      onClick={() => router.push('communications/schedule/')}
                       className="btn-primary"
                     >
                       <PlusIcon className="icon" />

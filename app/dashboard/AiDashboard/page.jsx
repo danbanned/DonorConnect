@@ -1,870 +1,487 @@
-// app/components/ai/.jsx
+// File: app/dashboard/AIDashboard.jsx
 'use client';
 
+import React, { useState, useEffect, useRef } from 'react';
 import { useAI } from '../../providers/AIProvider';
-import { useState, useEffect, useRef } from 'react';
-import './AIDashboard.css';
 
 export default function AIDashboard() {
-  const { 
-    aiSystem, 
-    apiClient, 
-    isLoading, 
+  const {
+    isLoading,
     status,
-    // All AI methods from provider
+    startChatWithDonor,
+    sendChatMessage,
+    getChatSession,
+    clearChat,
+    generateDonors,
+    generateDonation,
+    deleteDonor,
+    getDonors,
     startSimulation,
-    stopSimulation,
     pauseSimulation,
     resumeSimulation,
-    getSimulationStats,
-    generateFakeDonorData,
-    simulateDonor,
-    startRoleplay,
-    askDonor,
-    getDonorPersona,
-    startBondingSession,
-    getPredictions,
+    stopSimulation,
+    getRecentActivities,
     getRecommendations,
-    onSimulationEvent,
-    offSimulationEvent,
-    emitSimulationEvent,
-    refreshData,
-    getSimulatedActivities,
-    quickSimulate
+    refreshData
   } = useAI();
-  
-  const [insights, setInsights] = useState(null);
-  const [predictions, setPredictions] = useState(null);
-  const [activeDonor, setActiveDonor] = useState(null);
-  const [error, setError] = useState(null);
-  const [conversation, setConversation] = useState([]);
-  const [userMessage, setUserMessage] = useState('');
+
+  // State
+  const [message, setMessage] = useState('');
+  const [donors, setDonors] = useState([]);
+  const [activities, setActivities] = useState([]);
+  const [recommendations, setRecommendations] = useState([]);
   const [selectedDonor, setSelectedDonor] = useState(null);
-  const [isChatting, setIsChatting] = useState(false);
-  const chatEndRef = useRef(null);
+  const [activeTab, setActiveTab] = useState('chat');
   
+  // Refs
+  const messagesEndRef = useRef(null);
+  const chatSession = getChatSession();
+
   // Load initial data
   useEffect(() => {
-    if (status.initialized && !isLoading) {
-      loadAIInsights();
-      loadSimulatedActivities();
-      setupEventListeners();
-    }
-    
-    return () => {
-      // Cleanup event listeners
-      if (offSimulationEvent) {
-        // Remove any listeners if needed
-      }
-    };
-  }, [status.initialized, isLoading]);
-  
-  // Setup event listeners for real-time updates
-  const setupEventListeners = () => {
-    if (onSimulationEvent) {
-      onSimulationEvent((event) => {
-        console.log('AI Event received:', event);
-        
-        // Update UI based on event type
-        switch (event.type) {
-          case 'donation':
-            // Refresh predictions when donation occurs
-            loadPredictions();
-            break;
-          case 'simulation_started':
-            // Update simulation status
-            loadSimulationStats();
-            break;
-          case 'simulation_stopped':
-            // Clear simulation stats
-            setInsights(prev => ({
-              ...prev,
-              simulationStats: null
-            }));
-            break;
-        }
-      });
-    }
-  };
-  
-  // Load all AI insights
-  const loadAIInsights = async () => {
+    loadInitialData();
+  }, []);
+
+  const loadInitialData = async () => {
     try {
-      setError(null);
-      
-      // Load predictions
-      await loadPredictions();
-      
-      // Load recommendations
-      await loadRecommendations();
-      
-      // Load simulation stats
-      await loadSimulationStats();
-      
+      const [donorsRes, activitiesRes, recsRes] = await Promise.all([
+        getDonors(10),
+        getRecentActivities(10),
+        getRecommendations()
+      ]);
+
+      if (donorsRes.success) setDonors(donorsRes.data);
+      if (activitiesRes.success) setActivities(activitiesRes.data);
+      if (recsRes.success) setRecommendations(recsRes.data);
     } catch (error) {
-      console.error('Failed to load AI insights:', error);
-      setError(error.message);
-      setFallbackData();
+      console.error('Failed to load data:', error);
     }
   };
-  
-  const loadPredictions = async () => {
-    try {
-      const preds = await getPredictions('next_quarter');
-      setPredictions(preds);
-    } catch (error) {
-      console.warn('Using fallback predictions');
-      setPredictions({
-        confidence: 75,
-        prediction: 125000,
-        factors: ['Historical trends', 'Donor engagement', 'Seasonal patterns'],
-        timeframe: 'next_quarter',
-        generatedAt: new Date().toISOString()
-      });
-    }
-  };
-  
-  const loadRecommendations = async () => {
-    try {
-      const recs = await getRecommendations(5);
-      setInsights(prev => ({
-        ...prev,
-        recommendations: recs,
-        lastUpdated: new Date().toISOString()
-      }));
-    } catch (error) {
-      console.warn('Using fallback recommendations');
-      setInsights(prev => ({
-        ...prev,
-        recommendations: getMockRecommendations(),
-        lastUpdated: new Date().toISOString()
-      }));
-    }
-  };
-  
-  const loadSimulationStats = async () => {
-    try {
-      const stats = await getSimulationStats();
-      setInsights(prev => ({
-        ...prev,
-        simulationStats: stats
-      }));
-    } catch (error) {
-      console.warn('Could not load simulation stats');
-    }
-  };
-  
-  const loadSimulatedActivities = async () => {
-    try {
-      const activities = await getSimulatedActivities(10);
-      setInsights(prev => ({
-        ...prev,
-        recentActivities: activities
-      }));
-    } catch (error) {
-      console.warn('Could not load simulated activities');
-    }
-  };
-  
-  // Mock data for fallback
-  const getMockRecommendations = () => {
-    return {
-      recommendations: [
-        {
-          id: 1,
-          title: 'Re-engage LYBUNT donors',
-          description: '45 donors from last year haven\'t donated this year. Target them with a special appeal.',
-          priority: 'high',
-          impact: 'high',
-          estimatedValue: 22500,
-          actionType: 'campaign'
-        },
-        {
-          id: 2,
-          title: 'Increase monthly giving program',
-          description: 'Only 15% of donors are monthly givers. Promote recurring donations in your next campaign.',
-          priority: 'medium',
-          impact: 'medium',
-          estimatedValue: 15000,
-          actionType: 'program'
-        },
-        {
-          id: 3,
-          title: 'Personalize major donor outreach',
-          description: '12 donors have high capacity but haven\'t been contacted in 6 months.',
-          priority: 'high',
-          impact: 'high',
-          estimatedValue: 30000,
-          actionType: 'outreach'
-        }
-      ],
-      generatedAt: new Date().toISOString()
-    };
-  };
-  
-  const setFallbackData = () => {
-    setPredictions({
-      confidence: 65,
-      prediction: 100000,
-      factors: ['Using fallback data'],
-      timeframe: 'next_quarter',
-      generatedAt: new Date().toISOString()
-    });
-    
-    setInsights({
-      recommendations: getMockRecommendations(),
-      lastUpdated: new Date().toISOString()
-    });
-  };
-  
-  // Simulation Controls
-  const handleStartSimulation = async () => {
-    try {
-      const orgId = localStorage.getItem('currentOrgId') || 'default-org';
-      const result = await startSimulation(orgId, {
-        intensity: 'medium',
-        duration: '1h',
-        donorCount: 50
-      });
-      
-      if (result.success) {
-        console.log('Simulation started successfully');
-        loadSimulationStats();
-      }
-    } catch (error) {
-      setError(`Failed to start simulation: ${error.message}`);
-    }
-  };
-  
-  const handleStopSimulation = async () => {
-    try {
-      const result = await stopSimulation();
-      if (result.success) {
-        console.log('Simulation stopped successfully');
-      }
-    } catch (error) {
-      setError(`Failed to stop simulation: ${error.message}`);
-    }
-  };
-  
-  // Chat with AI Donor Functions
-  const startDonorConversation = async (donorId) => {
-    try {
-      setIsChatting(true);
-      setSelectedDonor(donorId);
-      setConversation([]);
-      
-      // Get donor persona
-      const persona = await getDonorPersona(donorId);
-      
-      // Start roleplay session
-      const session = await startRoleplay(donorId, {
-        scenario: 'general_conversation',
-        context: {
-          persona: persona,
-          purpose: 'relationship_building'
-        }
-      });
-      
-      if (session.success && session.data?.greeting) {
-        setConversation([{
-          id: 1,
-          sender: 'ai',
-          text: session.data.greeting,
-          timestamp: new Date().toISOString(),
-          persona: persona
-        }]);
-      } else {
-        // Fallback greeting
-        setConversation([{
-          id: 1,
-          sender: 'ai',
-          text: `Hello! I'm donor ${donorId}. How can I help you today?`,
-          timestamp: new Date().toISOString(),
-          persona: persona
-        }]);
-      }
-      
-    } catch (error) {
-      setError(`Failed to start conversation: ${error.message}`);
-      setIsChatting(false);
-    }
-  };
-  
-  const sendMessageToDonor = async () => {
-    if (!userMessage.trim() || !selectedDonor || !isChatting) return;
-    
-    const messageId = conversation.length + 1;
-    const userMsg = {
-      id: messageId,
-      sender: 'user',
-      text: userMessage,
-      timestamp: new Date().toISOString()
-    };
-    
-    // Add user message to conversation
-    setConversation(prev => [...prev, userMsg]);
-    const currentMessage = userMessage;
-    setUserMessage('');
-    
-    try {
-      // Get AI response
-      const response = await askDonor(selectedDonor, currentMessage);
-      
-      if (response.success) {
-        const aiMsg = {
-          id: messageId + 1,
-          sender: 'ai',
-          text: response.data.answer || response.data.response,
-          timestamp: new Date().toISOString(),
-          metadata: response.data.metadata
-        };
-        
-        setConversation(prev => [...prev, aiMsg]);
-      } else {
-        throw new Error(response.error || 'No response from AI');
-      }
-    } catch (error) {
-      setError(`Failed to get response: ${error.message}`);
-      
-      // Add error message
-      const errorMsg = {
-        id: messageId + 1,
-        sender: 'system',
-        text: `Sorry, I couldn't process your message. Please try again.`,
-        timestamp: new Date().toISOString(),
-        isError: true
-      };
-      
-      setConversation(prev => [...prev, errorMsg]);
-    }
-  };
-  
-  const endConversation = () => {
-    setIsChatting(false);
-    setSelectedDonor(null);
-    setConversation([]);
-  };
-  
-  // Quick actions
-  const handleQuickSimulate = async (type) => {
-    try {
-      const result = await quickSimulate(type);
-      if (result.success) {
-        console.log(`Quick ${type} simulation successful`);
-        loadAIInsights(); // Refresh data
-      }
-    } catch (error) {
-      setError(`Quick simulate failed: ${error.message}`);
-    }
-  };
-  
-  const generateTestDonor = async () => {
-    try {
-      const result = await generateFakeDonorData({
-        count: 1,
-        includePersonality: true
-      });
-      
-      if (result.success && result.data?.donors?.[0]) {
-        const donor = result.data.donors[0];
-        setActiveDonor({
-          id: donor.id,
-          name: donor.name,
-          profile: donor,
-          generatedAt: new Date().toISOString()
-        });
-      }
-    } catch (error) {
-      setError(`Failed to generate donor: ${error.message}`);
-    }
-  };
-  
+
   // Scroll to bottom of chat
   useEffect(() => {
-    if (chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatSession?.messages]);
+
+  // Chat Functions
+  const handleSendMessage = async (e) => {
+    e?.preventDefault();
+    if (!message.trim()) return;
+
+    await sendChatMessage(message);
+    setMessage('');
+  };
+
+  const handleStartDonorChat = async (donor) => {
+    const result = await startChatWithDonor(donor.id);
+    if (result.success) {
+      setSelectedDonor(donor);
+      setActiveTab('chat');
     }
-  }, [conversation]);
-  
+  };
+
+  // Donor Management
+  const handleGenerateDonors = async () => {
+    const result = await generateDonors(5);
+    if (result.success) {
+      await loadInitialData();
+      await sendChatMessage(
+        `I just generated ${result.data.length} new simulated donors. They're now available in your donor list.`,
+        'system'
+      );
+    }
+  };
+
+  const handleGenerateDonation = async (donor) => {
+    const result = await generateDonation(donor.id);
+    if (result.success) {
+      await loadInitialData();
+      await sendChatMessage(
+        `Generated a $${result.data.amount} donation from ${donor.firstName} ${donor.lastName}`,
+        'system'
+      );
+    }
+  };
+
+  const handleDeleteDonor = async (donor) => {
+    if (!confirm(`Delete ${donor.firstName} ${donor.lastName}?`)) return;
+    
+    const result = await deleteDonor(donor.id);
+    if (result.success) {
+      await loadInitialData();
+      await sendChatMessage(
+        `Deleted donor ${donor.firstName} ${donor.lastName}${donor.isSimulated ? ' (simulated)' : ''}`,
+        'system'
+      );
+    }
+  };
+
+  // Simulation Control
+  const handleStartSimulation = async () => {
+    const result = await startSimulation({ donorCount: 50, interval: 5000 });
+    if (result.success) {
+      await sendChatMessage(
+        `Started simulation with ${result.data.donorCount} donors. New activities will appear in real-time.`,
+        'system'
+      );
+    }
+  };
+
+  const handleStopSimulation = async () => {
+    const result = await stopSimulation();
+    if (result.success) {
+      await sendChatMessage('Stopped simulation.', 'system');
+    }
+  };
+
+  const handleRefresh = async () => {
+    await refreshData();
+    await loadInitialData();
+  };
+
   if (isLoading) {
-    return <div className="ai-loading">🔄 AI System Loading...</div>;
-  }
-  
-  if (!status.initialized) {
     return (
-      <div className="ai-offline">
-        <h3>⚠️ AI System Offline</h3>
-        <p>Unable to connect to AI services. Please check your connection.</p>
-        <button onClick={refreshData} className="retry-btn">
-          Retry Connection
-        </button>
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading AI System...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="ai-dashboard">
+    <div className="h-screen flex flex-col bg-gray-50">
       {/* Header */}
-      <div className="ai-header">
-        <div className="header-left">
-          <h2>🤖 AI Insights Dashboard</h2>
-          <div className="ai-status">
-            <span className={`status-indicator ${status.initialized ? 'online' : 'offline'}`}>
-              {status.initialized ? '● Online' : '○ Offline'}
-            </span>
-            {status.lastUpdate && (
-              <span className="last-update">
-                Updated: {new Date(status.lastUpdate).toLocaleTimeString()}
+      <div className="bg-white border-b px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">AI Donor Assistant</h1>
+            <div className="flex items-center gap-2 mt-1">
+              <span className={`w-2 h-2 rounded-full ${status.simulation.isRunning ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+              <span className="text-sm text-gray-600">
+                {status.simulation.isRunning 
+                  ? `Simulation running with ${status.simulation.donorCount} donors`
+                  : 'Ready'}
               </span>
-            )}
+            </div>
           </div>
-        </div>
-        <div className="header-actions">
-          <button onClick={loadAIInsights} className="refresh-btn">
-            🔄 Refresh All
-          </button>
-          <button onClick={handleStartSimulation} className="simulation-btn">
-            🎮 Start Simulation
-          </button>
-          {status.simulation?.isRunning && (
-            <button onClick={handleStopSimulation} className="stop-btn">
-              ⏹️ Stop Simulation
+          
+          <div className="flex items-center gap-3">
+            <div className="text-sm text-gray-600">
+              {status.donors.total} donors • {status.donors.active} active
+            </div>
+            <button
+              onClick={handleRefresh}
+              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              Refresh
             </button>
-          )}
+          </div>
         </div>
       </div>
-      
-      {/* Error Display */}
-      {error && (
-        <div className="ai-error">
-          <div className="error-content">
-            <span className="error-icon">⚠️</span>
-            <p>{error}</p>
-          </div>
-          <button onClick={() => setError(null)} className="dismiss-btn">
-            ✕
-          </button>
-        </div>
-      )}
-      
-      {/* Main Dashboard Grid */}
-      <div className="ai-grid">
-        {/* Health Score & Predictions */}
-        <div className="ai-card health-card">
-          <h3>📊 Organization Health</h3>
-          <div className="health-score">
-            <div className="score-circle">
-              <span className="score-value">
-                {predictions?.confidence || 0}%
-              </span>
-              <span className="score-label">Confidence Score</span>
-            </div>
-            <div className="health-details">
-              <div className="prediction-item">
-                <span className="prediction-label">Next Quarter Prediction:</span>
-                <span className="prediction-value">
-                  ${(predictions?.prediction || 0).toLocaleString()}
-                </span>
-              </div>
-              <div className="factors-section">
-                <h4>Key Factors:</h4>
-                <div className="factors-grid">
-                  {predictions?.factors?.map((factor, index) => (
-                    <div key={index} className="factor-item">
-                      <span className="factor-bullet">•</span>
-                      <span>{factor}</span>
-                    </div>
-                  )) || (
-                    <div className="no-factors">No factors available</div>
-                  )}
-                </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Sidebar - Donors */}
+        <div className="w-80 bg-white border-r overflow-y-auto">
+          <div className="p-4 border-b">
+            <h2 className="font-semibold text-gray-800 mb-4">Donors</h2>
+            
+            <div className="space-y-3 mb-6">
+              <button
+                onClick={handleGenerateDonors}
+                className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                + Generate 5 Donors
+              </button>
+              
+              <div className="flex gap-2">
+                <button
+                  onClick={handleStartSimulation}
+                  disabled={status.simulation.isRunning}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                >
+                  Start Sim
+                </button>
+                <button
+                  onClick={handleStopSimulation}
+                  disabled={!status.simulation.isRunning}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                >
+                  Stop Sim
+                </button>
               </div>
             </div>
           </div>
-          <div className="quick-actions">
-            <button onClick={() => handleQuickSimulate('donation')} className="quick-btn">
-              💸 Simulate Donation
-            </button>
-            <button onClick={() => handleQuickSimulate('communication')} className="quick-btn">
-              ✉️ Simulate Message
-            </button>
-            <button onClick={generateTestDonor} className="quick-btn">
-              👤 Generate Test Donor
-            </button>
-          </div>
-        </div>
-        
-        {/* Simulation Status */}
-        <div className="ai-card simulation-card">
-          <h3>🎮 Live Simulation</h3>
-          <div className="simulation-status">
-            {status.simulation?.isRunning ? (
-              <div className="simulation-active">
-                <div className="simulation-header">
-                  <span className="simulation-badge running">● LIVE</span>
-                  <span className="simulation-title">Active Simulation</span>
-                  {status.simulation.elapsedTime && (
-                    <span className="simulation-time">
-                      ⏱️ {status.simulation.elapsedTime}
-                    </span>
-                  )}
-                </div>
-                
-                <div className="simulation-stats-grid">
-                  <div className="stat-box">
-                    <span className="stat-value">{status.simulation.activeDonors || 0}</span>
-                    <span className="stat-label">Active Donors</span>
-                  </div>
-                  <div className="stat-box">
-                    <span className="stat-value">{status.simulation.totalActivities || 0}</span>
-                    <span className="stat-label">Activities</span>
-                  </div>
-                  <div className="stat-box">
-                    <span className="stat-value">
-                      ${(status.simulation.totalDonations || 0).toLocaleString()}
-                    </span>
-                    <span className="stat-label">Total Donations</span>
-                  </div>
-                </div>
-                
-                <div className="simulation-controls">
-                  <button onClick={pauseSimulation} className="control-btn pause">
-                    ⏸️ Pause
-                  </button>
-                  <button onClick={handleStopSimulation} className="control-btn stop">
-                    ⏹️ Stop
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="simulation-inactive">
-                <div className="simulation-placeholder">
-                  <span className="placeholder-icon">🎮</span>
-                  <p>No active simulation</p>
-                </div>
-                <div className="simulation-options">
-                  <button onClick={handleStartSimulation} className="start-btn">
-                    ▶️ Start New Simulation
-                  </button>
-                  <button onClick={resumeSimulation} className="resume-btn">
-                    🔄 Resume Previous
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-        
-        {/* AI Recommendations */}
-        <div className="ai-card recommendations-card">
-          <div className="recommendations-header">
-            <h3>💡 AI Recommendations</h3>
-            <button onClick={loadRecommendations} className="refresh-rec-btn">
-              🔄
-            </button>
-          </div>
-          {insights?.recommendations ? (
-            <div className="recommendations-list">
-              {insights.recommendations.recommendations?.map((rec, index) => (
-                <div key={rec.id || index} className={`recommendation-item priority-${rec.priority}`}>
-                  <div className="rec-header">
-                    <span className={`priority-badge ${rec.priority}`}>
-                      {rec.priority.toUpperCase()}
-                    </span>
-                    <span className="rec-impact">Impact: {rec.impact}</span>
-                  </div>
-                  <h4 className="rec-title">{rec.title}</h4>
-                  <p className="rec-description">{rec.description}</p>
-                  <div className="rec-footer">
-                    <span className="rec-value">
-                      Est. Value: ${rec.estimatedValue?.toLocaleString()}
-                    </span>
-                    <div className="rec-actions">
-                      <button className="action-btn implement">
-                        Implement
-                      </button>
-                      <button className="action-btn details">
-                        Details
-                      </button>
+
+          <div className="p-4">
+            <div className="space-y-2">
+              {donors.map(donor => (
+                <div
+                  key={donor.id}
+                  className={`p-3 rounded-lg border ${selectedDonor?.id === donor.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium">
+                        {donor.firstName} {donor.lastName}
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        {donor.status} • {donor.relationshipStage}
+                      </div>
                     </div>
+                    {donor.isSimulated && (
+                      <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
+                        AI
+                      </span>
+                    )}
+                  </div>
+                  
+                  {donor.donations && donor.donations.length > 0 && (
+                    <div className="text-xs text-gray-500 mt-2">
+                      Last: ${donor.donations[0].amount}
+                    </div>
+                  )}
+                  
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      onClick={() => handleStartDonorChat(donor)}
+                      className="flex-1 px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded"
+                    >
+                      Chat
+                    </button>
+                    <button
+                      onClick={() => handleGenerateDonation(donor)}
+                      className="flex-1 px-3 py-1 text-sm bg-green-100 hover:bg-green-200 rounded"
+                    >
+                      Donate
+                    </button>
+                    <button
+                      onClick={() => handleDeleteDonor(donor)}
+                      className="px-3 py-1 text-sm bg-red-100 hover:bg-red-200 rounded"
+                    >
+                      Delete
+                    </button>
                   </div>
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="loading-recommendations">
-              <p>Loading recommendations...</p>
-            </div>
-          )}
-        </div>
-        
-        {/* AI Chat Interface */}
-        <div className="ai-card chat-card">
-          <div className="chat-header">
-            <h3>💬 Chat with AI Donor</h3>
-            {isChatting && selectedDonor && (
-              <button onClick={endConversation} className="end-chat-btn">
-                End Chat
-              </button>
-            )}
           </div>
-          
-          {!isChatting ? (
-            <div className="chat-setup">
-              <div className="setup-content">
-                <p>Start a conversation with an AI donor to practice your fundraising skills.</p>
-                
-                <div className="donor-selection">
-                  <h4>Select a Donor:</h4>
-                  <div className="donor-options">
-                    <button 
-                      onClick={() => startDonorConversation('donor-001')}
-                      className="donor-option"
-                    >
-                      <span className="donor-emoji">👨‍💼</span>
-                      <span className="donor-name">Business Executive</span>
-                      <span className="donor-type">Major Donor</span>
-                    </button>
-                    <button 
-                      onClick={() => startDonorConversation('donor-002')}
-                      className="donor-option"
-                    >
-                      <span className="donor-emoji">👩‍⚕️</span>
-                      <span className="donor-name">Healthcare Worker</span>
-                      <span className="donor-type">Monthly Giver</span>
-                    </button>
-                    <button 
-                      onClick={() => startDonorConversation('donor-003')}
-                      className="donor-option"
-                    >
-                      <span className="donor-emoji">👨‍🎓</span>
-                      <span className="donor-name">University Alumni</span>
-                      <span className="donor-type">LYBUNT Donor</span>
-                    </button>
-                  </div>
-                </div>
-                
-                <div className="scenario-options">
-                  <h4>Or choose a scenario:</h4>
-                  <div className="scenario-buttons">
-                    <button className="scenario-btn" onClick={() => {
-                      // You can implement scenario-based conversation starters
-                      console.log('Start thank you call scenario');
-                    }}>
-                      🙏 Thank You Call
-                    </button>
-                    <button className="scenario-btn" onClick={() => {
-                      console.log('Start fundraising ask scenario');
-                    }}>
-                      💰 Fundraising Ask
-                    </button>
-                    <button className="scenario-btn" onClick={() => {
-                      console.log('Start cultivation conversation');
-                    }}>
-                      🌱 Cultivation
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="active-chat">
-              {/* Donor Info */}
-              <div className="donor-info">
-                <span className="donor-status">● Talking with Donor {selectedDonor}</span>
-                {conversation[0]?.persona && (
-                  <span className="donor-persona">
-                    {conversation[0].persona.traits?.join(', ')}
-                  </span>
-                )}
+        </div>
+
+        {/* Main Chat Area */}
+        <div className="flex-1 flex flex-col">
+          {/* Chat Header */}
+          <div className="bg-white border-b px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  {selectedDonor 
+                    ? `Chatting with ${selectedDonor.firstName} ${selectedDonor.lastName}`
+                    : 'AI Fundraising Assistant'}
+                </h2>
+                <p className="text-sm text-gray-600">
+                  {selectedDonor 
+                    ? `Simulated donor based on ${selectedDonor.isSimulated ? 'AI-generated' : 'real'} profile`
+                    : 'Ask me anything about fundraising strategy'}
+                </p>
               </div>
               
-              {/* Chat Messages */}
-              <div className="chat-messages">
-                {conversation.map((msg) => (
-                  <div 
-                    key={msg.id} 
-                    className={`message ${msg.sender} ${msg.isError ? 'error' : ''}`}
+              {selectedDonor && (
+                <button
+                  onClick={() => {
+                    setSelectedDonor(null);
+                    clearChat();
+                  }}
+                  className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg"
+                >
+                  End Chat
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            {(!chatSession || chatSession.messages.length === 0) ? (
+              <div className="text-center py-12">
+                <div className="text-gray-400 mb-4">💬</div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  Start a conversation
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  Chat with AI or select a donor to simulate a conversation
+                </p>
+                <div className="flex flex-wrap gap-2 justify-center">
+                  <button
+                    onClick={() => sendChatMessage("How can I improve donor retention?")}
+                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg"
                   >
-                    <div className="message-content">
-                      <div className="message-sender">
-                        {msg.sender === 'ai' ? '🤖 AI Donor' : 
-                         msg.sender === 'user' ? '👤 You' : 
-                         '⚠️ System'}
+                    Improve donor retention
+                  </button>
+                  <button
+                    onClick={() => sendChatMessage("Best practices for major gift asks?")}
+                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                  >
+                    Major gift strategies
+                  </button>
+                  <button
+                    onClick={() => sendChatMessage("Plan a year-end campaign")}
+                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                  >
+                    Year-end campaign
+                  </button>
+                </div>
+              </div>
+            ) : (
+              chatSession.messages.map((msg, index) => (
+                <div
+                  key={index}
+                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-xl rounded-2xl p-4 ${
+                      msg.role === 'user'
+                        ? 'bg-blue-600 text-white rounded-br-none'
+                        : 'bg-white border border-gray-200 rounded-bl-none'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                        msg.role === 'user' ? 'bg-blue-500' : 'bg-gray-100'
+                      }`}>
+                        {msg.role === 'user' ? '👤' : selectedDonor ? '👥' : '🤖'}
                       </div>
-                      <div className="message-text">{msg.text}</div>
-                      <div className="message-time">
-                        {new Date(msg.timestamp).toLocaleTimeString([], { 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
-                        })}
+                      <div className="flex-1">
+                        <div className="text-sm font-medium mb-1">
+                          {msg.role === 'user' ? 'You' : selectedDonor 
+                            ? `${selectedDonor.firstName} ${selectedDonor.lastName}`
+                            : 'AI Assistant'}
+                        </div>
+                        <div className="whitespace-pre-wrap">{msg.content}</div>
                       </div>
                     </div>
                   </div>
-                ))}
-                <div ref={chatEndRef} />
-              </div>
-              
-              {/* Message Input */}
-              <div className="message-input">
-                <input
-                  type="text"
-                  value={userMessage}
-                  onChange={(e) => setUserMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && sendMessageToDonor()}
-                  placeholder="Type your message to the donor..."
-                  disabled={!isChatting}
-                />
-                <button 
-                  onClick={sendMessageToDonor}
-                  disabled={!userMessage.trim() || !isChatting}
-                  className="send-btn"
-                >
-                  Send
-                </button>
-              </div>
-              
-              {/* Conversation Tips */}
-              <div className="chat-tips">
-                <h4>💡 Conversation Tips:</h4>
-                <div className="tips-grid">
-                  <button 
-                    className="tip-btn"
-                    onClick={() => setUserMessage("What inspired you to start giving to our organization?")}
-                  >
-                    Ask about motivation
-                  </button>
-                  <button 
-                    className="tip-btn"
-                    onClick={() => setUserMessage("How do you prefer to receive updates about our work?")}
-                  >
-                    Communication preferences
-                  </button>
-                  <button 
-                    className="tip-btn"
-                    onClick={() => setUserMessage("What impact do you hope your donations will have?")}
-                  >
-                    Discuss impact
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-        
-        {/* System Status */}
-        <div className="ai-card status-card">
-          <h3>⚙️ System Status</h3>
-          <div className="status-grid">
-            <div className="status-item">
-              <span className="status-label">AI Initialized:</span>
-              <span className={`status-value ${status.initialized ? 'good' : 'bad'}`}>
-                {status.initialized ? 'Yes' : 'No'}
-              </span>
-            </div>
-            <div className="status-item">
-              <span className="status-label">Simulation:</span>
-              <span className={`status-value ${status.simulation?.isRunning ? 'active' : 'inactive'}`}>
-                {status.simulation?.isRunning ? 'Running' : 'Stopped'}
-              </span>
-            </div>
-            <div className="status-item">
-              <span className="status-label">Bonding Sessions:</span>
-              <span className="status-value">
-                {status.bonding?.activeSessions || 0} active
-              </span>
-            </div>
-            <div className="status-item">
-              <span className="status-label">Last Update:</span>
-              <span className="status-value">
-                {status.lastUpdate ? new Date(status.lastUpdate).toLocaleTimeString() : 'Never'}
-              </span>
-            </div>
-          </div>
-          
-          <div className="system-actions">
-            <button onClick={refreshData} className="system-btn">
-              🔄 Refresh Data
-            </button>
-            <button onClick={() => loadSimulatedActivities()} className="system-btn">
-              📊 Load Activities
-            </button>
-            <button onClick={() => console.log('System diagnostics')} className="system-btn">
-              🔧 Diagnostics
-            </button>
-          </div>
-        </div>
-        
-        {/* Recent Activities */}
-        <div className="ai-card activities-card">
-          <h3>📈 Recent Activities</h3>
-          <div className="activities-list">
-            {insights?.recentActivities?.length > 0 ? (
-              insights.recentActivities.map((activity, index) => (
-                <div key={index} className="activity-item">
-                  <span className={`activity-icon ${activity.type?.toLowerCase()}`}>
-                    {activity.type === 'DONATION' ? '💸' : 
-                     activity.type === 'COMMUNICATION' ? '✉️' : '📝'}
-                  </span>
-                  <div className="activity-details">
-                    <span className="activity-title">{activity.description}</span>
-                    <span className="activity-time">
-                      {new Date(activity.date).toLocaleTimeString()}
-                    </span>
-                  </div>
-                  {activity.amount && (
-                    <span className="activity-amount">
-                      ${activity.amount.toLocaleString()}
-                    </span>
-                  )}
                 </div>
               ))
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Input */}
+          <div className="border-t bg-white p-4">
+            <form onSubmit={handleSendMessage} className="flex gap-3">
+              <input
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder={
+                  selectedDonor 
+                    ? `Message ${selectedDonor.firstName}...`
+                    : "Ask about fundraising strategy..."
+                }
+                className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                type="submit"
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Send
+              </button>
+            </form>
+          </div>
+        </div>
+
+        {/* Right Sidebar - Activities & Recommendations */}
+        <div className="w-96 bg-white border-l overflow-y-auto">
+          {/* Tabs */}
+          <div className="border-b">
+            <div className="flex">
+              <button
+                onClick={() => setActiveTab('activities')}
+                className={`flex-1 px-4 py-3 text-center ${activeTab === 'activities' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'}`}
+              >
+                Activities
+              </button>
+              <button
+                onClick={() => setActiveTab('recommendations')}
+                className={`flex-1 px-4 py-3 text-center ${activeTab === 'recommendations' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'}`}
+              >
+                Recommendations
+              </button>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="p-4">
+            {activeTab === 'activities' ? (
+              <div className="space-y-4">
+                <h3 className="font-medium text-gray-900">Recent Activities</h3>
+                <div className="space-y-3">
+                  {activities.length === 0 ? (
+                    <p className="text-gray-500 text-center py-4">No recent activities</p>
+                  ) : (
+                    activities.map(activity => (
+                      <div key={activity.id} className="p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-start gap-2">
+                          <div className={`w-2 h-2 mt-2 rounded-full ${
+                            activity.priority === 'HIGH' ? 'bg-red-500' :
+                            activity.priority === 'NORMAL' ? 'bg-blue-500' : 'bg-gray-400'
+                          }`}></div>
+                          <div className="flex-1">
+                            <div className="font-medium text-sm">{activity.title}</div>
+                            <div className="text-xs text-gray-600">{activity.description}</div>
+                            {activity.amount && (
+                              <div className="text-xs font-medium text-green-600 mt-1">
+                                ${activity.amount}
+                              </div>
+                            )}
+                            {activity.donor && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                {activity.donor.firstName} {activity.donor.lastName}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             ) : (
-              <div className="no-activities">
-                <p>No recent activities</p>
-                <button onClick={loadSimulatedActivities} className="load-activities-btn">
-                  Load Activities
-                </button>
+              <div className="space-y-4">
+                <h3 className="font-medium text-gray-900">AI Recommendations</h3>
+                <div className="space-y-3">
+                  {recommendations.length === 0 ? (
+                    <p className="text-gray-500 text-center py-4">No recommendations yet</p>
+                  ) : (
+                    recommendations.map(rec => (
+                      <div key={rec.id} className="p-4 border border-gray-200 rounded-lg">
+                        <div className="flex items-start gap-3">
+                          <div className={`w-2 h-2 mt-2 rounded-full ${
+                            rec.priority === 'high' ? 'bg-red-500' :
+                            rec.priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
+                          }`}></div>
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900">{rec.title}</h4>
+                            <p className="text-sm text-gray-600 mt-1">{rec.description}</p>
+                            <div className="mt-3">
+                              <button className="text-sm text-blue-600 hover:text-blue-800">
+                                {rec.action} →
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             )}
           </div>
         </div>
       </div>
-      
-      {/* Active Donor Analysis Panel */}
-      {activeDonor && (
-        <div className="donor-analysis-panel">
-          <div className="panel-header">
-            <h3>👤 Donor Analysis: {activeDonor.name || activeDonor.id}</h3>
-            <button onClick={() => setActiveDonor(null)} className="close-panel-btn">
-              ✕
-            </button>
-          </div>
-          <div className="panel-content">
-            <div className="donor-profile">
-              <div className="profile-section">
-                <h4>Profile Information</h4>
-                <pre>{JSON.stringify(activeDonor.profile, null, 2)}</pre>
-              </div>
-              <div className="action-section">
-                <button 
-                  onClick={() => startDonorConversation(activeDonor.id)}
-                  className="chat-with-donor-btn"
-                >
-                  💬 Chat with this Donor
-                </button>
-                <button 
-                  onClick={() => simulateDonor(activeDonor.id, 'donation_scenario')}
-                  className="simulate-donor-btn"
-                >
-                  🎮 Simulate Donation
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

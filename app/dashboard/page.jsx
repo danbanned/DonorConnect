@@ -1,7 +1,5 @@
-// app/dashboard/page.jsx - Fixed version
+// app/dashboard/page.jsx - Updated with charts
 'use client'
-
-
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { 
@@ -26,7 +24,6 @@ import {
 } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import styles from './Dashboard.module.css'
-import QuickActions from '../components/QuickActions'
 import SimulationControls from '../components/ai/SimulationControls'
 import BulkDonorManager from '../components/BulkDonorManager'
 import { useRouter } from 'next/navigation'
@@ -34,6 +31,23 @@ import { useDonors } from '../hooks/useDonor'
 import { useDonations } from '../hooks/usedonation'
 import { useAI } from '../providers/AIProvider'
 import { bulkCreateDonors, prepareDonorsForBulk } from '../../utils/bulkDonorCreator'
+
+// Chart imports
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line
+} from 'recharts'
 
 // Simple event emitter for simulation events
 class SimulationEventEmitter {
@@ -102,27 +116,27 @@ export default function DashboardPage() {
         setLocalSettings(JSON.parse(savedSettings))
       } else {
         // Set default settings
-       setLocalSettings({
+        setLocalSettings({
+          speed: 'normal',
+          donorCount: 20,
+          activityTypes: ['donations', 'communications', 'profile_updates'],
+          realism: 'high',
+          autoGenerate: true,
+          autoSave: false
+        })
+      }
+    } catch (error) {
+      console.error('Error loading settings from localStorage:', error)
+      setLocalSettings({
         speed: 'normal',
-        donorCount: 20,  // ← Make sure this matches!
+        donorCount: 20,
         activityTypes: ['donations', 'communications', 'profile_updates'],
         realism: 'high',
         autoGenerate: true,
         autoSave: false
       })
-      }
-    } catch (error) {
-      console.error('Error loading settings from localStorage:', error)
-      setLocalSettings({
-      speed: 'normal',
-      donorCount: 20,  // ← Consistent default
-      activityTypes: ['donations', 'communications', 'profile_updates'],
-      realism: 'high',
-      autoGenerate: true,
-      autoSave: false
-    })
     }
-}, []) // Empty dependency array - only runs once on mount
+  }, [])
 
   // Save settings to localStorage when changed
   useEffect(() => {
@@ -201,100 +215,98 @@ export default function DashboardPage() {
   }, [apiClient])
 
   // Handle bulk creation of simulated donors
-  // In your Dashboard page, update the handleBulkCreateDonors function:
-const handleBulkCreateDonors = async (donorsToCreate = simulatedDonors) => {
-  if (!donorsToCreate || donorsToCreate.length === 0) {
-    console.warn('No donors to create')
-    return
-  }
-
-  setBulkCreating(true)
-  setBulkProgress({ status: 'preparing', total: donorsToCreate.length })
-
-  try {
-    const orgId = localStorage.getItem('currentOrgId') || 'default-org'
-    
-    // Prepare donors for bulk creation
-    const preparedDonors = prepareDonorsForBulk(donorsToCreate)
-    
-    if (preparedDonors.length === 0) {
-      throw new Error('No valid donors to create')
+  const handleBulkCreateDonors = async (donorsToCreate = simulatedDonors) => {
+    if (!donorsToCreate || donorsToCreate.length === 0) {
+      console.warn('No donors to create')
+      return
     }
 
-    setBulkProgress({ 
-      status: 'creating', 
-      total: preparedDonors.length,
-      processed: 0 
-    })
+    setBulkCreating(true)
+    setBulkProgress({ status: 'preparing', total: donorsToCreate.length })
 
-    // Create donors in bulk
-    const result = await bulkCreateDonors(preparedDonors, orgId, (progress) => {
-      setBulkProgress(progress)
-    })
+    try {
+      const orgId = localStorage.getItem('currentOrgId') || 'default-org'
+      
+      // Prepare donors for bulk creation
+      const preparedDonors = prepareDonorsForBulk(donorsToCreate)
+      
+      if (preparedDonors.length === 0) {
+        throw new Error('No valid donors to create')
+      }
 
-    // FIX: Safely handle invalidateDonors
-    if (invalidateDonors && typeof invalidateDonors === 'function') {
-      console.log('🔄 Invalidating donors cache...')
-      try {
-        await invalidateDonors()
-      } catch (invalidateError) {
-        console.warn('Failed to invalidate donors, reloading page:', invalidateError)
-        // Fallback: reload the page
+      setBulkProgress({ 
+        status: 'creating', 
+        total: preparedDonors.length,
+        processed: 0 
+      })
+
+      // Create donors in bulk
+      const result = await bulkCreateDonors(preparedDonors, orgId, (progress) => {
+        setBulkProgress(progress)
+      })
+
+      // Safely handle invalidateDonors
+      if (invalidateDonors && typeof invalidateDonors === 'function') {
+        console.log('🔄 Invalidating donors cache...')
+        try {
+          await invalidateDonors()
+        } catch (invalidateError) {
+          console.warn('Failed to invalidate donors, reloading page:', invalidateError)
+          window.location.reload()
+        }
+      } else {
+        console.warn('invalidateDonors not available, reloading page')
         window.location.reload()
       }
-    } else {
-      console.warn('invalidateDonors not available, reloading page')
-      window.location.reload()
+
+      // Clear simulated donors
+      setSimulatedDonors([])
+
+      // Add success notification
+      const successActivity = {
+        id: `bulk_${Date.now()}`,
+        type: 'SYSTEM',
+        donor: 'Bulk Import',
+        action: `Created ${result.created} new donors`,
+        amount: '',
+        time: 'just now',
+        icon: 'CheckCircleIcon',
+        isSimulated: false,
+        data: result
+      }
+
+      setSimulatedActivities(prev => [successActivity, ...prev.slice(0, 19)])
+
+      console.log(`✅ Successfully created ${result.created} donors`)
+
+      // Emit success event
+      simulationEventEmitter.emit('bulk_creation_complete', {
+        type: 'bulk_creation_complete',
+        data: result
+      })
+
+    } catch (error) {
+      console.error('❌ Bulk creation failed:', error)
+      
+      // Add error notification
+      const errorActivity = {
+        id: `error_${Date.now()}`,
+        type: 'ERROR',
+        donor: 'Bulk Import',
+        action: 'Failed to create donors',
+        amount: '',
+        time: 'just now',
+        icon: 'ExclamationTriangleIcon',
+        isSimulated: false,
+        data: { error: error.message }
+      }
+
+      setSimulatedActivities(prev => [errorActivity, ...prev.slice(0, 19)])
+    } finally {
+      setBulkCreating(false)
+      setBulkProgress(null)
     }
-
-    // Clear simulated donors
-    setSimulatedDonors([])
-
-    // Add success notification
-    const successActivity = {
-      id: `bulk_${Date.now()}`,
-      type: 'SYSTEM',
-      donor: 'Bulk Import',
-      action: `Created ${result.created} new donors`,
-      amount: '',
-      time: 'just now',
-      icon: 'CheckCircleIcon',
-      isSimulated: false,
-      data: result
-    }
-
-    setSimulatedActivities(prev => [successActivity, ...prev.slice(0, 19)])
-
-    console.log(`✅ Successfully created ${result.created} donors`)
-
-    // Emit success event
-    simulationEventEmitter.emit('bulk_creation_complete', {
-      type: 'bulk_creation_complete',
-      data: result
-    })
-
-  } catch (error) {
-    console.error('❌ Bulk creation failed:', error)
-    
-    // Add error notification
-    const errorActivity = {
-      id: `error_${Date.now()}`,
-      type: 'ERROR',
-      donor: 'Bulk Import',
-      action: 'Failed to create donors',
-      amount: '',
-      time: 'just now',
-      icon: 'ExclamationTriangleIcon',
-      isSimulated: false,
-      data: { error: error.message }
-    }
-
-    setSimulatedActivities(prev => [errorActivity, ...prev.slice(0, 19)])
-  } finally {
-    setBulkCreating(false)
-    setBulkProgress(null)
   }
-}
 
   // Handle simulation events
   const handleSimulationEvent = useCallback((event) => {
@@ -415,7 +427,7 @@ const handleBulkCreateDonors = async (donorsToCreate = simulatedDonors) => {
         } catch (error) {
           console.error('Error polling simulation status:', error)
         }
-      }, 30000) // Poll every 30 seconds
+      }, 30000)
     }
     
     return () => {
@@ -448,7 +460,7 @@ const handleBulkCreateDonors = async (donorsToCreate = simulatedDonors) => {
         const timeB = b.createdAt || (b.isSimulated ? new Date() : b.date)
         return new Date(timeB) - new Date(timeA)
       })
-      .slice(0, 10) // Show top 10 most recent
+      .slice(0, 10)
   }, [activityFeed, simulatedActivities])
 
   // Process real donor data
@@ -567,6 +579,72 @@ const handleBulkCreateDonors = async (donorsToCreate = simulatedDonors) => {
       subtitle: isSimulationRunning ? 'Live simulation' : ''
     },
   ]
+
+  // Chart data (sample data similar to your image)
+  const monthlyDonationData = [
+    { month: 'Jan', amount: 70 },
+    { month: 'Feb', amount: 60 },
+    { month: 'Mar', amount: 50 },
+    { month: 'Apr', amount: 40 },
+    { month: 'May', amount: 30 },
+    { month: 'Jun', amount: 20 },
+    { month: 'Jul', amount: 10 },
+    { month: 'Aug', amount: 0 }
+  ]
+
+  const departmentDonationData = [
+    { name: 'Cutting', value: 49, color: '#8884d8' },
+    { name: 'Food Products', value: 51, color: '#82ca9d' },
+    { name: 'Electronics', value: 1, color: '#ffc658' },
+    { name: 'Kitchen Utility', value: 2, color: '#ff8042' },
+    { name: 'Gardening', value: 7, color: '#0088fe' }
+  ]
+
+  const campaignPerformanceData = [
+    { campaign: 'Annual Fund', goal: 100000, raised: 75600 },
+    { campaign: 'Capital Campaign', goal: 500000, raised: 320000 },
+    { campaign: 'Endowment', goal: 250000, raised: 189000 },
+    { campaign: 'Scholarship', goal: 75000, raised: 61500 }
+  ]
+
+  // Generate donor growth data
+  const donorGrowthData = useMemo(() => {
+    if (!donors || donors.length === 0) {
+      // Sample data if no real data
+      return [
+        { month: 'Jan', donors: 45 },
+        { month: 'Feb', donors: 52 },
+        { month: 'Mar', donors: 48 },
+        { month: 'Apr', donors: 61 },
+        { month: 'May', donors: 55 },
+        { month: 'Jun', donors: 58 },
+        { month: 'Jul', donors: 65 },
+        { month: 'Aug', donors: 70 }
+      ]
+    }
+
+    // Group donors by month created
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    const currentYear = new Date().getFullYear()
+    
+    const donorsByMonth = {}
+    
+    donors.forEach(donor => {
+      const createdAt = new Date(donor.createdAt || donor.createdDate)
+      if (createdAt.getFullYear() === currentYear) {
+        const month = monthNames[createdAt.getMonth()]
+        if (!donorsByMonth[month]) {
+          donorsByMonth[month] = 0
+        }
+        donorsByMonth[month]++
+      }
+    })
+    
+    return monthNames.map(month => ({
+      month,
+      donors: donorsByMonth[month] || 0
+    }))
+  }, [donors])
 
   const getIconComponent = (iconName) => {
     const iconMap = {
@@ -749,6 +827,185 @@ const handleBulkCreateDonors = async (donorsToCreate = simulatedDonors) => {
         })}
       </div>
 
+      {/* Charts Section */}
+      <div className={styles.chartsGrid}>
+        {/* Monthly Donations Chart */}
+        <div className={styles.chartCard}>
+          <div className={styles.chartHeader}>
+            <h3>Monthly Donations</h3>
+            <div className={styles.chartTimeframe}>
+              <button 
+                className={`${styles.timeframeButton} ${timeframe === 'year' ? styles.active : ''}`}
+                onClick={() => setTimeframe('year')}
+              >
+                Year
+              </button>
+              <button 
+                className={`${styles.timeframeButton} ${timeframe === 'month' ? styles.active : ''}`}
+                onClick={() => setTimeframe('month')}
+              >
+                Month
+              </button>
+            </div>
+          </div>
+          <div className={styles.chartContainer}>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={monthlyDonationData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis 
+                  dataKey="month" 
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#666' }}
+                />
+                <YAxis 
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#666' }}
+                  tickFormatter={(value) => `$${value}k`}
+                />
+                <Tooltip 
+                  formatter={(value) => [`$${value}`, 'Amount']}
+                  contentStyle={{ 
+                    borderRadius: '8px',
+                    border: '1px solid #e5e7eb'
+                  }}
+                />
+                <Legend />
+                <Bar 
+                  dataKey="amount" 
+                  name="Donations ($k)" 
+                  fill="#8884d8" 
+                  radius={[4, 4, 0, 0]}
+                  barSize={30}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Donor Growth Chart */}
+        <div className={styles.chartCard}>
+          <div className={styles.chartHeader}>
+            <h3>Donor Growth</h3>
+            <span className={styles.chartSubtitle}>New donors by month</span>
+          </div>
+          <div className={styles.chartContainer}>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={donorGrowthData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis 
+                  dataKey="month" 
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#666' }}
+                />
+                <YAxis 
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#666' }}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    borderRadius: '8px',
+                    border: '1px solid #e5e7eb'
+                  }}
+                />
+                <Legend />
+                <Line 
+                  type="monotone" 
+                  dataKey="donors" 
+                  name="New Donors" 
+                  stroke="#82ca9d" 
+                  strokeWidth={3}
+                  dot={{ r: 4 }}
+                  activeDot={{ r: 6 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Campaign Performance */}
+        <div className={styles.chartCard}>
+          <div className={styles.chartHeader}>
+            <h3>Campaign Performance</h3>
+            <span className={styles.chartSubtitle}>Goal vs Raised</span>
+          </div>
+          <div className={styles.campaignList}>
+            {campaignPerformanceData.map((campaign, index) => {
+              const percentage = (campaign.raised / campaign.goal) * 100
+              return (
+                <div key={index} className={styles.campaignItem}>
+                  <div className={styles.campaignInfo}>
+                    <span className={styles.campaignName}>{campaign.campaign}</span>
+                    <span className={styles.campaignAmount}>
+                      {formatCurrency(campaign.raised)} / {formatCurrency(campaign.goal)}
+                    </span>
+                  </div>
+                  <div className={styles.progressBar}>
+                    <div 
+                      className={styles.progressFill}
+                      style={{ 
+                        width: `${Math.min(percentage, 100)}%`,
+                        backgroundColor: percentage >= 100 ? '#10b981' : percentage >= 75 ? '#3b82f6' : '#f59e0b'
+                      }}
+                    ></div>
+                  </div>
+                  <span className={`${styles.percentage} ${
+                    percentage >= 100 ? styles.percentageSuccess : 
+                    percentage >= 75 ? styles.percentageGood : 
+                    styles.percentageWarning
+                  }`}>
+                    {percentage.toFixed(1)}%
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Department Donations */}
+        <div className={styles.chartCard}>
+          <div className={styles.chartHeader}>
+            <h3>Department Donations</h3>
+            <span className={styles.chartSubtitle}>Allocation by category</span>
+          </div>
+          <div className={styles.pieChartContainer}>
+            <ResponsiveContainer width="100%" height={200}>
+              <PieChart>
+                <Pie
+                  data={departmentDonationData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {departmentDonationData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  formatter={(value) => [`$${value}`, 'Amount']}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className={styles.departmentList}>
+            {departmentDonationData.map((dept, index) => (
+              <div key={index} className={styles.departmentItem}>
+                <div className={styles.departmentMarker} style={{ backgroundColor: dept.color }}></div>
+                <span className={styles.departmentName}>{dept.name}</span>
+                <span className={styles.departmentValue}>${dept.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* Recent Activity & Quick Actions */}
       <div className={styles.dashboardMainGrid}>
         <div className={styles.recentActivityCard}>
@@ -832,10 +1089,6 @@ const handleBulkCreateDonors = async (donorsToCreate = simulatedDonors) => {
               </div>
             )}
           </div>
-        </div>
-
-        <div className={styles.quickActionsSection}>
-          <QuickActions donors={donors} donations={donations} />
         </div>
       </div>
     </div>

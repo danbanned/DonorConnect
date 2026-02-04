@@ -23,11 +23,12 @@ import {
   TrashIcon,
   CheckIcon,
   ClockIcon,
-  CurrencyDollarIcon as DollarIcon
+  CurrencyDollarIcon as DollarIcon,
+  Cog6ToothIcon
 } from '@heroicons/react/24/outline'
 import { useCurrentAccount } from '../../hooks/useCurrentAccount.js'
 import { useAI } from '../../providers/AIProvider.jsx'
-import useAINotifications from '../ai/AINotifications' // Import the hook
+import useAINotifications from '../ai/AINotifications'
 import './Navbar.css'
 
 const navigation = [
@@ -36,7 +37,7 @@ const navigation = [
   { name: 'Donations', href: '/donations', icon: CurrencyDollarIcon },
   { name: 'Communications', href: '/communications', icon: EnvelopeIcon },
   { name: 'Insights', href: '/insights', icon: ChartBarIcon },
- // { name: 'AI Dashboard', href: '/dashboard/AiDashboard', icon: SparklesIcon },
+  { name: 'AI Dashboard', href: '/dashboard/AiDashboard', icon: SparklesIcon },
 ]
 
 export default function Navbar() {
@@ -45,14 +46,15 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [adminSettingsOpen, setAdminSettingsOpen] = useState(false)
   const menuRef = useRef(null)
   const notificationsRef = useRef(null)
+  const adminSettingsRef = useRef(null)
+  const mobileMenuRef = useRef(null)
   
-  // Get AI status from provider
-  const { status, aiSystem, startSimulation, stopSimulation, isLoading } = useAI()
-  const { account, loading: accountLoading } = useCurrentAccount()
+  const { status, startSimulation, stopSimulation, isLoading } = useAI()
+  const { account } = useCurrentAccount()
   
-  // Use the new notifications hook
   const {
     notifications: aiNotifications,
     unreadCount,
@@ -67,24 +69,51 @@ export default function Navbar() {
     getNotificationIconClass,
     formatTime,
     notificationStats,
-    addNotification,
-    toggleSound: toggleNotificationSound,
-    togglePause: toggleNotificationPause
+    addNotification
   } = useAINotifications()
 
-  // Close user menu when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     function handleClickOutside(e) {
+      // Close user menu
       if (menuRef.current && !menuRef.current.contains(e.target)) {
         setUserMenuOpen(false)
       }
+      
+      // Close notifications
       if (notificationsRef.current && !notificationsRef.current.contains(e.target)) {
         setNotificationsOpen(false)
       }
+      
+      // Close admin settings
+      if (adminSettingsRef.current && !adminSettingsRef.current.contains(e.target)) {
+        setAdminSettingsOpen(false)
+      }
+      
+      // Close mobile menu
+      if (mobileMenuRef.current && 
+          !mobileMenuRef.current.contains(e.target) && 
+          !e.target.closest('.navbar-mobile-button')) {
+        setMobileMenuOpen(false)
+      }
     }
+    
     document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    document.addEventListener('touchstart', handleClickOutside)
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('touchstart', handleClickOutside)
+    }
   }, [])
+
+  // Close dropdowns when navigating
+  useEffect(() => {
+    setNotificationsOpen(false)
+    setUserMenuOpen(false)
+    setAdminSettingsOpen(false)
+    setMobileMenuOpen(false)
+  }, [pathname])
 
   const handleLogout = async () => {
     try {
@@ -94,8 +123,6 @@ export default function Navbar() {
         localStorage.removeItem('user')
         localStorage.removeItem('currentOrgId')
         router.push('/login')
-      } else {
-        console.error('Logout failed')
       }
     } catch (err) {
       console.error('Logout error:', err)
@@ -106,7 +133,6 @@ export default function Navbar() {
     const orgId = localStorage.getItem('currentOrgId') || 'default-org'
     if (status.simulation?.isRunning) {
       await stopSimulation()
-      // Add notification when simulation stops
       addNotification({
         type: 'simulation',
         title: 'Simulation Stopped',
@@ -133,7 +159,6 @@ export default function Navbar() {
     return 'AI Ready'
   }
 
-  // Get notification icon component
   const getNotificationIcon = (type) => {
     const iconClass = getNotificationIconClass(type)
     switch (type) {
@@ -151,23 +176,14 @@ export default function Navbar() {
     }
   }
 
-  // Handle test notification button (for debugging)
-  const handleTestNotification = () => {
-    addNotification({
-      type: 'donation',
-      title: 'Test Donation',
-      message: 'This is a test notification from the AI system',
-      importance: 'important',
-      data: { amount: 1000, donor: 'Test Donor' }
-    })
-  }
+  const isAdmin = account?.role === 'ADMIN' || account?.role === 'SUPER_ADMIN'
 
   return (
-    <nav className="navbar">
-      <div className="navbar-container">
-        <div className="navbar-content">
+    <>
+      <nav className="navbar">
+        <div className="navbar-container">
           {/* Logo */}
-          <div className="flex items-center">
+          <div className="navbar-logo-section">
             <Link href="/" className="navbar-logo">
               <div className="navbar-logo-icon">
                 <UserGroupIcon />
@@ -177,20 +193,18 @@ export default function Navbar() {
           </div>
 
           {/* Desktop Navigation */}
-          <div className="navbar-desktop">
+          <div className="navbar-desktop-links">
             {navigation.map((item) => {
-              const isActive = pathname === item.href
+              const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
               return (
                 <Link
                   key={item.name}
                   href={item.href}
                   className={`navbar-desktop-link ${
-                    isActive
-                      ? 'navbar-desktop-link-active'
-                      : 'navbar-desktop-link-inactive'
+                    isActive ? 'navbar-desktop-link-active' : 'navbar-desktop-link-inactive'
                   }`}
                 >
-                  <item.icon className="w-5 h-5" />
+                  <item.icon className="navbar-link-icon" />
                   <span>{item.name}</span>
                 </Link>
               )
@@ -198,11 +212,11 @@ export default function Navbar() {
           </div>
 
           {/* Right side actions */}
-          <div className="navbar-actions">
+          <div className="navbar-actions-section">
             {/* AI Status Indicator */}
-            <div className="ai-navbar-status">
+            <div className="ai-status-container">
               <div className={`ai-status-indicator ai-status-${getAIStatusColor()}`}>
-                <SparklesIcon className="w-4 h-4" />
+                <SparklesIcon className="ai-status-icon" />
                 <span className="ai-status-text">{getAIStatusText()}</span>
                 
                 {status.dataSummary && (
@@ -214,30 +228,74 @@ export default function Navbar() {
               </div>
               
               {status.initialized && (
-                <div className="ai-actions">
-                  <button
-                    onClick={handleSimulationToggle}
-                    className={`ai-action-btn ${status.simulation?.isRunning ? 'stop' : 'start'}`}
-                    disabled={isLoading}
-                    title={status.simulation?.isRunning ? 'Stop Simulation' : 'Start Simulation'}
-                  >
-                    {status.simulation?.isRunning ? (
-                      <StopIcon className="w-3 h-3" />
-                    ) : (
-                      <PlayIcon className="w-3 h-3" />
-                    )}
-                  </button>
-                </div>
+                <button
+                  onClick={handleSimulationToggle}
+                  className={`ai-simulation-btn ${status.simulation?.isRunning ? 'stop' : 'start'}`}
+                  disabled={isLoading}
+                  title={status.simulation?.isRunning ? 'Stop Simulation' : 'Start Simulation'}
+                >
+                  {status.simulation?.isRunning ? (
+                    <StopIcon className="ai-simulation-icon" />
+                  ) : (
+                    <PlayIcon className="ai-simulation-icon" />
+                  )}
+                </button>
               )}
             </div>
 
-            {/* AI Notifications */}
-            <div className="navbar-notifications" ref={notificationsRef}>
+            {/* Admin Settings Button */}
+            {isAdmin && (
+              <div className="navbar-admin-wrapper" ref={adminSettingsRef}>
+                <button
+                  onClick={() => {
+                    setAdminSettingsOpen(!adminSettingsOpen)
+                    setNotificationsOpen(false)
+                    setUserMenuOpen(false)
+                  }}
+                  className="navbar-admin-btn"
+                  title="Admin Settings"
+                >
+                  <Cog6ToothIcon className="navbar-admin-icon" />
+                  {adminSettingsOpen && (
+                    <div className="navbar-admin-dropdown">
+                      <div className="navbar-admin-header">
+                        <h3 className="navbar-admin-title">Admin look</h3>
+                        <span className="navbar-admin-badge">ADMIN</span>
+                      </div>
+                      <div className="navbar-admin-content">
+                        <p className="navbar-admin-message">Admin settings panel would appear here.</p>
+                        <div className="navbar-admin-actions">
+                          <button className="navbar-admin-action-btn">
+                            Manage Users
+                          </button>
+                           <Link href="/admin-only">
+                            <button className="navbar-admin-action-btn">
+                            Admin Settings
+                          </button>
+                           </Link>
+        
+                          <button className="navbar-admin-action-btn">
+                            API Keys
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </button>
+              </div>
+            )}
+
+            {/* Notifications */}
+            <div className="navbar-notifications-wrapper" ref={notificationsRef}>
               <button
-                onClick={() => setNotificationsOpen(!notificationsOpen)}
-                className="navbar-notifications-button relative"
+                onClick={() => {
+                  setNotificationsOpen(!notificationsOpen)
+                  setAdminSettingsOpen(false)
+                  setUserMenuOpen(false)
+                }}
+                className="navbar-notifications-btn"
               >
-                <BellIcon className="w-5 h-5" />
+                <BellIcon className="navbar-notifications-icon" />
                 {unreadCount > 0 && (
                   <span className="navbar-notifications-badge">
                     {unreadCount > 9 ? '9+' : unreadCount}
@@ -248,25 +306,25 @@ export default function Navbar() {
               {notificationsOpen && (
                 <div className="navbar-notifications-dropdown">
                   <div className="navbar-notifications-header">
-                    <div className="flex items-center gap-2">
-                      <SparklesIcon className="w-4 h-4 text-purple-500" />
-                      <h3 className="navbar-notifications-title">AI Notifications</h3>
+                    <div className="notifications-header-left">
+                      <SparklesIcon className="notifications-header-icon" />
+                      <h3 className="notifications-header-title">AI Notifications</h3>
                       {unreadCount > 0 && (
-                        <span className="ai-notifications-badge ml-2">
+                        <span className="notifications-unread-count">
                           {unreadCount}
                         </span>
                       )}
                     </div>
-                    <div className="navbar-notifications-controls">
+                    <div className="notifications-controls">
                       <button
                         onClick={toggleSound}
                         className={`notification-control-btn ${soundEnabled ? 'sound-on' : 'sound-off'}`}
                         title={soundEnabled ? 'Mute sounds' : 'Enable sounds'}
                       >
                         {soundEnabled ? (
-                          <SpeakerWaveIcon className="w-4 h-4" />
+                          <SpeakerWaveIcon className="control-btn-icon" />
                         ) : (
-                          <SpeakerXMarkIcon className="w-4 h-4" />
+                          <SpeakerXMarkIcon className="control-btn-icon" />
                         )}
                       </button>
                       <button
@@ -283,14 +341,14 @@ export default function Navbar() {
                             className="notification-control-btn mark-read"
                             title="Mark all as read"
                           >
-                            <CheckIcon className="w-4 h-4" />
+                            <CheckIcon className="control-btn-icon" />
                           </button>
                           <button
                             onClick={clearAll}
                             className="notification-control-btn clear"
                             title="Clear all notifications"
                           >
-                            <TrashIcon className="w-4 h-4" />
+                            <TrashIcon className="control-btn-icon" />
                           </button>
                         </>
                       )}
@@ -300,14 +358,14 @@ export default function Navbar() {
                   <div className="navbar-notifications-list">
                     {aiNotifications.length === 0 ? (
                       <div className="navbar-notifications-empty">
-                        <BellIcon className="w-8 h-8 text-gray-300" />
-                        <p className="text-gray-500 text-sm">No AI notifications yet</p>
+                        <BellIcon className="notifications-empty-icon" />
+                        <p className="notifications-empty-text">No AI notifications yet</p>
                       </div>
                     ) : (
                       aiNotifications.slice(0, 10).map((notification) => (
                         <div
                           key={notification.id}
-                          className={`navbar-notification-item ${notification.type} ${notification.importance} ${notification.read ? 'read' : 'unread'}`}
+                          className={`navbar-notification-item ${notification.type} ${notification.read ? 'read' : 'unread'}`}
                           onClick={() => markAsRead(notification.id)}
                         >
                           <div className="notification-item-content">
@@ -325,14 +383,14 @@ export default function Navbar() {
                                   className="notification-close"
                                   title="Dismiss"
                                 >
-                                  <XMarkIcon className="w-3 h-3" />
+                                  <XMarkIcon className="notification-close-icon" />
                                 </button>
                               </div>
                               <p className="notification-message">{notification.message}</p>
                               <div className="notification-footer">
                                 <span className="notification-time">
-                                  <ClockIcon className="w-3 h-3" />
-                                  {notification.formattedTime || formatTime(notification.timestamp)}
+                                  <ClockIcon className="notification-time-icon" />
+                                  {formatTime(notification.timestamp)}
                                 </span>
                                 {notification.importance === 'important' && (
                                   <span className="notification-importance">Important</span>
@@ -351,7 +409,7 @@ export default function Navbar() {
                   {aiNotifications.length > 0 && (
                     <div className="navbar-notifications-footer">
                       <div className="notification-stats">
-                        <span className="text-xs text-gray-500">
+                        <span className="notification-stats-text">
                           {notificationStats.total} notifications • {notificationStats.importantCount} important
                         </span>
                       </div>
@@ -361,32 +419,45 @@ export default function Navbar() {
               )}
             </div>
 
-            {/* User profile */}
-            <div className="navbar-user-profile" ref={menuRef}>
-              <div className="navbar-user-info" onClick={() => setUserMenuOpen(!userMenuOpen)}>
-                <p className="navbar-user-name">{account?.name || 'John Smith'}</p>
-                <p className="navbar-user-role">{account?.role || 'Development Director'}</p>
-              </div>
-              <div className="navbar-user-avatar" onClick={() => setUserMenuOpen(!userMenuOpen)}>
-                <UserCircleIcon className="h-8 w-8 text-gray-700 hover:text-gray-900" />
-              </div>
+            {/* User Menu */}
+            <div className="navbar-user-wrapper" ref={menuRef}>
+              <button
+                onClick={() => {
+                  setUserMenuOpen(!userMenuOpen)
+                  setNotificationsOpen(false)
+                  setAdminSettingsOpen(false)
+                }}
+                className="navbar-user-btn"
+              >
+                <div className="navbar-user-info">
+                  <p className="navbar-user-name">{account?.name || 'User'}</p>
+                  <p className="navbar-user-role">{account?.role || 'User'}</p>
+                </div>
+                <UserCircleIcon className="navbar-user-avatar" />
+              </button>
 
               {userMenuOpen && (
                 <div className="navbar-user-dropdown">
+                  {isAdmin && (
+                    <button
+                      className="navbar-user-dropdown-item admin-item"
+                      onClick={() => {
+                        setAdminSettingsOpen(true)
+                        setUserMenuOpen(false)
+                      }}
+                    >
+                      <Cog6ToothIcon className="dropdown-item-icon" />
+                      Admin Settings
+                    </button>
+                  )}
                   <button
                     className="navbar-user-dropdown-item"
                     onClick={() => router.push('/settings')}
                   >
                     Settings
                   </button>
-                  {/* Debug: Add test notification button */}
                   <button
-                    className="navbar-user-dropdown-item"
-                    onClick={handleTestNotification}
-                  >
-                  </button>
-                  <button
-                    className="navbar-user-dropdown-item"
+                    className="navbar-user-dropdown-item logout"
                     onClick={handleLogout}
                   >
                     Logout
@@ -398,88 +469,121 @@ export default function Navbar() {
             {/* Mobile menu button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="navbar-mobile-button"
+              className="navbar-mobile-btn"
             >
               {mobileMenuOpen ? (
-                <XMarkIcon className="w-6 h-6" />
+                <XMarkIcon className="navbar-mobile-icon" />
               ) : (
-                <Bars3Icon className="w-6 h-6" />
+                <Bars3Icon className="navbar-mobile-icon" />
               )}
             </button>
           </div>
         </div>
+      </nav>
 
-        {/* Mobile menu */}
-        {mobileMenuOpen && (
-          <div className="navbar-mobile-menu">
-            <div className="navbar-mobile-links">
+      {/* Mobile menu overlay */}
+      {mobileMenuOpen && (
+        <div className="mobile-menu-overlay">
+          <div className="mobile-menu-content" ref={mobileMenuRef}>
+            <div className="mobile-menu-header">
+              <div className="mobile-menu-user">
+                <UserCircleIcon className="mobile-user-avatar" />
+                <div>
+                  <p className="mobile-user-name">{account?.name || 'User'}</p>
+                  <p className="mobile-user-role">{account?.role || 'User'}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className="mobile-menu-close"
+              >
+                <XMarkIcon className="mobile-close-icon" />
+              </button>
+            </div>
+            
+            <div className="mobile-menu-links">
               {navigation.map((item) => {
-                const isActive = pathname === item.href
+                const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
                 return (
                   <Link
                     key={item.name}
                     href={item.href}
-                    className={`navbar-mobile-link ${
-                      isActive
-                        ? 'navbar-mobile-link-active'
-                        : 'navbar-mobile-link-inactive'
+                    className={`mobile-menu-link ${
+                      isActive ? 'mobile-menu-link-active' : 'mobile-menu-link-inactive'
                     }`}
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    <item.icon className="w-5 h-5" />
+                    <item.icon className="mobile-link-icon" />
                     <span>{item.name}</span>
                   </Link>
                 )
               })}
               
-              {/* Mobile AI Status */}
-              <div className="navbar-mobile-ai">
-                <div className="flex items-center gap-2">
-                  <SparklesIcon className={`w-4 h-4 ai-icon-${getAIStatusColor()}`} />
-                  <span>{getAIStatusText()}</span>
+              {isAdmin && (
+                <button
+                  onClick={() => {
+                    setAdminSettingsOpen(true)
+                    setMobileMenuOpen(false)
+                  }}
+                  className="mobile-menu-link mobile-menu-admin-link"
+                >
+                  <Cog6ToothIcon className="mobile-link-icon" />
+                  <span>Admin Settings</span>
+                </button>
+              )}
+            </div>
+            
+            {/* Mobile AI Status */}
+            <div className="mobile-ai-status">
+              <div className="mobile-ai-header">
+                <SparklesIcon className={`mobile-ai-icon ai-icon-${getAIStatusColor()}`} />
+                <span className="mobile-ai-text">{getAIStatusText()}</span>
+              </div>
+              {status.dataSummary && (
+                <div className="mobile-ai-stats">
+                  <span className="mobile-ai-stat">Donors: {status.dataSummary.totalDonors || 0}</span>
+                  <span className="mobile-ai-stat">Donations: {status.dataSummary.totalDonations || 0}</span>
                 </div>
-                {status.dataSummary && (
-                  <div className="flex gap-4 mt-2 text-sm text-gray-600">
-                    <span>Donors: {status.dataSummary.totalDonors || 0}</span>
-                    <span>Donations: {status.dataSummary.totalDonations || 0}</span>
-                  </div>
-                )}
-                
-                {/* Mobile Notifications Summary */}
-                {unreadCount > 0 && (
-                  <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <BellIcon className="w-4 h-4 text-blue-500" />
-                        <span className="text-sm font-medium">AI Notifications</span>
-                      </div>
-                      <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
-                        {unreadCount} unread
-                      </span>
+              )}
+            </div>
+            
+            {/* Mobile Notifications Summary */}
+            {unreadCount > 0 && (
+              <div className="mobile-notifications-summary">
+                <div className="mobile-notifications-header">
+                  <BellIcon className="mobile-notifications-icon" />
+                  <span className="mobile-notifications-title">AI Notifications</span>
+                  <span className="mobile-notifications-badge">
+                    {unreadCount} unread
+                  </span>
+                </div>
+                {aiNotifications.slice(0, 3).map((notification) => (
+                  <div key={notification.id} className="mobile-notification-item">
+                    <div className="mobile-notification-icon">
+                      {getNotificationIcon(notification.type)}
                     </div>
-                    {aiNotifications.slice(0, 2).map((notification) => (
-                      <div key={notification.id} className="mt-2 text-sm text-gray-600 truncate">
-                        {notification.title}
-                      </div>
-                    ))}
-                    {aiNotifications.length > 2 && (
-                      <button
-                        onClick={() => {
-                          setNotificationsOpen(true)
-                          setMobileMenuOpen(false)
-                        }}
-                        className="mt-2 text-xs text-blue-600 hover:text-blue-800"
-                      >
-                        View all {aiNotifications.length} notifications →
-                      </button>
-                    )}
+                    <div className="mobile-notification-content">
+                      <p className="mobile-notification-title">{notification.title}</p>
+                      <p className="mobile-notification-message">{notification.message}</p>
+                    </div>
                   </div>
+                ))}
+                {aiNotifications.length > 3 && (
+                  <button
+                    onClick={() => {
+                      setNotificationsOpen(true)
+                      setMobileMenuOpen(false)
+                    }}
+                    className="mobile-view-all-btn"
+                  >
+                    View all {aiNotifications.length} notifications →
+                  </button>
                 )}
               </div>
-            </div>
+            )}
           </div>
-        )}
-      </div>
-    </nav>
+        </div>
+      )}
+    </>
   )
 }

@@ -41,69 +41,122 @@
    AI Notifications (FIXED + NON-BLOCKING)
    ========================= */
 
-.ai-notifications-container {
-  position: fixed;
-  top: 72px; /* below navbar */
-  right: 16px;
+   /* Existing styles remain, add these: */
 
-  width: 360px;
-  max-width: calc(100vw - 32px);
-
-  z-index: 9999;
-
+.layout-container {
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-
-  pointer-events: none; /* allow clicking page */
+  background: #f8fafc;
 }
 
-/* Individual notification */
-.ai-notification {
-  background: var(--ai-bg-blur);
-  backdrop-filter: blur(8px);
-  box-shadow: var(--ai-shadow);
-  border-radius: var(--ai-border-radius);
-
-  padding: 12px 14px;
-
-  pointer-events: auto; /* clickable */
-  will-change: opacity;
-
-  animation: aiFadeIn 0.25s ease-out;
+.main-content {
+  flex: 1;
+  position: relative;
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-/* Hover affordance WITHOUT transform */
-.ai-notification:hover {
-  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.16);
+/* Quick Actions Wrapper */
+.quick-actions-wrapper {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  z-index: 999;
+  pointer-events: none; /* Let clicks pass through the wrapper */
 }
 
-/* =========================
-   Animations (NO TRANSFORMS)
-   ========================= */
+.quick-actions-wrapper > * {
+  pointer-events: auto; /* But enable clicks on the component itself */
+}
 
-@keyframes aiFadeIn {
+/* Ensure QuickActions doesn't interfere with other content */
+@media (max-width: 768px) {
+  .quick-actions-wrapper {
+    display: none; /* Hide on mobile for better UX */
+  }
+  
+  .main-content {
+    padding: 1rem;
+  }
+}
+
+/* Ensure proper stacking context */
+.layout-container > * {
+  position: relative;
+  z-index: 1;
+}
+
+.quick-actions-wrapper {
+  z-index: 1000;
+}
+
+/* Smooth transitions for QuickActions */
+.quick-actions-wrapper > * {
+  transition: all 0.3s ease;
+  animation: slideInUp 0.3s ease-out;
+}
+
+@keyframes slideInUp {
   from {
     opacity: 0;
+    transform: translateY(20px);
   }
   to {
     opacity: 1;
+    transform: translateY(0);
   }
 }
 
-/* =========================
-   Mobile adjustments
-   ========================= */
+/* Make sure footer is above QuickActions */
+footer {
+  position: relative;
+  z-index: 10;
+}
 
-@media (max-width: 768px) {
-  .ai-notifications-container {
-    top: 64px;
-    right: 12px;
-    width: calc(100vw - 24px);
+/* Responsive adjustments */
+@media (min-width: 1440px) {
+  .main-content {
+    max-width: 1400px;
   }
+}
 
-  .ai-notification {
-    border-radius: 10px;
+@media (min-width: 1920px) {
+  .main-content {
+    max-width: 1600px;
+  }
+}
+
+.page-with-sidebar {
+  display: flex;
+  align-items: stretch;
+  min-height: calc(100vh - 120px); /* adjust for navbar/footer height */
+}
+
+.main-content {
+  flex: 1;
+  padding: 1.5rem;
+}
+
+.quick-actions-wrapper {
+  position: sticky;
+  top: 64px; /* navbar height */
+  height: calc(100vh - 64px);
+  overflow-y: auto;
+}
+
+.page-with-sidebar .sidebar {
+  width: 280px;
+  border-right: 1px solid #eee;
+  background: #fafafa;
+}
+
+ @media (max-width: 768px) {a
+  .quick-actions-wrapper {
+    display: none;
   }
 }
 
