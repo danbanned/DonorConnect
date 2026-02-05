@@ -1,235 +1,271 @@
-.quickActions {
-  width: 320px;
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+/* Toggle Button - Fixed Position */
+.toggleButton {
+  position: fixed;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px 0 0 8px;
+  padding: 12px 8px;
+  cursor: pointer;
   display: flex;
   flex-direction: column;
-  max-height: 500px;
-  overflow: hidden;
+  align-items: center;
+  gap: 4px;
+  box-shadow: -2px 2px 12px rgba(0, 0, 0, 0.15);
   transition: all 0.3s ease;
+  z-index: 999;
+  writing-mode: vertical-rl;
 }
 
-.quickActions.expanded {
-  max-height: 600px;
+.toggleButton:hover {
+  padding-right: 12px;
+  box-shadow: -4px 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.toggleIcon {
+  width: 24px;
+  height: 24px;
+  transform: rotate(90deg);
+}
+
+.toggleLabel {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* Overlay */
+.overlay {
+  position: fixed;
+  top: 80px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Sidebar Container */
+.sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 400px;
+  max-width: 90vw;
+  background: white;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebarOpen {
+  transform: translateX(0);
 }
 
 /* Header */
 .header {
-  padding: 0.875rem 1rem;
-  border-bottom: 1px solid #e2e8f0;
-  background: #f8fafc;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  padding: 20px;
+  border-bottom: 1px solid #e5e7eb;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  position: relative;
 }
 
 .headerContent {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 0.5rem;
 }
 
-.title {
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: #1e293b;
+.headerTitle {
+  font-size: 18px;
+  font-weight: 700;
   margin: 0;
+
 }
 
-.statsBadge {
-  background: #3b82f6;
-  color: white;
-  padding: 0.125rem 0.5rem;
-  border-radius: 2px;
-  font-size: 0.6875rem;
-  font-weight: 600;
-}
-
-.expandButton {
-  background: none;
+.closeButton {
+  background: rgba(255, 255, 255, 0.2);
   border: none;
-  width: 24px;
-  height: 24px;
+  border-radius: 6px;
+  padding: 6px;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #64748b;
-  cursor: pointer;
-  border-radius: 2px;
-  transition: all 0.15s ease;
+  transition: background 0.2s ease;
 }
 
-.expandButton:hover {
-  background: #f1f5f9;
-  color: #475569;
+.closeButton:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
-.expandButton svg {
-  width: 16px;
-  height: 16px;
+.closeIcon {
+  width: 20px;
+  height: 20px;
+  color: white;
 }
 
-/* Content */
+/* Content Area */
 .content {
   flex: 1;
   overflow-y: auto;
-  padding: 0.75rem;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 20px;
+}
+
+.content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.content::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.content::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.content::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 /* Donor Search Section */
-.donorSearchSection {
+.donorSearch {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  position: relative;
+  gap: 12px;
 }
 
-.searchWrapper {
+.searchInputWrapper {
   position: relative;
-}
-
-.searchInputContainer {
   display: flex;
   align-items: center;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  background: white;
-  overflow: hidden;
-  transition: all 0.15s ease;
-}
-
-.searchInputContainer:focus-within {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
 }
 
 .searchIcon {
-  width: 16px;
-  height: 16px;
-  color: #94a3b8;
-  margin-left: 0.75rem;
-  flex-shrink: 0;
+  position: absolute;
+  left: 12px;
+  width: 20px;
+  height: 20px;
+  color: #9ca3af;
+  pointer-events: none;
 }
 
 .searchInput {
-  flex: 1;
-  padding: 0.5rem;
-  border: none;
-  font-size: 0.8125rem;
-  color: #1e293b;
-  background: transparent;
+  width: 100%;
+  padding: 10px 40px 10px 40px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.searchInput:focus {
   outline: none;
-  min-width: 0;
-}
-
-.searchInput::placeholder {
-  color: #94a3b8;
-}
-
-.searchInput:disabled {
-  background: #f8fafc;
-  color: #94a3b8;
-  cursor: not-allowed;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 .clearSearchButton {
+  position: absolute;
+  right: 8px;
   background: none;
   border: none;
-  padding: 0.25rem 0.5rem;
+  padding: 6px;
   cursor: pointer;
-  color: #94a3b8;
   display: flex;
   align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
+  border-radius: 4px;
+  transition: background 0.2s ease;
 }
 
 .clearSearchButton:hover {
-  color: #64748b;
-  background: #f1f5f9;
+  background: #f3f4f6;
 }
 
 .clearSearchIcon {
   width: 16px;
   height: 16px;
+  color: #6b7280;
 }
 
 /* Filter Buttons */
 .filterButtons {
   display: flex;
+  gap: 8px;
   flex-wrap: wrap;
-  gap: 0.375rem;
 }
 
 .filterButton {
-  padding: 0.375rem 0.625rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
+  padding: 6px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
   background: white;
-  color: #64748b;
-  font-size: 0.75rem;
+  font-size: 12px;
+  font-weight: 500;
+  color: #6b7280;
   cursor: pointer;
-  transition: all 0.15s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  white-space: nowrap;
+  transition: all 0.2s ease;
 }
 
-.filterButton:hover:not(:disabled) {
-  border-color: #cbd5e1;
-  background: #f8fafc;
-  color: #475569;
-}
-
-.filterButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.filterButton:hover {
+  border-color: #667eea;
+  color: #667eea;
 }
 
 .filterButtonActive {
-  background: #eff6ff;
-  border-color: #3b82f6;
-  color: #1d4ed8;
-  font-weight: 500;
-}
-
-.filterIcon {
-  width: 12px;
-  height: 12px;
+  background: #667eea;
+  border-color: #667eea;
+  color: white;
 }
 
 /* Selected Donor */
 .selectedDonor {
-  background: #eff6ff;
-  border: 1px solid #dbeafe;
-  border-radius: 4px;
-  padding: 0.5rem;
-  margin-top: 0.25rem;
+  padding: 12px;
+  background: linear-gradient(135deg, #f0f4ff 0%, #e6edff 100%);
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
 }
 
 .selectedDonorContent {
   display: flex;
+  gap: 12px;
   align-items: center;
-  gap: 0.5rem;
 }
 
 .selectedDonorInitials {
-  width: 28px;
-  height: 28px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
-  background: #3b82f6;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.6875rem;
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 16px;
   flex-shrink: 0;
 }
 
@@ -239,119 +275,111 @@
 }
 
 .selectedDonorName {
-  font-size: 0.8125rem;
   font-weight: 600;
-  color: #1e293b;
-  margin: 0;
-  line-height: 1.3;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 14px;
+  color: #1f2937;
+  margin: 0 0 4px 0;
 }
 
 .selectedDonorDetails {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 0.125rem;
+  gap: 12px;
+  font-size: 12px;
 }
 
 .selectedDonorEmail {
-  font-size: 0.75rem;
-  color: #64748b;
-  white-space: nowrap;
+  color: #6b7280;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex: 1;
+  white-space: nowrap;
 }
 
 .selectedDonorAmount {
-  font-size: 0.75rem;
-  font-weight: 600;
   color: #059669;
-  background: #f0fdf4;
-  padding: 0.125rem 0.375rem;
-  border-radius: 2px;
+  font-weight: 600;
   flex-shrink: 0;
 }
 
 /* Donor Dropdown */
 .donorDropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
   background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  z-index: 1000;
-  max-height: 240px;
-  overflow-y: auto;
-  margin-top: 0.25rem;
+  max-height: 300px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .dropdownHeader {
+  padding: 12px;
+  border-bottom: 1px solid #e5e7eb;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid #e2e8f0;
-  background: #f8fafc;
-  position: sticky;
-  top: 0;
-  z-index: 1;
+  background: #f9fafb;
 }
 
 .dropdownCount {
-  font-size: 0.75rem;
-  color: #64748b;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b7280;
 }
 
 .dropdownCloseButton {
   background: none;
   border: none;
-  padding: 0.25rem;
+  padding: 4px;
   cursor: pointer;
-  color: #94a3b8;
-  border-radius: 2px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.2s ease;
 }
 
 .dropdownCloseButton:hover {
-  background: #f1f5f9;
-  color: #64748b;
+  background: #e5e7eb;
 }
 
 .dropdownCloseIcon {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
+  color: #6b7280;
 }
 
 .donorList {
-  display: flex;
-  flex-direction: column;
+  overflow-y: auto;
+  max-height: 250px;
+}
+
+.donorList::-webkit-scrollbar {
+  width: 6px;
+}
+
+.donorList::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.donorList::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
 }
 
 .donorItem {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid #f1f5f9;
-  background: none;
+  gap: 12px;
+  padding: 12px;
   border: none;
-  cursor: pointer;
-  text-align: left;
-  transition: all 0.15s ease;
+  background: white;
   width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  border-bottom: 1px solid #f3f4f6;
 }
 
 .donorItem:hover {
-  background: #f8fafc;
+  background: #f9fafb;
 }
 
 .donorItem:last-child {
@@ -359,16 +387,16 @@
 }
 
 .donorInitials {
-  width: 24px;
-  height: 24px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  background: #e2e8f0;
-  color: #475569;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.625rem;
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 14px;
   flex-shrink: 0;
 }
 
@@ -378,116 +406,97 @@
 }
 
 .donorItemName {
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: #1e293b;
-  margin: 0;
-  line-height: 1.3;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-weight: 600;
+  font-size: 13px;
+  color: #1f2937;
+  margin: 0 0 4px 0;
 }
 
 .donorItemDetails {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 0.125rem;
+  gap: 8px;
+  font-size: 11px;
 }
 
 .donorItemEmail {
-  font-size: 0.75rem;
-  color: #64748b;
-  white-space: nowrap;
+  color: #6b7280;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex: 1;
+  white-space: nowrap;
 }
 
 .donorItemAmount {
-  font-size: 0.75rem;
+  color: #059669;
   font-weight: 600;
-  color: #475569;
-  background: #f1f5f9;
-  padding: 0.125rem 0.375rem;
-  border-radius: 2px;
   flex-shrink: 0;
 }
 
-/* Empty Donors State */
+/* Empty State */
 .emptyDonors {
-  padding: 1.5rem 0.75rem;
   text-align: center;
-  background: #f8fafc;
-  border-radius: 4px;
-  border: 1px solid #e2e8f0;
+  padding: 40px 20px;
 }
 
 .emptyDonorsIcon {
-  width: 2rem;
-  height: 2rem;
-  color: #cbd5e1;
-  margin: 0 auto 0.5rem;
+  width: 64px;
+  height: 64px;
+  color: #d1d5db;
+  margin: 0 auto 16px;
 }
 
 .emptyDonorsText {
-  font-size: 0.875rem;
-  color: #64748b;
-  margin: 0 0 0.75rem 0;
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0 0 16px 0;
 }
 
 .addDonorButton {
   display: inline-block;
-  background: #3b82f6;
+  padding: 8px 16px;
+  background: #667eea;
   color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  font-size: 0.8125rem;
-  font-weight: 500;
+  border-radius: 6px;
   text-decoration: none;
-  transition: all 0.15s ease;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.2s ease;
 }
 
 .addDonorButton:hover {
-  background: #2563eb;
-  text-decoration: none;
+  background: #5568d3;
 }
 
-/* Donor Actions Section */
+/* Donor Action Buttons */
 .donorActionsSection {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
+  gap: 16px;
 }
 
 .donorActionButtons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.375rem;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
 }
 
 .donorActionButton {
-  flex: 1;
-  min-width: 70px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 0.375rem;
-  padding: 0.5rem 0.75rem;
-  border: none;
-  border-radius: 4px;
-  color: white;
-  font-size: 0.75rem;
-  font-weight: 500;
+  gap: 8px;
+  padding: 16px 12px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: white;
   cursor: pointer;
-  transition: all 0.15s ease;
-  text-align: center;
+  transition: all 0.2s ease;
+  font-size: 12px;
+  font-weight: 600;
 }
 
-.donorActionButton:hover:not(:disabled) {
-  opacity: 0.9;
-  transform: translateY(-1px);
+.donorActionButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .donorActionButton:disabled {
@@ -495,136 +504,138 @@
   cursor: not-allowed;
 }
 
+.donorActionIcon {
+  width: 24px;
+  height: 24px;
+}
+
 .donorActionButtonBlue {
-  background: #3b82f6;
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+.donorActionButtonBlue:hover {
+  background: #eff6ff;
 }
 
 .donorActionButtonGreen {
-  background: #10b981;
+  border-color: #10b981;
+  color: #10b981;
+}
+
+.donorActionButtonGreen:hover {
+  background: #ecfdf5;
 }
 
 .donorActionButtonPurple {
-  background: #8b5cf6;
+  border-color: #8b5cf6;
+  color: #8b5cf6;
 }
 
-.donorActionButtonIndigo {
-  background: #6366f1;
+.donorActionButtonPurple:hover {
+  background: #f5f3ff;
 }
 
 .donorActionButtonGray {
-  background: #6b7280;
+  border-color: #6b7280;
+  color: #6b7280;
 }
 
-.donorActionIcon {
-  width: 14px;
-  height: 14px;
+.donorActionButtonGray:hover {
+  background: #f9fafb;
 }
 
-.donorSelectionHint {
+.donorActionButtonOrange {
+  border-color: #f59e0b;
+  color: #f59e0b;
+}
+
+.donorActionButtonOrange:hover {
   background: #fffbeb;
-  border: 1px solid #fde68a;
-  border-radius: 4px;
-  padding: 0.5rem;
-  text-align: center;
-  margin-top: 0.5rem;
-}
-
-.donorSelectionHintText {
-  font-size: 0.75rem;
-  color: #92400e;
-  margin: 0;
 }
 
 .clearDonorSection {
   text-align: center;
-  margin-top: 0.5rem;
-  padding-top: 0.5rem;
-  border-top: 1px solid #e2e8f0;
 }
 
 .clearDonorButton {
   background: none;
-  border: none;
-  color: #64748b;
-  font-size: 0.75rem;
-  font-weight: 500;
+  border: 1px solid #e5e7eb;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #6b7280;
   cursor: pointer;
-  padding: 0.375rem 0.75rem;
-  border-radius: 4px;
-  transition: all 0.15s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
+  transition: all 0.2s ease;
 }
 
 .clearDonorButton:hover {
-  background: #f1f5f9;
-  color: #475569;
+  border-color: #667eea;
+  color: #667eea;
 }
 
 /* AI Status */
 .aiStatus {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-  border: 1px solid #bae6fd;
-  border-radius: 4px;
-  margin-top: 0.25rem;
+  gap: 8px;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-radius: 8px;
+  border-left: 4px solid #f59e0b;
 }
 
 .aiStatusIcon {
-  width: 16px;
-  height: 16px;
-  color: #0284c7;
+  width: 20px;
+  height: 20px;
+  color: #f59e0b;
 }
 
 .aiStatusText {
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: #0369a1;
+  font-size: 13px;
+  font-weight: 600;
+  color: #92400e;
 }
 
 /* Suggested Actions */
 .suggestedActions {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
+  gap: 12px;
 }
 
 .suggestedActionsTitle {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #1e293b;
-  margin: 0 0 0.25rem 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
 }
 
 .suggestedActionItem {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem;
+  gap: 12px;
+  padding: 12px;
   background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
   cursor: pointer;
+  transition: all 0.2s ease;
   text-align: left;
-  transition: all 0.15s ease;
   width: 100%;
 }
 
 .suggestedActionItem:hover {
-  border-color: #cbd5e1;
-  background: #f8fafc;
+  border-color: #667eea;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
 }
 
 .suggestedActionIcon {
-  width: 32px;
-  height: 32px;
-  background: #f1f5f9;
-  border-radius: 4px;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -632,9 +643,8 @@
 }
 
 .suggestedActionIcon svg {
-  width: 18px;
-  height: 18px;
-  color: #475569;
+  width: 20px;
+  height: 20px;
 }
 
 .suggestedActionContent {
@@ -643,265 +653,196 @@
 }
 
 .suggestedActionTitle {
-  font-size: 0.875rem;
+  font-size: 13px;
   font-weight: 600;
-  color: #1e293b;
-  margin: 0 0 0.125rem 0;
-  line-height: 1.3;
+  color: #1f2937;
+  margin: 0 0 4px 0;
 }
 
 .suggestedActionDescription {
-  font-size: 0.8125rem;
-  color: #64748b;
+  font-size: 12px;
+  color: #6b7280;
   margin: 0;
-  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 .suggestedActionArrow {
-  width: 16px;
-  height: 16px;
-  color: #94a3b8;
+  width: 20px;
+  height: 20px;
+  color: #9ca3af;
   flex-shrink: 0;
 }
 
-/* Action Detail View */
+/* Action Detail */
 .actionDetail {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
+  gap: 16px;
 }
 
 .actionDetailHeader {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.25rem;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .backButton {
+  align-self: flex-start;
   background: none;
   border: none;
-  color: #3b82f6;
-  font-size: 0.8125rem;
-  font-weight: 500;
+  color: #667eea;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
-  padding: 0.25rem 0.5rem;
-  border-radius: 2px;
-  transition: all 0.15s ease;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.2s ease;
 }
 
 .backButton:hover {
-  background: #eff6ff;
+  background: #f0f4ff;
 }
 
 .actionDetailTitle {
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: #1e293b;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1f2937;
   margin: 0;
 }
 
 .actionDetailDescription {
-  font-size: 0.8125rem;
-  color: #64748b;
-  line-height: 1.5;
+  font-size: 14px;
+  color: #4b5563;
+  line-height: 1.6;
   margin: 0;
 }
 
 .actionDonors {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  margin-top: 0.25rem;
+  gap: 8px;
 }
 
 .actionDonor {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
+  gap: 12px;
+  padding: 10px;
+  background: #f9fafb;
+  border-radius: 6px;
 }
 
 .actionDonorIcon {
-  width: 20px;
-  height: 20px;
-  color: #64748b;
+  width: 32px;
+  height: 32px;
+  color: #9ca3af;
   flex-shrink: 0;
 }
 
 .actionDonorInfo {
-  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.125rem;
+  gap: 2px;
 }
 
 .actionDonorName {
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2937;
 }
 
 .actionDonorAmount {
-  font-size: 0.75rem;
+  font-size: 12px;
   color: #059669;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .executeButton {
-  background: #3b82f6;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
-  border-radius: 4px;
-  padding: 0.625rem 1rem;
-  font-size: 0.875rem;
-  font-weight: 500;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s ease;
-  margin-top: 0.5rem;
+  transition: all 0.2s ease;
 }
 
 .executeButton:hover:not(:disabled) {
-  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
 .executeButton:disabled {
-  opacity: 0.5;
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
 /* No Actions */
 .noActions {
-  padding: 1.5rem 0.75rem;
   text-align: center;
-  background: #f8fafc;
-  border-radius: 4px;
-  border: 1px solid #e2e8f0;
-  margin-top: 0.5rem;
+  padding: 40px 20px;
 }
 
 .noActionsText {
-  color: #94a3b8;
-  font-size: 0.875rem;
-  margin: 0 0 0.25rem 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+  margin: 0 0 8px 0;
 }
 
 .noActionsSubtext {
-  font-size: 0.75rem;
-  color: #94a3b8;
+  font-size: 13px;
+  color: #9ca3af;
   margin: 0;
-  line-height: 1.4;
 }
 
 /* Footer */
 .footer {
-  padding: 0.75rem 1rem;
-  border-top: 1px solid #e2e8f0;
-  background: #f8fafc;
+  padding: 16px 20px;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
 }
 
 .footerStats {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
 }
 
 .footerStat {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 0.125rem;
+  gap: 4px;
 }
 
 .footerStatLabel {
-  font-size: 0.75rem;
-  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 500;
+  letter-spacing: 0.5px;
 }
 
 .footerStatValue {
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: #1e293b;
-}
-
-/* Loading Skeletons */
-.skeletonTitle {
-  width: 100px;
-  height: 20px;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
-  background-size: 200% 100%;
-  animation: loading 1.5s infinite;
-  border-radius: 2px;
-}
-
-.skeletonBadge {
-  width: 40px;
-  height: 20px;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
-  background-size: 200% 100%;
-  animation: loading 1.5s infinite;
-  border-radius: 2px;
-}
-
-.skeletonItem {
-  height: 60px;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
-  background-size: 200% 100%;
-  animation: loading 1.5s infinite;
-  border-radius: 4px;
-}
-
-/* Error State */
-.error {
-  padding: 2rem 1rem;
-  text-align: center;
-  color: #dc2626;
-  font-size: 0.875rem;
-}
-
-/* Scrollbar Styling */
-.content::-webkit-scrollbar {
-  width: 4px;
-}
-
-.content::-webkit-scrollbar-track {
-  background: #f1f5f9;
-}
-
-.content::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 2px;
-}
-
-.content::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-
-@keyframes loading {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
 }
 
 /* Responsive */
-@media (max-width: 1024px) {
-  .quickActions {
-    width: 300px;
+@media (max-width: 640px) {
+  .sidebar {
+    width: 100vw;
+    max-width: 100vw;
   }
-}
 
-@media (max-width: 768px) {
-  .quickActions {
-    display: none;
+  .donorActionButtons {
+    grid-template-columns: 1fr;
   }
 }

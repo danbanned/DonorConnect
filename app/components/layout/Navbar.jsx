@@ -75,22 +75,18 @@ export default function Navbar() {
   // Close dropdowns when clicking outside
   useEffect(() => {
     function handleClickOutside(e) {
-      // Close user menu
       if (menuRef.current && !menuRef.current.contains(e.target)) {
         setUserMenuOpen(false)
       }
       
-      // Close notifications
       if (notificationsRef.current && !notificationsRef.current.contains(e.target)) {
         setNotificationsOpen(false)
       }
       
-      // Close admin settings
       if (adminSettingsRef.current && !adminSettingsRef.current.contains(e.target)) {
         setAdminSettingsOpen(false)
       }
       
-      // Close mobile menu
       if (mobileMenuRef.current && 
           !mobileMenuRef.current.contains(e.target) && 
           !e.target.closest('.navbar-mobile-button')) {
@@ -152,11 +148,11 @@ export default function Navbar() {
   }
 
   const getAIStatusText = () => {
-    if (isLoading) return 'AI Loading...'
-    if (!status.initialized) return 'AI Offline'
-    if (status.simulation?.isRunning) return 'Simulation Running'
+    if (isLoading) return 'Loading...'
+    if (!status.initialized) return 'Offline'
+    if (status.simulation?.isRunning) return 'Running'
     if (status.bonding?.activeSessions > 0) return `${status.bonding.activeSessions} Active`
-    return 'AI Ready'
+    return 'Ready'
   }
 
   const getNotificationIcon = (type) => {
@@ -205,7 +201,7 @@ export default function Navbar() {
                   }`}
                 >
                   <item.icon className="navbar-link-icon" />
-                  <span>{item.name}</span>
+                  <span className="navbar-link-text">{item.name}</span>
                 </Link>
               )
             })}
@@ -213,37 +209,19 @@ export default function Navbar() {
 
           {/* Right side actions */}
           <div className="navbar-actions-section">
-            {/* AI Status Indicator */}
-            <div className="ai-status-container">
-              <div className={`ai-status-indicator ai-status-${getAIStatusColor()}`}>
-                <SparklesIcon className="ai-status-icon" />
-                <span className="ai-status-text">{getAIStatusText()}</span>
-                
-                {status.dataSummary && (
-                  <div className="ai-stats">
-                    <span className="ai-stat">👥 {status.dataSummary.totalDonors || 0}</span>
-                    <span className="ai-stat">💰 {status.dataSummary.totalDonations || 0}</span>
-                  </div>
-                )}
-              </div>
-              
-              {status.initialized && (
-                <button
-                  onClick={handleSimulationToggle}
-                  className={`ai-simulation-btn ${status.simulation?.isRunning ? 'stop' : 'start'}`}
-                  disabled={isLoading}
-                  title={status.simulation?.isRunning ? 'Stop Simulation' : 'Start Simulation'}
-                >
-                  {status.simulation?.isRunning ? (
-                    <StopIcon className="ai-simulation-icon" />
-                  ) : (
-                    <PlayIcon className="ai-simulation-icon" />
-                  )}
-                </button>
+            {/* AI Status */}
+            <div className="navbar-ai-status">
+              <SparklesIcon className={`navbar-ai-icon ai-icon-${getAIStatusColor()}`} />
+              <span className="navbar-ai-text">{getAIStatusText()}</span>
+              {status.dataSummary && (
+                <div className="navbar-ai-stats">
+                  <span className="navbar-ai-stat">D: {status.dataSummary.totalDonors || 0}</span>
+                  <span className="navbar-ai-stat">$: {status.dataSummary.totalDonations || 0}</span>
+                </div>
               )}
             </div>
 
-            {/* Admin Settings Button */}
+            {/* Admin Settings */}
             {isAdmin && (
               <div className="navbar-admin-wrapper" ref={adminSettingsRef}>
                 <button
@@ -256,32 +234,56 @@ export default function Navbar() {
                   title="Admin Settings"
                 >
                   <Cog6ToothIcon className="navbar-admin-icon" />
-                  {adminSettingsOpen && (
-                    <div className="navbar-admin-dropdown">
-                      <div className="navbar-admin-header">
-                        <h3 className="navbar-admin-title">Admin look</h3>
-                        <span className="navbar-admin-badge">ADMIN</span>
-                      </div>
-                      <div className="navbar-admin-content">
-                        <p className="navbar-admin-message">Admin settings panel would appear here.</p>
-                        <div className="navbar-admin-actions">
-                          <button className="navbar-admin-action-btn">
-                            Manage Users
-                          </button>
-                           <Link href="/admin-only">
-                            <button className="navbar-admin-action-btn">
-                            Admin Settings
-                          </button>
-                           </Link>
-        
-                          <button className="navbar-admin-action-btn">
-                            API Keys
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </button>
+
+                {adminSettingsOpen && (
+                  <div className="navbar-admin-dropdown">
+                    <div className="navbar-admin-header">
+                      <h3 className="navbar-admin-title">Admin Settings</h3>
+                      <button
+                        onClick={() => setAdminSettingsOpen(false)}
+                        className="navbar-admin-close"
+                      >
+                        <XMarkIcon className="navbar-admin-close-icon" />
+                      </button>
+                    </div>
+
+                    <div className="navbar-admin-section">
+                      <h4 className="navbar-admin-section-title">AI Simulation</h4>
+                      <button
+                        onClick={handleSimulationToggle}
+                        disabled={isLoading}
+                        className={`navbar-admin-btn-sim ${
+                          status.simulation?.isRunning ? 'btn-sim-stop' : 'btn-sim-start'
+                        }`}
+                      >
+                        {status.simulation?.isRunning ? (
+                          <>
+                            <StopIcon className="btn-sim-icon" />
+                            <span>Stop Simulation</span>
+                          </>
+                        ) : (
+                          <>
+                            <PlayIcon className="btn-sim-icon" />
+                            <span>Start Simulation</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="navbar-admin-section">
+                      <h4 className="navbar-admin-section-title">Organization</h4>
+                      <Link
+                        href="/admin-only"
+                        className="navbar-admin-link"
+                        onClick={() => setAdminSettingsOpen(false)}
+                      >
+                        <Cog6ToothIcon className="navbar-admin-link-icon" />
+                        <span>Settings</span>
+                      </Link>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -290,85 +292,87 @@ export default function Navbar() {
               <button
                 onClick={() => {
                   setNotificationsOpen(!notificationsOpen)
-                  setAdminSettingsOpen(false)
                   setUserMenuOpen(false)
+                  setAdminSettingsOpen(false)
                 }}
                 className="navbar-notifications-btn"
               >
-                <BellIcon className="navbar-notifications-icon" />
+                <BellIcon className="navbar-bell-icon" />
                 {unreadCount > 0 && (
-                  <span className="navbar-notifications-badge">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
+                  <span className="navbar-notifications-badge">{unreadCount}</span>
                 )}
               </button>
 
               {notificationsOpen && (
                 <div className="navbar-notifications-dropdown">
                   <div className="navbar-notifications-header">
-                    <div className="notifications-header-left">
-                      <SparklesIcon className="notifications-header-icon" />
-                      <h3 className="notifications-header-title">AI Notifications</h3>
-                      {unreadCount > 0 && (
-                        <span className="notifications-unread-count">
-                          {unreadCount}
-                        </span>
-                      )}
-                    </div>
-                    <div className="notifications-controls">
+                    <h3 className="navbar-notifications-title">AI Notifications</h3>
+                    <div className="navbar-notifications-actions">
                       <button
                         onClick={toggleSound}
-                        className={`notification-control-btn ${soundEnabled ? 'sound-on' : 'sound-off'}`}
-                        title={soundEnabled ? 'Mute sounds' : 'Enable sounds'}
+                        className="navbar-notif-action-btn"
+                        title={soundEnabled ? 'Mute' : 'Unmute'}
                       >
                         {soundEnabled ? (
-                          <SpeakerWaveIcon className="control-btn-icon" />
+                          <SpeakerWaveIcon className="navbar-notif-icon" />
                         ) : (
-                          <SpeakerXMarkIcon className="control-btn-icon" />
+                          <SpeakerXMarkIcon className="navbar-notif-icon" />
                         )}
                       </button>
                       <button
                         onClick={togglePause}
-                        className={`notification-control-btn ${isPaused ? 'paused' : 'active'}`}
-                        title={isPaused ? 'Resume notifications' : 'Pause notifications'}
+                        className="navbar-notif-action-btn"
+                        title={isPaused ? 'Resume' : 'Pause'}
                       >
-                        {isPaused ? '▶' : '⏸'}
+                        {isPaused ? (
+                          <PlayIcon className="navbar-notif-icon" />
+                        ) : (
+                          <StopIcon className="navbar-notif-icon" />
+                        )}
                       </button>
                       {aiNotifications.length > 0 && (
                         <>
                           <button
                             onClick={markAllRead}
-                            className="notification-control-btn mark-read"
-                            title="Mark all as read"
+                            className="navbar-notif-action-btn"
+                            title="Mark all read"
                           >
-                            <CheckIcon className="control-btn-icon" />
+                            <CheckIcon className="navbar-notif-icon" />
                           </button>
                           <button
                             onClick={clearAll}
-                            className="notification-control-btn clear"
-                            title="Clear all notifications"
+                            className="navbar-notif-action-btn navbar-notif-clear"
+                            title="Clear all"
                           >
-                            <TrashIcon className="control-btn-icon" />
+                            <TrashIcon className="navbar-notif-icon" />
                           </button>
                         </>
                       )}
+                      <button
+                        onClick={() => setNotificationsOpen(false)}
+                        className="navbar-notif-close"
+                      >
+                        <XMarkIcon className="navbar-notif-close-icon" />
+                      </button>
                     </div>
                   </div>
                   
                   <div className="navbar-notifications-list">
                     {aiNotifications.length === 0 ? (
-                      <div className="navbar-notifications-empty">
-                        <BellIcon className="notifications-empty-icon" />
-                        <p className="notifications-empty-text">No AI notifications yet</p>
+                      <div className="navbar-no-notifications">
+                        <BellIcon className="navbar-no-notif-icon" />
+                        <p className="navbar-no-notif-text">No notifications</p>
                       </div>
                     ) : (
-                      aiNotifications.slice(0, 10).map((notification) => (
+                      aiNotifications.map((notification) => (
                         <div
                           key={notification.id}
-                          className={`navbar-notification-item ${notification.type} ${notification.read ? 'read' : 'unread'}`}
+                          className={`notification-item ${
+                            !notification.read ? 'notification-unread' : ''
+                          }`}
                           onClick={() => markAsRead(notification.id)}
                         >
-                          <div className="notification-item-content">
+                          <div className="notification-content">
                             <div className="notification-icon">
                               {getNotificationIcon(notification.type)}
                             </div>
@@ -410,7 +414,7 @@ export default function Navbar() {
                     <div className="navbar-notifications-footer">
                       <div className="notification-stats">
                         <span className="notification-stats-text">
-                          {notificationStats.total} notifications • {notificationStats.importantCount} important
+                          {notificationStats.total} total • {notificationStats.importantCount} important
                         </span>
                       </div>
                     </div>
@@ -469,7 +473,7 @@ export default function Navbar() {
             {/* Mobile menu button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="navbar-mobile-btn"
+              className="navbar-mobile-btn navbar-mobile-button"
             >
               {mobileMenuOpen ? (
                 <XMarkIcon className="navbar-mobile-icon" />

@@ -7,19 +7,13 @@ import Footer from './components/layout/Footer'
 import './Layout.css'
 import { AuthProvider } from './providers/AuthProvider'
 import { AIProvider } from './providers/AIProvider'
-import { QuickActionsProvider } from './providers/QuickActionsProvider' // New provider
+import { QuickActionsProvider } from './providers/QuickActionsProvider'
 import QuickActions from './components/QuickActions'
 import { useState, useEffect } from 'react'
 
 const inter = Inter({ subsets: ['latin'] })
 
-//export const metadata = {
-//  title: 'DonorConnect - Smart Donor Management',
-// description: 'Intelligent CRM for nonprofit donor relationships',
-// }
-
 export default function RootLayout({ children }) {
-  // We'll move the QuickActions component state management here
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -30,30 +24,26 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className={inter.className}>
         <div className="layout-container">
-          {/* Wrap everything in AIProvider */}
           <AIProvider>
             <AuthProvider>
-              {/* Navbar will have AI indicator */}
+              {/* Navbar - This should stay at the top */}
               <Navbar />
-
-
-                <div className="page-with-sidebar">
-                  <main className="main-content">
-                    {children}
-                  </main>
-
-                  {mounted && (
-                    <aside className="quick-actions-wrapper">
-                      <QuickActionsProvider>
-                        <QuickActions />
-                      </QuickActionsProvider>
-                    </aside>
-                  )}
-                </div>
-                
-              <Footer />
               
-
+              {/* Main content area WITHOUT page-with-sidebar wrapper */}
+              <main className="main-content">
+                {children}
+                
+                {/* QuickActions should be inside main content or positioned absolutely */}
+                {mounted && (
+                  <div className="quick-actions-wrapper">
+                    <QuickActionsProvider>
+                      <QuickActions />
+                    </QuickActionsProvider>
+                  </div>
+                )}
+              </main>
+              
+              <Footer />
             </AuthProvider>
           </AIProvider>
         </div>

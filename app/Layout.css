@@ -20,44 +20,30 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-}
-
-/* IMPORTANT: no transform here */
-.main-content {
-  flex: 1;
-  padding: 20px 0;
-  position: relative;
-  z-index: 1;
-}
-
-/* Navbar always above content */
-.navbar {
-  position: sticky;
-  top: 0;
-  z-index: 1000;
-}
-
-/* =========================
-   AI Notifications (FIXED + NON-BLOCKING)
-   ========================= */
-
-   /* Existing styles remain, add these: */
-
-.layout-container {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
   background: #f8fafc;
 }
 
+/* Navbar - fixed at top */
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  width: 100%;
+}
+
+/* Main content - needs padding for fixed navbar */
 .main-content {
   flex: 1;
   position: relative;
   padding: 2rem;
+  padding-top: 70px; /* Navbar height + some extra */
   max-width: 1400px;
   margin: 0 auto;
   width: 100%;
   box-sizing: border-box;
+  z-index: 1;
 }
 
 /* Quick Actions Wrapper */
@@ -66,32 +52,11 @@
   bottom: 2rem;
   right: 2rem;
   z-index: 999;
-  pointer-events: none; /* Let clicks pass through the wrapper */
+  pointer-events: none;
 }
 
 .quick-actions-wrapper > * {
-  pointer-events: auto; /* But enable clicks on the component itself */
-}
-
-/* Ensure QuickActions doesn't interfere with other content */
-@media (max-width: 768px) {
-  .quick-actions-wrapper {
-    display: none; /* Hide on mobile for better UX */
-  }
-  
-  .main-content {
-    padding: 1rem;
-  }
-}
-
-/* Ensure proper stacking context */
-.layout-container > * {
-  position: relative;
-  z-index: 1;
-}
-
-.quick-actions-wrapper {
-  z-index: 1000;
+  pointer-events: auto;
 }
 
 /* Smooth transitions for QuickActions */
@@ -114,7 +79,6 @@
 /* Make sure footer is above QuickActions */
 footer {
   position: relative;
-  z-index: 10;
 }
 
 /* Responsive adjustments */
@@ -130,33 +94,14 @@ footer {
   }
 }
 
-.page-with-sidebar {
-  display: flex;
-  align-items: stretch;
-  min-height: calc(100vh - 120px); /* adjust for navbar/footer height */
-}
-
-.main-content {
-  flex: 1;
-  padding: 1.5rem;
-}
-
-.quick-actions-wrapper {
-  position: sticky;
-  top: 64px; /* navbar height */
-  height: calc(100vh - 64px);
-  overflow-y: auto;
-}
-
-.page-with-sidebar .sidebar {
-  width: 280px;
-  border-right: 1px solid #eee;
-  background: #fafafa;
-}
-
- @media (max-width: 768px) {a
+/* Mobile responsive */
+@media (max-width: 768px) {
   .quick-actions-wrapper {
     display: none;
   }
+  
+  .main-content {
+    padding: 1rem;
+    padding-top: 60px; /* Slightly less padding on mobile */
+  }
 }
-

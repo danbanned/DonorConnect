@@ -18,13 +18,14 @@ import {
   PlusIcon,
   MagnifyingGlassIcon,
   ExclamationTriangleIcon,
-  ReceiptPercentIcon
+  ReceiptPercentIcon,
+  Bars3Icon
 } from '@heroicons/react/24/outline'
 import { useQuickActions } from '../providers/QuickActionsProvider'
 import styles from './QuickActions.module.css'
 
-export default function QuickActions() {
-  const [expanded, setExpanded] = useState(false)
+export default function QuickActionsSidebar() {
+  const [isOpen, setIsOpen] = useState(false)
   const [selectedAction, setSelectedAction] = useState(null)
   const [executing, setExecuting] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -49,6 +50,20 @@ export default function QuickActions() {
     },
     aiStatus = {}
   } = useQuickActions()
+
+  // Close sidebar when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (isOpen && !event.target.closest(`.${styles.sidebar}`) && !event.target.closest(`.${styles.toggleButton}`)) {
+        setIsOpen(false)
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isOpen])
 
   // Get icon component safely
   const getIconComponent = (iconName) => {
@@ -104,7 +119,6 @@ export default function QuickActions() {
   const processedDonors = useMemo(() => {
     if (!Array.isArray(donors) || donors.length === 0) return []
 
-    // Get last donation year per donor
     const currentYear = new Date().getFullYear()
     const lastYear = currentYear - 1
 
@@ -135,7 +149,6 @@ export default function QuickActions() {
         isSYBUNT,
         displayName: getDisplayName(donor),
         email: getEmail(donor),
-        // Original props from your component
         id: donor.id,
         firstName: donor.firstName,
         lastName: donor.lastName,
@@ -159,7 +172,6 @@ export default function QuickActions() {
   const filteredDonors = useMemo(() => {
     let result = [...processedDonors]
 
-    // Apply search
     if (searchQuery && searchQuery.trim() !== '') {
       const query = searchQuery.toLowerCase()
       result = result.filter(d =>
@@ -168,7 +180,6 @@ export default function QuickActions() {
       )
     }
 
-    // Apply filter
     if (filterType === 'highest') {
       result.sort((a, b) => b.totalDonations - a.totalDonations)
     } else if (filterType === 'lybunt') {
@@ -218,7 +229,16 @@ export default function QuickActions() {
     }
   }
 
-  // Compact quick action buttons (from your version)
+  const handleExecuteSuggestedAction = (action) => {
+    setExecuting(true)
+    // Your action execution logic here
+    setTimeout(() => {
+      setExecuting(false)
+      setSelectedAction(null)
+    }, 1000)
+  }
+
+  // Compact quick action buttons
   const donorQuickActions = [
     {
       id: 'record',
@@ -239,191 +259,72 @@ export default function QuickActions() {
       color: 'purple',
     },
     {
-      id: 'communications',
-      label: 'Message',
-      icon: DocumentTextIcon,
-      color: 'indigo',
-    },
-    {
       id: 'view',
-      label: 'Profile',
+      label: 'View Profile',
       icon: UserCircleIcon,
       color: 'gray',
     },
+    {
+      id: 'communications',
+      label: 'Communications',
+      icon: DocumentTextIcon,
+      color: 'orange',
+    },
   ]
 
-  // Safe execute suggested action
-  const handleExecuteSuggestedAction = useCallback(async (action) => {
-    if (!action || executing) return
-    
-    setExecuting(true)
-    try {
-      const donorsToUse = action.donors || []
-      const donationsToUse = action.donations || []
-      
-      switch (action.type) {
-        case 'followup':
-          if (donorsToUse.length > 0) {
-            await Promise.all(donorsToUse.slice(0, 3).map(async (donor) => {
-              const response = await fetch('/api/communications', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  donorId: donor.id,
-                  type: 'EMAIL',
-                  subject: 'Following up on your past support',
-                  content: `Dear ${donor.firstName}, we noticed you supported us last year...`,
-                  status: 'DRAFT'
-                })
-              })
-              return response.json()
-            }))
-          }
-          break
-        
-        case 'thankyou':
-          if (donationsToUse.length > 0) {
-            await Promise.all(donationsToUse.slice(0, 3).map(async (donation) => {
-              const response = await fetch('/api/communications', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  donorId: donation.donorId,
-                  type: 'EMAIL',
-                  subject: 'Thank you for your generous donation',
-                  content: 'Thank you for your recent donation...',
-                  status: 'DRAFT'
-                })
-              })
-              return response.json()
-            }))
-          }
-          break
-        
-        case 'reactivation':
-          if (donorsToUse.length > 0) {
-            await Promise.all(donorsToUse.slice(0, 3).map(async (donor) => {
-              const response = await fetch('/api/meetings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  donorId: donor.id,
-                  title: 'Reconnection Call',
-                  description: 'Catching up and re-engaging',
-                  startTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-                  status: 'SCHEDULED'
-                })
-              })
-              return response.json()
-            }))
-          }
-          break
-        
-        case 'welcome':
-          if (donorsToUse.length > 0) {
-            await Promise.all(donorsToUse.map(async (donor) => {
-              const response = await fetch('/api/communications', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  donorId: donor.id,
-                  type: 'EMAIL',
-                  subject: 'Welcome to our community!',
-                  content: `Welcome ${donor.firstName}, thank you for joining us...`,
-                  status: 'DRAFT'
-                })
-              })
-              return response.json()
-            }))
-          }
-          break
-      }
-      
-      // Show success feedback
-      setTimeout(() => {
-        setExecuting(false)
-        setSelectedAction(null)
-      }, 1000)
-      
-    } catch (error) {
-      console.error('Error executing action:', error)
-      setExecuting(false)
-    }
-  }, [executing])
-
-  // Loading state
-  if (loading) {
-    return (
-      <div className={styles.quickActions}>
-        <div className={styles.header}>
-          <div className={styles.skeletonTitle}></div>
-          <div className={styles.skeletonBadge}></div>
-        </div>
-        <div className={styles.content}>
-          {[1, 2, 3].map(i => (
-            <div key={i} className={styles.skeletonItem}></div>
-          ))}
-        </div>
-      </div>
-    )
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <div className={styles.quickActions}>
-        <div className={styles.header}>
-          <h3 className={styles.title}>Quick Actions</h3>
-        </div>
-        <div className={styles.error}>
-          <p>Unable to load actions</p>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className={`${styles.quickActions} ${expanded ? styles.expanded : ''}`}>
-      {/* Header */}
-      <div className={styles.header}>
-        <div className={styles.headerContent}>
-          <h3 className={styles.title}>Quick Actions</h3>
-          <div className={styles.statsBadge}>
-            <span>{processedDonors.length} donors</span>
+    <>
+      {/* Toggle Button - Fixed position */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={styles.toggleButton}
+        type="button"
+        aria-label="Toggle quick actions"
+      >
+        <Bars3Icon className={styles.toggleIcon} />
+        <span className={styles.toggleLabel}>Quick Actions</span>
+      </button>
+
+      {/* Overlay */}
+      {isOpen && <div className={styles.overlay} onClick={() => setIsOpen(false)} />}
+
+      {/* Sidebar */}
+      <div className={`${styles.sidebar} ${isOpen ? styles.sidebarOpen : ''}`}>
+        {/* Header */}
+        <div className={styles.header}>
+          <div className={styles.headerContent}>
+            <h3 className={styles.headerTitle}>Quick Actions</h3>
+            <button
+              onClick={() => setIsOpen(false)}
+              className={styles.closeButton}
+              type="button"
+              aria-label="Close sidebar"
+            >
+              <XMarkIcon className={styles.closeIcon} />
+            </button>
           </div>
         </div>
-        <button 
-          className={styles.expandButton}
-          onClick={() => setExpanded(!expanded)}
-        >
-          {expanded ? <XMarkIcon /> : <PlusIcon />}
-        </button>
-      </div>
 
-      {/* Content */}
-      <div className={styles.content}>
-        {/* Donor Search and Selection Section */}
-        <div className={styles.donorSearchSection}>
-          <div className={styles.searchWrapper}>
-            <div className={styles.searchInputContainer}>
+        {/* Content */}
+        <div className={styles.content}>
+          {/* Donor Search Section */}
+          <div className={styles.donorSearch}>
+            <div className={styles.searchInputWrapper}>
               <MagnifyingGlassIcon className={styles.searchIcon} />
               <input
                 type="text"
-                placeholder={processedDonors.length > 0 ? "Search donors..." : "No donors"}
+                placeholder="Search donors..."
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value)
-                  if (e.target.value && !showDonorDropdown) {
-                    setShowDonorDropdown(true)
-                  }
+                  setShowDonorDropdown(true)
                 }}
-                onFocus={() => processedDonors.length > 0 && setShowDonorDropdown(true)}
+                onFocus={() => setShowDonorDropdown(true)}
                 className={styles.searchInput}
-                disabled={processedDonors.length === 0}
               />
-              {selectedDonor && (
-                <button 
-                  onClick={handleClearSelection} 
+              {searchQuery && (
+                <button
+                  onClick={handleClearSelection}
                   className={styles.clearSearchButton}
                   type="button"
                 >
@@ -431,279 +332,260 @@ export default function QuickActions() {
                 </button>
               )}
             </div>
-          </div>
 
-          {/* Filter Buttons */}
-          <div className={styles.filterButtons}>
-            <button
-              type="button"
-              className={`${styles.filterButton} ${filterType === 'all' ? styles.filterButtonActive : ''}`}
-              onClick={() => setFilterType('all')}
-              disabled={processedDonors.length === 0}
-            >
-              All
-            </button>
-            <button
-              type="button"
-              className={`${styles.filterButton} ${filterType === 'highest' ? styles.filterButtonActive : ''}`}
-              onClick={() => setFilterType('highest')}
-              disabled={processedDonors.length === 0}
-            >
-              <CurrencyDollarIcon className={styles.filterIcon} />
-              Top
-            </button>
-            <button
-              type="button"
-              className={`${styles.filterButton} ${filterType === 'lybunt' ? styles.filterButtonActive : ''}`}
-              onClick={() => setFilterType('lybunt')}
-              disabled={processedDonors.length === 0}
-            >
-              <ExclamationTriangleIcon className={styles.filterIcon} />
-              LYBUNT ({donationStats.lybuntDonors})
-            </button>
-            <button
-              type="button"
-              className={`${styles.filterButton} ${filterType === 'sybunt' ? styles.filterButtonActive : ''}`}
-              onClick={() => setFilterType('sybunt')}
-              disabled={processedDonors.length === 0}
-            >
-              <BellAlertIcon className={styles.filterIcon} />
-              SYBUNT ({donationStats.sybuntDonors})
-            </button>
-          </div>
+            {/* Filter Buttons */}
+            <div className={styles.filterButtons}>
+              <button
+                onClick={() => setFilterType('all')}
+                className={`${styles.filterButton} ${filterType === 'all' ? styles.filterButtonActive : ''}`}
+                type="button"
+              >
+                All ({processedDonors.length})
+              </button>
+              <button
+                onClick={() => setFilterType('highest')}
+                className={`${styles.filterButton} ${filterType === 'highest' ? styles.filterButtonActive : ''}`}
+                type="button"
+              >
+                Highest
+              </button>
+              <button
+                onClick={() => setFilterType('lybunt')}
+                className={`${styles.filterButton} ${filterType === 'lybunt' ? styles.filterButtonActive : ''}`}
+                type="button"
+              >
+                LYBUNT ({donationStats.lybuntDonors})
+              </button>
+              <button
+                onClick={() => setFilterType('sybunt')}
+                className={`${styles.filterButton} ${filterType === 'sybunt' ? styles.filterButtonActive : ''}`}
+                type="button"
+              >
+                SYBUNT ({donationStats.sybuntDonors})
+              </button>
+            </div>
 
-          {/* Selected Donor Display */}
-          {selectedDonor && (
-            <div className={styles.selectedDonor}>
-              <div className={styles.selectedDonorContent}>
-                <div className={styles.selectedDonorInitials}>
-                  {getInitials(selectedDonor)}
-                </div>
-                <div className={styles.selectedDonorInfo}>
-                  <p className={styles.selectedDonorName}>{selectedDonor.displayName}</p>
-                  <div className={styles.selectedDonorDetails}>
-                    <span className={styles.selectedDonorEmail}>{selectedDonor.email}</span>
-                    <span className={styles.selectedDonorAmount}>
-                      {formatCurrency(selectedDonor.totalDonations)}
-                    </span>
+            {/* Selected Donor Display */}
+            {selectedDonor && (
+              <div className={styles.selectedDonor}>
+                <div className={styles.selectedDonorContent}>
+                  <div className={styles.selectedDonorInitials}>
+                    {getInitials(selectedDonor)}
+                  </div>
+                  <div className={styles.selectedDonorInfo}>
+                    <p className={styles.selectedDonorName}>{selectedDonor.displayName}</p>
+                    <div className={styles.selectedDonorDetails}>
+                      <span className={styles.selectedDonorEmail}>{selectedDonor.email}</span>
+                      <span className={styles.selectedDonorAmount}>
+                        {formatCurrency(selectedDonor.totalDonations)}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Donor Dropdown */}
-          {showDonorDropdown && filteredDonors.length > 0 && (
-            <div className={styles.donorDropdown}>
-              <div className={styles.dropdownHeader}>
-                <span className={styles.dropdownCount}>
-                  {filteredDonors.length} found
-                </span>
-                <button 
-                  onClick={() => setShowDonorDropdown(false)} 
-                  className={styles.dropdownCloseButton}
-                  type="button"
-                >
-                  <XMarkIcon className={styles.dropdownCloseIcon} />
-                </button>
-              </div>
-
-              <div className={styles.donorList}>
-                {filteredDonors.map((donor) => (
-                  <button
-                    key={donor.id}
-                    className={styles.donorItem}
-                    onClick={() => handleDonorSelect(donor)}
+            {/* Donor Dropdown */}
+            {showDonorDropdown && filteredDonors.length > 0 && (
+              <div className={styles.donorDropdown}>
+                <div className={styles.dropdownHeader}>
+                  <span className={styles.dropdownCount}>
+                    {filteredDonors.length} found
+                  </span>
+                  <button 
+                    onClick={() => setShowDonorDropdown(false)} 
+                    className={styles.dropdownCloseButton}
                     type="button"
                   >
-                    <div className={styles.donorInitials}>
-                      {getInitials(donor)}
-                    </div>
-                    <div className={styles.donorItemInfo}>
-                      <p className={styles.donorItemName}>{donor.displayName}</p>
-                      <div className={styles.donorItemDetails}>
-                        <span className={styles.donorItemEmail}>{donor.email}</span>
-                        <span className={styles.donorItemAmount}>
-                          {formatCurrency(donor.totalDonations)}
+                    <XMarkIcon className={styles.dropdownCloseIcon} />
+                  </button>
+                </div>
+
+                <div className={styles.donorList}>
+                  {filteredDonors.map((donor) => (
+                    <button
+                      key={donor.id}
+                      className={styles.donorItem}
+                      onClick={() => handleDonorSelect(donor)}
+                      type="button"
+                    >
+                      <div className={styles.donorInitials}>
+                        {getInitials(donor)}
+                      </div>
+                      <div className={styles.donorItemInfo}>
+                        <p className={styles.donorItemName}>{donor.displayName}</p>
+                        <div className={styles.donorItemDetails}>
+                          <span className={styles.donorItemEmail}>{donor.email}</span>
+                          <span className={styles.donorItemAmount}>
+                            {formatCurrency(donor.totalDonations)}
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Empty State */}
+            {processedDonors.length === 0 && (
+              <div className={styles.emptyDonors}>
+                <UserGroupIcon className={styles.emptyDonorsIcon} />
+                <p className={styles.emptyDonorsText}>No donors found</p>
+                <a href="/donors/new" className={styles.addDonorButton}>
+                  Add First Donor
+                </a>
+              </div>
+            )}
+          </div>
+
+          {/* Action Content */}
+          {selectedAction ? (
+            // Suggested Action Detail View
+            <div className={styles.actionDetail}>
+              <div className={styles.actionDetailHeader}>
+                <button 
+                  className={styles.backButton}
+                  onClick={() => setSelectedAction(null)}
+                >
+                  ← Back
+                </button>
+                <h4 className={styles.actionDetailTitle}>
+                  {selectedAction.title || 'Action Details'}
+                </h4>
+              </div>
+              <p className={styles.actionDetailDescription}>
+                {selectedAction.description || 'No description available'}
+              </p>
+              {selectedAction.donors && selectedAction.donors.length > 0 && (
+                <div className={styles.actionDonors}>
+                  {selectedAction.donors.slice(0, 3).map(donor => (
+                    <div key={donor.id} className={styles.actionDonor}>
+                      <UserCircleIcon className={styles.actionDonorIcon} />
+                      <div className={styles.actionDonorInfo}>
+                        <span className={styles.actionDonorName}>
+                          {donor.firstName} {donor.lastName}
                         </span>
+                        {donor.totalDonations > 0 && (
+                          <span className={styles.actionDonorAmount}>
+                            {formatCurrency(donor.totalDonations)}
+                          </span>
+                        )}
                       </div>
                     </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Empty State */}
-          {processedDonors.length === 0 && (
-            <div className={styles.emptyDonors}>
-              <UserGroupIcon className={styles.emptyDonorsIcon} />
-              <p className={styles.emptyDonorsText}>No donors found</p>
-              <a href="/donors/new" className={styles.addDonorButton}>
-                Add First Donor
-              </a>
-            </div>
-          )}
-        </div>
-
-        {/* Action Content */}
-        {selectedAction ? (
-          // Suggested Action Detail View
-          <div className={styles.actionDetail}>
-            <div className={styles.actionDetailHeader}>
-              <button 
-                className={styles.backButton}
-                onClick={() => setSelectedAction(null)}
+                  ))}
+                </div>
+              )}
+              <button
+                className={styles.executeButton}
+                onClick={() => handleExecuteSuggestedAction(selectedAction)}
+                disabled={executing}
               >
-                ← Back
+                {executing ? 'Processing...' : 'Execute Action'}
               </button>
-              <h4 className={styles.actionDetailTitle}>
-                {selectedAction.title || 'Action Details'}
-              </h4>
             </div>
-            <p className={styles.actionDetailDescription}>
-              {selectedAction.description || 'No description available'}
-            </p>
-            {selectedAction.donors && selectedAction.donors.length > 0 && (
-              <div className={styles.actionDonors}>
-                {selectedAction.donors.slice(0, 3).map(donor => (
-                  <div key={donor.id} className={styles.actionDonor}>
-                    <UserCircleIcon className={styles.actionDonorIcon} />
-                    <div className={styles.actionDonorInfo}>
-                      <span className={styles.actionDonorName}>
-                        {donor.firstName} {donor.lastName}
-                      </span>
-                      {donor.totalDonations > 0 && (
-                        <span className={styles.actionDonorAmount}>
-                          {formatCurrency(donor.totalDonations)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            <button
-              className={styles.executeButton}
-              onClick={() => handleExecuteSuggestedAction(selectedAction)}
-              disabled={executing}
-            >
-              {executing ? 'Processing...' : 'Execute Action'}
-            </button>
-          </div>
-        ) : selectedDonor ? (
-          // Donor-Specific Quick Actions
-          <div className={styles.donorActionsSection}>
-            <div className={styles.donorActionButtons}>
-              {donorQuickActions.map((action) => {
-                const Icon = action.icon
-                return (
-                  <button
-                    key={action.id}
-                    onClick={() => handleQuickAction(action.id)}
-                    disabled={executing}
-                    className={`${styles.donorActionButton} ${styles[`donorActionButton${action.color.charAt(0).toUpperCase() + action.color.slice(1)}`]}`}
-                    type="button"
-                    title={`${action.label} for ${selectedDonor.displayName}`}
-                  >
-                    <Icon className={styles.donorActionIcon} />
-                    <span>{action.label}</span>
-                  </button>
-                )
-              })}
-            </div>
-            
-            {/* Hint for donor selection */}
-            {!selectedDonor && processedDonors.length > 0 && (
-              <div className={styles.donorSelectionHint}>
-                <p className={styles.donorSelectionHintText}>
-                  Select a donor to enable quick actions
-                </p>
-              </div>
-            )}
-            
-            {/* Clear donor button */}
-            {selectedDonor && (
-              <div className={styles.clearDonorSection}>
-                <button 
-                  onClick={handleClearSelection}
-                  className={styles.clearDonorButton}
-                >
-                  Clear selection
-                </button>
-              </div>
-            )}
-          </div>
-        ) : (
-          // Suggested Actions (when no donor is selected)
-          <>
-            {/* AI Status */}
-            {aiStatus?.isActive && (
-              <div className={styles.aiStatus}>
-                <SparklesIcon className={styles.aiStatusIcon} />
-                <span className={styles.aiStatusText}>
-                  AI Assistant Active
-                </span>
-              </div>
-            )}
-
-            {/* Quick Actions List */}
-            {quickActions && quickActions.length > 0 ? (
-              <div className={styles.suggestedActions}>
-                <h4 className={styles.suggestedActionsTitle}>Suggested Actions</h4>
-                {quickActions.map(action => {
-                  const Icon = getIconComponent(action.icon)
+          ) : selectedDonor ? (
+            // Donor-Specific Quick Actions
+            <div className={styles.donorActionsSection}>
+              <div className={styles.donorActionButtons}>
+                {donorQuickActions.map((action) => {
+                  const Icon = action.icon
                   return (
                     <button
                       key={action.id}
-                      className={styles.suggestedActionItem}
-                      onClick={() => setSelectedAction(action)}
+                      onClick={() => handleQuickAction(action.id)}
+                      disabled={executing}
+                      className={`${styles.donorActionButton} ${styles[`donorActionButton${action.color.charAt(0).toUpperCase() + action.color.slice(1)}`]}`}
+                      type="button"
+                      title={`${action.label} for ${selectedDonor.displayName}`}
                     >
-                      <div className={styles.suggestedActionIcon}>
-                        <Icon />
-                      </div>
-                      <div className={styles.suggestedActionContent}>
-                        <h4 className={styles.suggestedActionTitle}>{action.title}</h4>
-                        <p className={styles.suggestedActionDescription}>
-                          {action.description}
-                        </p>
-                      </div>
-                      <ArrowRightIcon className={styles.suggestedActionArrow} />
+                      <Icon className={styles.donorActionIcon} />
+                      <span>{action.label}</span>
                     </button>
                   )
                 })}
               </div>
-            ) : processedDonors.length > 0 ? (
-              <div className={styles.noActions}>
-                <p className={styles.noActionsText}>
-                  No suggested actions
-                </p>
-                <p className={styles.noActionsSubtext}>
-                  Select a donor to see actions
-                </p>
-              </div>
-            ) : null}
-          </>
-        )}
-      </div>
+              
+              {selectedDonor && (
+                <div className={styles.clearDonorSection}>
+                  <button 
+                    onClick={handleClearSelection}
+                    className={styles.clearDonorButton}
+                  >
+                    Clear selection
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            // Suggested Actions (when no donor is selected)
+            <>
+              {aiStatus?.isActive && (
+                <div className={styles.aiStatus}>
+                  <SparklesIcon className={styles.aiStatusIcon} />
+                  <span className={styles.aiStatusText}>
+                    AI Assistant Active
+                  </span>
+                </div>
+              )}
 
-      {/* Footer Stats */}
-      <div className={styles.footer}>
-        <div className={styles.footerStats}>
-          <div className={styles.footerStat}>
-            <span className={styles.footerStatLabel}>Donors</span>
-            <span className={styles.footerStatValue}>
-              {stats.totalDonors || 0}
-            </span>
-          </div>
-          <div className={styles.footerStat}>
-            <span className={styles.footerStatLabel}>YTD</span>
-            <span className={styles.footerStatValue}>
-              {formatCurrency(stats.yearToDate || 0)}
-            </span>
+              {quickActions && quickActions.length > 0 ? (
+                <div className={styles.suggestedActions}>
+                  <h4 className={styles.suggestedActionsTitle}>Suggested Actions</h4>
+                  {quickActions.map(action => {
+                    const Icon = getIconComponent(action.icon)
+                    return (
+                      <button
+                        key={action.id}
+                        className={styles.suggestedActionItem}
+                        onClick={() => setSelectedAction(action)}
+                      >
+                        <div className={styles.suggestedActionIcon}>
+                          <Icon />
+                        </div>
+                        <div className={styles.suggestedActionContent}>
+                          <h4 className={styles.suggestedActionTitle}>{action.title}</h4>
+                          <p className={styles.suggestedActionDescription}>
+                            {action.description}
+                          </p>
+                        </div>
+                        <ArrowRightIcon className={styles.suggestedActionArrow} />
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : processedDonors.length > 0 ? (
+                <div className={styles.noActions}>
+                  <p className={styles.noActionsText}>
+                    No suggested actions
+                  </p>
+                  <p className={styles.noActionsSubtext}>
+                    Select a donor to see actions
+                  </p>
+                </div>
+              ) : null}
+            </>
+          )}
+        </div>
+
+        {/* Footer Stats */}
+        <div className={styles.footer}>
+          <div className={styles.footerStats}>
+            <div className={styles.footerStat}>
+              <span className={styles.footerStatLabel}>Donors</span>
+              <span className={styles.footerStatValue}>
+                {stats.totalDonors || 0}
+              </span>
+            </div>
+            <div className={styles.footerStat}>
+              <span className={styles.footerStatLabel}>YTD</span>
+              <span className={styles.footerStatValue}>
+                {formatCurrency(stats.yearToDate || 0)}
+              </span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }
