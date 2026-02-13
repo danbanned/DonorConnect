@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./ScheduleMeetingForm.module.css";
 
-export default function ScheduleMeetingForm({ donorId = null, onScheduled = null }) {
+export default function ScheduleMeetingForm({ donorId = null, onScheduled = null, donorName = null }) {
   const router = useRouter();
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
@@ -61,7 +61,7 @@ export default function ScheduleMeetingForm({ donorId = null, onScheduled = null
         donorId,
         userId,           // Automatically passed from session
         title,
-        startsAt,
+        startTime: startsAt,
         endTime,
         duration: Number(duration),
         meetingType,

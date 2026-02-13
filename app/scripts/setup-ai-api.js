@@ -79,7 +79,7 @@ async function testAPI() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      method: 'generateFakeDonorData',
+      method: 'generateFakeDonors',
       params: { count: 5 }
     })
   });

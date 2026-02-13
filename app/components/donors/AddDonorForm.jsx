@@ -176,7 +176,7 @@ export default function AddDonorForm({ onSuccess, onCancel, organizationId }) {
           'x-org-id': organizationId || 'default-org'
         },
         body: JSON.stringify({
-          method: 'generateFakeDonorData',
+          method: 'generateFakeDonors',
           params: {
             count: 1,
             includeCommunications: false,
@@ -188,8 +188,8 @@ export default function AddDonorForm({ onSuccess, onCancel, organizationId }) {
       const result = await response.json()
       console.log('🔮 AI generation result:', result)
       
-      if (result.success && result.data?.donors?.length > 0) {
-        const aiDonor = result.data.donors[0]
+if (result.success && Array.isArray(result.data) && result.data.length > 0) {
+        const aiDonor = result.data[0]
         setAiPreview(aiDonor)
         
         // Fill form with AI data for editing

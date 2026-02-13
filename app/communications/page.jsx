@@ -21,15 +21,14 @@ import {
   UserGroupIcon,
   TrashIcon,
   DocumentTextIcon,
-  DocumentDuplicateIcon
+  DocumentDuplicateIcon,
+  UserIcon
 } from '@heroicons/react/24/outline'
 import './communications.css'
 import TemplatesSection from '../components/communications/TemplatesSection'
 import { templates as templateLibrary } from '../../lib/templates'
 import { useDonations } from '../hooks/usedonation.js'
-
-
-
+import ScheduleMeetingForm from '../components/communications/ScheduleMeetingForm'
 
 const communicationTypes = [
   { id: 'all', name: 'All Communications', icon: ChatBubbleLeftRightIcon },
@@ -52,29 +51,31 @@ const templateCategories = [
 export default function CommunicationsPage() {
   const router = useRouter()
   const [communications, setCommunications] = useState([])
+  const [meetings, setMeetings] = useState([])
   const [loading, setLoading] = useState(true)
+  const [meetingsLoading, setMeetingsLoading] = useState(false)
   const [selectedType, setSelectedType] = useState('all')
   const [timeframe, setTimeframe] = useState('30days')
   const [selectedDonor, setSelectedDonor] = useState(null)
   const [donors, setDonors] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [filteredDonors, setFilteredDonors] = useState([])
-  const [activeTab, setActiveTab] = useState('communications') // 'communications', 'templates', 'history'
-    const { donations, summary, loading: donationsLoading, error: donationsError } = useDonations({ 
-      timeframe,
-      limit: 1000 // Get more donations for better stats
-    })
+  const [activeTab, setActiveTab] = useState('communications')
+  
+  // New meeting states
+  const [showScheduleMeeting, setShowScheduleMeeting] = useState(false)
+  const [selectedDonorId, setSelectedDonorId] = useState(null)
+  const [creatingZoom, setCreatingZoom] = useState(false)
   
   // Template modal states
   const [showTemplateModal, setShowTemplateModal] = useState(false)
   const [selectedTemplateCategory, setSelectedTemplateCategory] = useState('thank_you')
-  const [templates, setTemplates] = useState([])
+  const [templateTemplates, setTemplateTemplates] = useState([])
   const [templateSearch, setTemplateSearch] = useState('')
   
-  // Existing modal states (keeping these)
+  // Existing modal states
   const [showChatModal, setShowChatModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
-  const [showMeetingModal, setShowMeetingModal] = useState(false)
   
   // Chat states
   const [messages, setMessages] = useState([])
@@ -91,18 +92,18 @@ export default function CommunicationsPage() {
     status: 'ACTIVE',
     notes: ''
   })
-  
-  // Meeting form states
-  const [meetingFormData, setMeetingFormData] = useState({
-    title: '',
-    description: '',
-    startTime: '',
-    duration: 30,
-    createZoom: true
+
+  const { donations, summary, loading: donationsLoading, error: donationsError } = useDonations({ 
+    timeframe,
+    limit: 1000
   })
 
-  // Fetch donors and communications
+  const safeTimeframe = timeframe || "30d"
+
+
+  // Fetch donors, communications, and meetings
   useEffect(() => {
+
     async function loadData() {
       try {
         setLoading(true)
@@ -111,15 +112,27 @@ export default function CommunicationsPage() {
         const donorsRes = await fetch('/api/donors/directory')
         if (donorsRes.ok) {
           const donorsData = await donorsRes.json()
-          console.log(donorsData,'asdfgrewerghgrewerthj')
           setDonors(donorsData)
-          setFilteredDonors(donorsData.slice(0, 10)) // Show first 10
+          setFilteredDonors(donorsData.slice(0, 10))
+        }
+        
+        // Fetch communications
+        const commsRes = await fetch(`/api/communications?timeframe=${safeTimeframe}`)
+        if (commsRes.ok) {
+          const commsData = await commsRes.json()
+          setCommunications(commsData.communications)
+          console.log('Communications loaded successfully!', commsData)
         }
 
-        setTemplates(templateLibrary)
-
         
-   
+
+
+
+        // Fetch meetings
+        await loadMeetings()
+
+        setTemplateTemplates(templateLibrary)
+
       } catch (error) {
         console.error('Failed to load data:', error)
       } finally {
@@ -128,6 +141,7 @@ export default function CommunicationsPage() {
     }
     loadData()
   }, [timeframe])
+
 
   // Filter donors based on search
   useEffect(() => {
@@ -151,6 +165,32 @@ export default function CommunicationsPage() {
       loadChatMessages(selectedDonor.id)
     }
   }, [selectedDonor, showChatModal])
+
+  // Load meetings
+  const loadMeetings = async () => {
+    try {
+      setMeetingsLoading(true)
+      const response = await fetch('/api/communications/meetings')
+      
+      if (response.ok) {
+        const result = await response.json()
+        if (result.success) {
+          setMeetings(result.meetings || [])
+        } else {
+          console.error('Failed to load meetings:', result.error)
+          setMeetings([])
+        }
+      } else {
+        console.error('Failed to load meetings:', response.status)
+        setMeetings([])
+      }
+    } catch (error) {
+      console.error('Failed to load meetings:', error)
+      setMeetings([])
+    } finally {
+      setMeetingsLoading(false)
+    }
+  }
 
   const loadChatMessages = async (donorId) => {
     try {
@@ -220,7 +260,7 @@ export default function CommunicationsPage() {
         ))
         
         // Refresh communications list
-        const commsRes = await fetch(`/api/communications?timeframe=${timeframe}`)
+        const commsRes = await fetch(`/api/communications?timeframe=${safeTimeframe}`)
         if (commsRes.ok) {
           setCommunications(await commsRes.json())
         }
@@ -261,49 +301,188 @@ export default function CommunicationsPage() {
     }
   }
 
-  const handleScheduleMeeting = async (e) => {
-    e.preventDefault()
-    if (!selectedDonor) return
-
+  // Handle meeting scheduled callback
+  const handleMeetingScheduled = async (meetingData) => {
     try {
-      const response = await fetch('/api/meetings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          donorId: selectedDonor.id,
-          ...meetingFormData
-        })
-      })
+      console.log('Meeting scheduled:', meetingData)
+      
+      // Refresh meetings list
+      await loadMeetings()
+      
+      // Refresh communications
+      const commsRes = await fetch(`/api/communications?timeframe=${safeTimeframe}`)
+      if (commsRes.ok) {
+        setCommunications(await commsRes.json())
+      }
+      
+      // Close schedule modal
+      setShowScheduleMeeting(false)
+      
+      alert('Meeting scheduled successfully!')
+      
+    } catch (error) {
+      console.error('Failed to handle scheduled meeting:', error)
+      alert('Failed to refresh meetings list')
+    }
+  }
 
-      if (response.ok) {
-        const meeting = await response.json()
-        setShowMeetingModal(false)
-        
-        // Create a communication record for the meeting
-        await fetch('/api/communications', {
+  // Create Zoom meeting and save to database
+  const createZoomMeeting = async () => {
+    try {
+      setCreatingZoom(true)
+      
+      // If donor is selected, use it; otherwise get first available donor
+      let selectedDonorForMeeting = selectedDonor
+      
+      if (!selectedDonorForMeeting && donors.length > 0) {
+        selectedDonorForMeeting = donors[0]
+        setSelectedDonor(selectedDonorForMeeting)
+      }
+      
+      // Validate donor selection
+      if (!selectedDonorForMeeting) {
+        alert('Please select a donor first')
+        setCreatingZoom(false)
+        return
+      }
+      
+      const donorName = `${selectedDonorForMeeting.firstName} ${selectedDonorForMeeting.lastName}`
+      const donorId = selectedDonorForMeeting.id
+      
+      const topic = `Meeting with ${donorName}`
+      const startTime = new Date(Date.now() + 86400000).toISOString() // Tomorrow
+      
+      // Validate required fields
+      if (!donorId) {
+        throw new Error('Missing donor ID')
+      }
+      if (!startTime || isNaN(new Date(startTime).getTime())) {
+        throw new Error('Invalid start time')
+      }
+      
+      try {
+        // 1. Create Zoom meeting via Zoom API
+        const zoomResponse = await fetch('/api/zoom/create', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+          },
           body: JSON.stringify({
-            donorId: selectedDonor.id,
-            type: 'MEETING',
-            direction: 'OUTBOUND',
-            subject: meetingFormData.title,
-            content: `Meeting scheduled for ${new Date(meetingFormData.startTime).toLocaleString()}`,
-            status: 'SENT'
-          })
+            topic,
+            startTime,
+            duration: 30,
+            donorName: donorName
+          }),
         })
+
+        const zoomResult = await zoomResponse.json()
         
-        // Refresh communications
-        const commsRes = await fetch(`/api/communications?timeframe=${timeframe}`)
-        if (commsRes.ok) {
-          setCommunications(await commsRes.json())
+        if (!zoomResponse.ok) {
+          throw new Error(zoomResult?.error || 'Zoom API failed')
+        }
+
+        // Prepare meeting data
+        const meetingData = {
+          donorId: donorId,
+          title: topic.trim(),
+          description: 'Quick Zoom meeting created from communications page',
+          startTime: startTime,
+          duration: 30,
+          meetingType: 'VIRTUAL',
+          zoomMeetingId: zoomResult.meeting?.id,
+          zoomJoinUrl: zoomResult.meeting?.join_url,
+          zoomStartUrl: zoomResult.meeting?.start_url,
+          notes: 'Auto-generated quick Zoom meeting',
+          status: 'SCHEDULED'
+        }
+
+        console.log('Sending meeting data:', meetingData)
+        
+        // 2. Save to database using meetings API
+        const meetingResponse = await fetch('/api/communications/meetings', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(meetingData),
+        })
+
+        const meetingResult = await meetingResponse.json()
+        
+        if (!meetingResponse.ok) {
+          throw new Error(meetingResult?.error || 'Failed to save meeting')
+        }
+
+        alert(`Zoom meeting created successfully!\nJoin URL: ${zoomResult.meeting.join_url}`)
+        await loadMeetings()
+
+      } catch (zoomError) {
+        // If Zoom fails, still create a meeting without Zoom link
+        console.log('Zoom failed, creating meeting without Zoom:', zoomError.message)
+        
+        // Prepare meeting data without Zoom info
+        const meetingData = {
+          donorId: donorId,
+          title: 'Quick Meeting',
+          description: 'Meeting created from communications page',
+          startTime: startTime,
+          duration: 30,
+          meetingType: 'VIRTUAL',
+          notes: 'Auto-generated meeting (Zoom not configured)',
+          status: 'SCHEDULED'
         }
         
-        alert('Meeting scheduled successfully!')
+        const meetingResponse = await fetch('/api/communications/meetings', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(meetingData),
+        })
+
+        const meetingResult = await meetingResponse.json()
+        
+        if (meetingResponse.ok) {
+          alert('Meeting created successfully! (Zoom not configured)')
+          await loadMeetings()
+        } else {
+          throw new Error(meetingResult?.error || 'Failed to save meeting')
+        }
       }
+
     } catch (error) {
-      console.error('Error scheduling meeting:', error)
-      alert('Failed to schedule meeting')
+      console.error('Meeting creation error:', error)
+      alert(error.message || 'Failed to create meeting. Please try again.')
+    } finally {
+      setCreatingZoom(false)
+    }
+  }
+
+
+
+  // Delete meeting
+  const deleteMeeting = async (meetingId) => {
+    if (confirm('Are you sure you want to cancel this meeting?')) {
+      try {
+        const response = await fetch(`/api/communications/meetings?id=${meetingId}`, {
+          method: 'DELETE',
+        })
+        
+        if (response.ok) {
+          const result = await response.json()
+          if (result.success) {
+            await loadMeetings()
+            alert('Meeting cancelled successfully')
+          } else {
+            throw new Error(result.error || 'Failed to delete meeting')
+          }
+        } else {
+          throw new Error('Failed to delete meeting')
+        }
+      } catch (error) {
+        console.error('Failed to delete meeting:', error)
+        alert(error.message || 'Failed to cancel meeting')
+      }
     }
   }
 
@@ -339,6 +518,7 @@ export default function CommunicationsPage() {
 
   const handleDonorSelect = (donor) => {
     setSelectedDonor(donor)
+    setSelectedDonorId(donor.id)
     setEditFormData({
       firstName: donor.firstName,
       lastName: donor.lastName,
@@ -401,7 +581,7 @@ export default function CommunicationsPage() {
       if (response.ok) {
         alert('Message sent successfully using template!')
         // Refresh communications
-        const commsRes = await fetch(`/api/communications?/${timeframe}`)
+        const commsRes = await fetch(`/api/communications?timeframe=${safeTimeframe}`)
         if (commsRes.ok) {
           setCommunications(await commsRes.json())
         }
@@ -412,25 +592,26 @@ export default function CommunicationsPage() {
     }
   }
 
-  const getTemplatesByCategory = (categoryId) => {
-    return templates.filter(template => 
-      template.category === categoryId.toUpperCase()
-    ).slice(0, 3) // Show only 3 templates per category in modal
-  }
+  const filteredTemplates = templateTemplates.filter(template => {
+    const name = template.name?.toLowerCase() ?? ''
+    const content = template.content?.toLowerCase() ?? ''
+    const category = template.category?.toLowerCase() ?? ''
+    const search = templateSearch.toLowerCase()
 
-  const filteredTemplates = templates.filter(template => {
-  const name = template.name?.toLowerCase() ?? ''
-  const content = template.content?.toLowerCase() ?? ''
-  const category = template.category?.toLowerCase() ?? ''
-  const search = templateSearch.toLowerCase()
+    return (
+      name.includes(search) ||
+      content.includes(search) ||
+      category.includes(search)
+    )
+  })
 
-  return (
-    name.includes(search) ||
-    content.includes(search) ||
-    category.includes(search)
+  // Sort meetings by date (most recent first)
+  const sortedMeetings = [...meetings].sort((a, b) => 
+    new Date(b.startTime) - new Date(a.startTime)
   )
-})
 
+  // Get recent meetings (last 5)
+  const recentMeetings = sortedMeetings.slice(0, 5)
 
   if (loading) {
     return (
@@ -454,11 +635,19 @@ export default function CommunicationsPage() {
 
         <div className="header-actions">
           <button 
-            onClick={() => router.push('/communications/new')} 
+            onClick={() => setShowScheduleMeeting(true)}
             className="btn-primary"
           >
-            <PlusIcon className="icon" />
-            New Communication
+            <VideoCameraIcon className="icon" />
+            Schedule Meeting
+          </button>
+
+          <button 
+            onClick={() => router.push('/communications/new')} 
+            className="btn-secondary"
+          >
+            <EnvelopeIcon className="icon" />
+            New Email
           </button>
 
           <button 
@@ -473,7 +662,7 @@ export default function CommunicationsPage() {
 
       {/* Main Content Grid */}
       <div className="main-grid">
-        {/* Left Column - Donors List */}
+       {/* Left Column - Donors List */}
         <div className="donors-sidebar">
           <div className="donor-search">
             <input
@@ -506,9 +695,88 @@ export default function CommunicationsPage() {
             ))}
           </div>
 
-       
+          {/* ADD THIS: Quick Meeting Section - Appears below donors list */}
+          <div className="sidebar-section">
+            <h3 className="sidebar-title">
+              <VideoCameraIcon className="icon" />
+              Quick Actions
+            </h3>
+            <div className="quick-actions">
+              <button
+                onClick={createZoomMeeting}
+                disabled={creatingZoom || !selectedDonor}
+                className="quick-action-btn btn-primary"
+              >
+                {creatingZoom ? (
+                  <>
+                    <div className="spinner-small" />
+                    Creating Zoom...
+                  </>
+                ) : (
+                  <>
+                    <VideoCameraIcon className="icon" />
+                    Quick Zoom with {selectedDonor ? selectedDonor.firstName : 'Donor'}
+                  </>
+                )}
+              </button>
+              
+              {selectedDonor && (
+                <button
+                  onClick={() => setShowScheduleMeeting(true)}
+                  className="quick-action-btn btn-secondary"
+                >
+                  <CalendarIcon className="icon" />
+                  Schedule Meeting with {selectedDonor.firstName}
+                </button>
+              )}
+            </div>
+          </div>
 
-       
+          {/* ADD THIS: Recent Meetings Section - Appears below Quick Actions */}
+          {recentMeetings.length > 0 && (
+            <div className="sidebar-section">
+              <h3 className="sidebar-title">
+                <CalendarIcon className="icon" />
+                Recent Meetings
+              </h3>
+              <div className="recent-meetings">
+                {recentMeetings.map(meeting => (
+                  <div key={meeting.id} className="recent-meeting-item">
+                    <div className="meeting-info">
+                      <strong>{meeting.title}</strong>
+                      <small>with {meeting.donor?.firstName} {meeting.donor?.lastName}</small>
+                      <div className="meeting-time">
+                        <ClockIcon className="icon" />
+                        {new Date(meeting.startTime).toLocaleDateString()} at{' '}
+                        {new Date(meeting.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                    {meeting.zoomJoinUrl && (
+                      <a 
+                        href={meeting.zoomJoinUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="zoom-link"
+                      >
+                        <VideoCameraIcon className="icon" />
+                        Join
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* You can also add a "View All Meetings" link */}
+          <div className="sidebar-footer">
+            <button 
+              onClick={() => setActiveTab('meetings')}
+              className="view-all-link"
+            >
+              View All Meetings →
+            </button>
+          </div>
         </div>
 
 
@@ -522,6 +790,13 @@ export default function CommunicationsPage() {
             >
               <ChatBubbleLeftRightIcon className="icon" />
               Communications
+            </button>
+            <button 
+              className={`content-tab ${activeTab === 'meetings' ? 'active' : ''}`}
+              onClick={() => setActiveTab('meetings')}
+            >
+              <CalendarIcon className="icon" />
+              Meetings
             </button>
             <button 
               className={`content-tab ${activeTab === 'templates' ? 'active' : ''}`}
@@ -564,7 +839,7 @@ export default function CommunicationsPage() {
 
                 <select 
                   className="timeframe-select"
-                  value={timeframe} 
+                  value={safeTimeframe} 
                   onChange={e => setTimeframe(e.target.value)}
                 >
                   <option value="7days">Last 7 days</option>
@@ -632,12 +907,156 @@ export default function CommunicationsPage() {
                     <h3>No communications found</h3>
                     <p>Start building relationships by reaching out to donors</p>
                     <button 
-                      onClick={() => router.push('communications/schedule/')}
+                      onClick={() => setShowTemplateModal(true)}
                       className="btn-primary"
                     >
                       <PlusIcon className="icon" />
                       Send First Message
                     </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'meetings' && (
+            <div className="tab-content">
+              <div className="meetings-section">
+                <div className="meetings-header">
+                  <h3>Scheduled Meetings</h3>
+                  <div className="meetings-actions">
+                    <button
+                      onClick={() => setShowScheduleMeeting(true)}
+                      className="btn-primary"
+                    >
+                      <VideoCameraIcon className="icon" />
+                      Schedule New Meeting
+                    </button>
+                    <button
+                      onClick={createZoomMeeting}
+                      disabled={creatingZoom || !selectedDonor}
+                      className="btn-secondary"
+                    >
+                      {creatingZoom ? (
+                        <>
+                          <div className="spinner-small" />
+                          Creating...
+                        </>
+                      ) : (
+                        <>
+                          <VideoCameraIcon className="icon" />
+                          Quick Zoom
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {meetingsLoading ? (
+                  <div className="loading-container">
+                    <div className="spinner" />
+                    <p>Loading meetings...</p>
+                  </div>
+                ) : (
+                  <div className="meetings-list">
+                    {meetings.length > 0 ? (
+                      <div className="meetings-table-container">
+                        <table className="meetings-table">
+                          <thead>
+                            <tr>
+                              <th>Title</th>
+                              <th>Donor</th>
+                              <th>Date & Time</th>
+                              <th>Duration</th>
+                              <th>Type</th>
+                              <th>Zoom Link</th>
+                              <th>Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {meetings.map((meeting) => (
+                              <tr key={meeting.id}>
+                                <td>
+                                  <div className="meeting-title">{meeting.title}</div>
+                                  <div className="meeting-description">
+                                    {meeting.description || 'No description'}
+                                  </div>
+                                </td>
+                                <td>
+                                  <div className="meeting-donor">
+                                    {meeting.donor?.firstName} {meeting.donor?.lastName}
+                                  </div>
+                                  <div className="meeting-donor-email">
+                                    {meeting.donor?.email || 'No email'}
+                                  </div>
+                                </td>
+                                <td>
+                                  <div className="meeting-date">
+                                    {meeting.startTime ? new Date(meeting.startTime).toLocaleDateString() : 'N/A'}
+                                  </div>
+                                  <div className="meeting-time">
+                                    {meeting.startTime ? new Date(meeting.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                                  </div>
+                                </td>
+                                <td>{meeting.duration || 30} minutes</td>
+                                <td>
+                                  <span className="meeting-type">
+                                    {meeting.meetingType?.toLowerCase() || 'virtual'}
+                                  </span>
+                                </td>
+                                <td>
+                                  {meeting.zoomJoinUrl ? (
+                                    <a 
+                                      href={meeting.zoomJoinUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="zoom-link"
+                                    >
+                                      <VideoCameraIcon className="icon" />
+                                      Join
+                                    </a>
+                                  ) : (
+                                    <span className="no-zoom">No Zoom link</span>
+                                  )}
+                                </td>
+                                <td>
+                                  <div className="meeting-actions">
+                                    <button
+                                      onClick={() => {
+                                        // TODO: Implement edit meeting
+                                        alert('Edit meeting functionality coming soon')
+                                      }}
+                                      className="action-btn edit-btn"
+                                    >
+                                      Edit
+                                    </button>
+                                    <button
+                                      onClick={() => deleteMeeting(meeting.id)}
+                                      className="action-btn delete-btn"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className="empty-state">
+                        <CalendarIcon className="empty-icon" />
+                        <h3>No scheduled meetings</h3>
+                        <p>Schedule your first meeting with a donor</p>
+                        <button
+                          onClick={() => setShowScheduleMeeting(true)}
+                          className="btn-primary"
+                        >
+                          <VideoCameraIcon className="icon" />
+                          Schedule Meeting
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -708,10 +1127,11 @@ export default function CommunicationsPage() {
                     <option value="90days">Last 90 days</option>
                   </select>
                 </div>
+
+              
                 
                 <div className="history-list">
-                  {communications
-                    .filter(comm => comm.status === 'SENT')
+                  {communications.filter(comm => comm.status === 'SENT')
                     .slice(0, 10)
                     .map(comm => {
                       const Icon = getTypeIcon(comm.type)
@@ -740,6 +1160,50 @@ export default function CommunicationsPage() {
           )}
         </div>
       </div>
+
+      {/* Schedule Meeting Modal */}
+      {showScheduleMeeting && (
+        <div className="modal-overlay">
+          <div className="meeting-schedule-modal">
+            <div className="modal-header">
+              <h2>Schedule Meeting</h2>
+              <button 
+                onClick={() => setShowScheduleMeeting(false)}
+                className="close-button"
+              >
+                <XMarkIcon className="icon" />
+              </button>
+            </div>
+
+            <div className="modal-content">
+              {selectedDonor ? (
+                <div className="donor-selected-info">
+                  <UserCircleIcon className="icon" />
+                  <div>
+                    <h4>Meeting with {selectedDonor.firstName} {selectedDonor.lastName}</h4>
+                    <p>{selectedDonor.email} • {selectedDonor.phone || 'No phone'}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="select-donor-alert">
+                  <p>Please select a donor from the left panel to schedule a meeting.</p>
+                </div>
+              )}
+
+              {selectedDonor && (
+                <ScheduleMeetingForm 
+                  donorId={selectedDonor.id}
+                  donorName={`${selectedDonor.firstName} ${selectedDonor.lastName}`}
+                  onScheduled={(meetingData) => {
+                    handleMeetingScheduled(meetingData)
+                    setShowScheduleMeeting(false)
+                  }}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Quick Templates Modal */}
       {showTemplateModal && (
@@ -826,7 +1290,7 @@ export default function CommunicationsPage() {
                     <button 
                       className="btn-primary"
                       onClick={() => {
-                        const thankYouTemplate = templates.find(t => t.name.includes('Thank You'))
+                        const thankYouTemplate = filteredTemplates.find(t => t.name.includes('Thank You'))
                         if (thankYouTemplate) handleSendWithTemplate(thankYouTemplate)
                       }}
                     >
@@ -835,18 +1299,11 @@ export default function CommunicationsPage() {
                     <button 
                       className="btn-secondary"
                       onClick={() => {
-                        const followUpTemplate = templates.find(t => t.name.includes('Follow Up'))
+                        const followUpTemplate = filteredTemplates.find(t => t.name.includes('Follow Up'))
                         if (followUpTemplate) handleUseTemplate(followUpTemplate)
                       }}
                     >
                       Follow Up Message
-                    </button>
-                    <button 
-                      className="btn-secondary"
-                      onClick={() => setActiveTab('templates')}
-                    >
-                      <DocumentDuplicateIcon className="icon" />
-                      See All Templates
                     </button>
                   </div>
                 </div>
@@ -1033,109 +1490,6 @@ export default function CommunicationsPage() {
                   className="btn-primary"
                 >
                   Save Changes
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Schedule Meeting Modal (existing) */}
-      {showMeetingModal && selectedDonor && (
-        <div className="modal-overlay">
-          <div className="meeting-modal">
-            <div className="modal-header">
-              <h2>Schedule Meeting</h2>
-              <button 
-                onClick={() => setShowMeetingModal(false)}
-                className="close-button"
-              >
-                <XMarkIcon className="icon" />
-              </button>
-            </div>
-
-            <form onSubmit={handleScheduleMeeting} className="meeting-form">
-              <div className="form-group">
-                <label>Meeting Title</label>
-                <input
-                  type="text"
-                  value={meetingFormData.title || `Meeting with ${selectedDonor.firstName}`}
-                  onChange={(e) => setMeetingFormData(prev => ({...prev, title: e.target.value}))}
-                  className="form-input"
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Description</label>
-                <textarea
-                  value={meetingFormData.description}
-                  onChange={(e) => setMeetingFormData(prev => ({...prev, description: e.target.value}))}
-                  className="form-textarea"
-                  rows={3}
-                  placeholder="Meeting agenda or notes..."
-                />
-              </div>
-
-              <div className="form-grid">
-                <div className="form-group">
-                  <label>Start Time</label>
-                  <input
-                    type="datetime-local"
-                    value={meetingFormData.startTime}
-                    onChange={(e) => setMeetingFormData(prev => ({...prev, startTime: e.target.value}))}
-                    className="form-input"
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Duration (minutes)</label>
-                  <select
-                    value={meetingFormData.duration}
-                    onChange={(e) => setMeetingFormData(prev => ({...prev, duration: parseInt(e.target.value)}))}
-                    className="form-select"
-                  >
-                    <option value={15}>15 minutes</option>
-                    <option value={30}>30 minutes</option>
-                    <option value={45}>45 minutes</option>
-                    <option value={60}>1 hour</option>
-                    <option value={90}>1.5 hours</option>
-                    <option value={120}>2 hours</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="zoom-option">
-                <input
-                  type="checkbox"
-                  id="createZoom"
-                  checked={meetingFormData.createZoom}
-                  onChange={(e) => setMeetingFormData(prev => ({...prev, createZoom: e.target.checked}))}
-                  className="checkbox"
-                />
-                <label htmlFor="createZoom" className="checkbox-label">
-                  <VideoCameraIcon className="icon" />
-                  <div>
-                    <span>Create Zoom Meeting</span>
-                    <small>A Zoom meeting will be created with the scheduled time</small>
-                  </div>
-                </label>
-              </div>
-
-              <div className="form-actions">
-                <button 
-                  type="button" 
-                  onClick={() => setShowMeetingModal(false)}
-                  className="btn-secondary"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit" 
-                  className="btn-primary"
-                >
-                  Schedule Meeting
                 </button>
               </div>
             </form>

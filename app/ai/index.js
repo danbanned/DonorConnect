@@ -14,6 +14,8 @@ class AIGateway {
         pause: async () => await this.pauseSimulation(),
         getStats: async () => await this.getSimulationStats(),
         getStatus: () => this.getSimulationStatus(),
+        // ✅ Add this line to expose the async method
+        getSimulationStatus: async () => await this.getSimulationStatus(),
         isRunning: () => this.simulationStatus === 'RUNNING'
       },
       bonding: {
@@ -38,6 +40,8 @@ class AIGateway {
       pause: async () => await this.pauseSimulation(),
       getStats: async () => await this.getSimulationStats(),
       // Add other simulation methods...
+      // ✅ Add this line here too
+      getSimulationStatus: async () => await this.getSimulationStatus(),
     };
     
     // Ensure services.simulation points to the simulationService
@@ -176,7 +180,7 @@ class AIGateway {
           'x-org-id': this.organizationId || 'default-org'
         },
         body: JSON.stringify({
-          method: 'getSimulationStats',
+          method: 'getSimulationStatus', // ✅ This is correct - matches your API endpoint
           params: {}
         })
       });
@@ -209,6 +213,7 @@ class AIGateway {
     }
   }
 
+// This is a synchronous method that returns local state
   getSimulationStatus() {
     return {
       status: this.simulationStatus,
@@ -217,6 +222,53 @@ class AIGateway {
       lastUpdate: new Date().toISOString()
     };
   }
+
+  
+
+  // ✅ ADD THIS METHOD - this is what your components are calling
+  async getSimulationStatus() {
+    try {
+      const response = await fetch('/api/ai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-org-id': this.organizationId || 'default-org'
+        },
+        body: JSON.stringify({
+          method: 'getSimulationStatus', // Matches your API endpoint
+          params: {}
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Update local status based on API response
+        if (data.data && data.data.simulations && data.data.simulations.length > 0) {
+          const simulation = data.data.simulations[0];
+          this.simulationStatus = simulation.status === 'running' ? 'RUNNING' : 
+                                 simulation.status === 'paused' ? 'PAUSED' : 'STOPPED';
+        }
+        
+        return {
+          success: true,
+          data: data.data,
+          status: this.simulationStatus
+        };
+      } else {
+        throw new Error(data.error || 'Failed to get simulation status');
+      }
+    } catch (error) {
+      console.error('Error getting simulation status:', error);
+      return {
+        success: false,
+        error: error.message,
+        status: this.simulationStatus
+      };
+    }
+  }
+ 
+
 
   // Add a generic getStatus method for compatibility
   async getStatus() {

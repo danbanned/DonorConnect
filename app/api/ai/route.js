@@ -5,17 +5,218 @@ import { cookies } from 'next/headers';
 import { verifyToken } from '../../../lib/auth.js';
 
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
+const activeSimulations = new Map(); // Store active simulation state
+
+
+// Helper: Generate fake activity based on type
+async function generateFakeActivity(organizationId, donorId, userId, activityType, realism = 0.7) {
+  const activityTemplates = {
+    DONATION: {
+      types: ['DONATION'],
+      actions: ['DONATION_RECEIVED'],
+      title: 'New Donation',
+      getDescription: (amount) => `Received $${amount} donation`,
+      importance: 'HIGH'
+    },
+    COMMUNICATION: {
+      types: ['COMMUNICATION'],
+      actions: ['EMAIL_SENT', 'PHONE_CALL_MADE', 'MEETING_HELD'],
+      title: 'Communication',
+      getDescription: (type) => `${type} with donor`,
+      importance: 'NORMAL'
+    },
+    MEETING: {
+      types: ['MEETING'],
+      actions: ['MEETING_SCHEDULED'],
+      title: 'Meeting Scheduled',
+      getDescription: () => 'Scheduled follow-up meeting',
+      importance: 'HIGH'
+    },
+    TASK: {
+      types: ['TASK'],
+      actions: ['TASK_CREATED'],
+      title: 'New Task',
+      getDescription: () => 'Follow-up task created',
+      importance: 'NORMAL'
+    }
+  };
+
+  const template = activityTemplates[activityType] || activityTemplates.DONATION;
+  const amount = Math.floor(Math.random() * 500) + 50;
+  
+  return {
+    donorId,
+    organizationId,
+    type: template.types[0],
+    action: template.actions[Math.floor(Math.random() * template.actions.length)],
+    title: template.title,
+    description: template.getDescription(amount),
+    amount: activityType === 'DONATION' ? amount : null,
+    importance: template.importance,
+    metadata: {
+      isSimulated: true,
+      realism,
+      generatedAt: new Date().toISOString()
+    }
+  };
+}
+
+
+// Add near the top with other helper functions
+function cleanupStaleSimulations() {
+  const staleThreshold = 30 * 60 * 1000; // 30 minutes
+  const now = Date.now();
+  
+  for (const [id, sim] of activeSimulations.entries()) {
+    if (sim.status === 'running') {
+      const lastTick = sim.lastTickAt ? new Date(sim.lastTickAt).getTime() : sim.startedAt ? new Date(sim.startedAt).getTime() : 0;
+      
+      if (now - lastTick > staleThreshold) {
+        console.log(`Cleaning up stale simulation: ${id}`);
+        if (sim.nextTickTimeout) {
+          clearTimeout(sim.nextTickTimeout);
+        }
+        sim.status = 'stale';
+        activeSimulations.delete(id);
+      }
+    }
+  }
+}
+
+// Run cleanup every 5 minutes
+setInterval(cleanupStaleSimulations, 5 * 60 * 1000);
+
+// Helper: Generate simulation tick
+async function runSimulationTick(simulationId, config) {
+  const { organizationId, userId, donorLimit, speed, activityTypes, realism } = config;
+  const simulation = activeSimulations.get(simulationId);
+  
+  if (!simulation || simulation.status !== 'running') {
+    return;
+  }
+
+  try {
+    // Get or create donors
+    let donors = simulation.donors;
+    if (donors.length === 0) {
+      // Create initial batch of donors
+      donors = [];
+      for (let i = 0; i < Math.min(donorLimit, 20); i++) {
+        const donorData = generateFakeDonor(organizationId, true);
+        const donor = await prisma.donor.create({
+          data: {
+            firstName: donorData.firstName,
+            lastName: donorData.lastName,
+            email: donorData.email,
+            phone: donorData.phone,
+            organizationId,
+            status: donorData.status,
+            preferredContact: donorData.preferredContact,
+            relationshipStage: donorData.relationshipStage,
+            isSimulated: true,
+            notes: donorData.notes,
+            personalNotes: donorData.personalNotes || {}
+          }
+        });
+        donors.push(donor);
+      }
+      simulation.donors = donors;
+    }
+
+    // Generate activities for random donors
+    const activitiesToGenerate = Math.max(1, Math.floor(donors.length * 0.3)); // 30% of donors
+    const selectedDonors = donors
+      .sort(() => 0.5 - Math.random())
+      .slice(0, activitiesToGenerate);
+
+    for (const donor of selectedDonors) {
+      // Select random activity type based on enabled types
+      const enabledTypes = activityTypes.filter(t => t.enabled);
+      if (enabledTypes.length === 0) continue;
+      
+      const activityType = enabledTypes[Math.floor(Math.random() * enabledTypes.length)].type;
+      
+      // Generate activity based on realism factor
+      if (Math.random() <= realism) {
+        const activityData = await generateFakeActivity(
+          organizationId,
+          donor.id,
+          userId,
+          activityType,
+          realism
+        );
+
+        // Create the activity
+        await prisma.donorActivity.create({
+          data: activityData
+        });
+
+        // If donation, also create donation record
+        if (activityType === 'DONATION') {
+          const amount = Math.floor(Math.random() * 500) + 50;
+          await prisma.donation.create({
+            data: {
+              donorId: donor.id,
+              organizationId,
+              amount,
+              date: new Date(),
+              paymentMethod: 'CREDIT_CARD',
+              status: 'COMPLETED',
+              type: 'ONE_TIME',
+              isSimulated: true
+            }
+          });
+        }
+
+        // Create activity feed entry
+        await prisma.activityFeed.create({
+          data: {
+            organizationId,
+            userId,
+            action: activityData.action,
+            title: activityData.title,
+            description: activityData.description,
+            amount: activityData.amount,
+            donorId: donor.id,
+            metadata: {
+              ...activityData.metadata,
+              simulationId
+            },
+            priority: activityData.importance === 'HIGH' ? 'HIGH' : 'NORMAL',
+            isRead: false
+          }
+        });
+      }
+    }
+
+    // Update simulation stats
+    simulation.stats.activitiesGenerated += activitiesToGenerate;
+    simulation.lastTickAt = new Date().toISOString();
+
+    // Schedule next tick based on speed
+    if (simulation.status === 'running') {
+      const tickInterval = Math.max(1000, 10000 / speed); // speed 1 = 10s, speed 10 = 1s
+      simulation.nextTickTimeout = setTimeout(
+        () => runSimulationTick(simulationId, config),
+        tickInterval
+      );
+    }
+  } catch (error) {
+    console.error(`Simulation tick error (${simulationId}):`, error);
+    simulation.error = error.message;
+  }
+}
 
 // Helper: Generate fake donor data
 function generateFakeDonor(organizationId, isSimulated = true) {
-  const firstNames = ['James', 'Mary', 'John', 'Patricia', 'Robert', 'Jennifer', 'Michael', 'Linda'];
-  const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis'];
-  const cities = ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix'];
-  const professions = ['Engineer', 'Doctor', 'Teacher', 'Lawyer', 'Entrepreneur'];
+  const firstNames = ['James', 'Mary', 'John', 'Patricia', 'Robert', 'Jennifer', 'Michael', 'Linda', 'David', 'Sarah', 'Thomas', 'Elizabeth'];
+  const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez', 'Wilson', 'Anderson'];
+  const cities = ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix', 'Philadelphia', 'San Antonio', 'San Diego'];
+  const professions = ['Engineer', 'Doctor', 'Teacher', 'Lawyer', 'Entrepreneur', 'Architect', 'Consultant', 'Executive'];
   
   const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
   const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
-  const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}${Math.floor(Math.random() * 100)}@example.com`;
+  const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}${Math.floor(Math.random() * 1000)}@example.com`;
   
   return {
     organizationId,
@@ -29,11 +230,13 @@ function generateFakeDonor(organizationId, isSimulated = true) {
     isSimulated,
     notes: `Generated by AI system. ${firstName} is interested in our work.`,
     personalNotes: {
-      interests: ['Education', 'Healthcare', 'Environment'].filter(() => Math.random() > 0.5),
+      interests: ['Education', 'Healthcare', 'Environment', 'Arts', 'Animals', 'Veterans']
+        .filter(() => Math.random() > 0.5)
+        .slice(0, Math.floor(Math.random() * 3) + 1),
       givingCapacity: Math.floor(Math.random() * 50000) + 1000,
       lastContact: new Date(Date.now() - Math.random() * 31536000000).toISOString(),
       communicationStyle: ['Formal', 'Casual', 'Direct', 'Conversational'][Math.floor(Math.random() * 4)],
-      motivation: ['Personal connection', 'Tax benefits', 'Social impact', 'Community'][Math.floor(Math.random() * 4)]
+      motivation: ['Personal connection', 'Tax benefits', 'Social impact', 'Community', 'Family legacy'][Math.floor(Math.random() * 5)]
     }
   };
 }
@@ -112,7 +315,6 @@ async function generateDonorResponse(donor, message, history = []) {
 
 // Helper: Generate assistant response
 async function generateAssistantResponse(message, context = {}) {
-  // High-quality fallback responses (used for offline or rate-limited states)
   const fallbackResponses = [
     "Based on donor engagement patterns, focusing on personalized follow-ups within 48 hours often improves retention.",
     "Donors who receive a thank-you touchpoint within 24 hours tend to stay more engaged over time.",
@@ -121,14 +323,12 @@ async function generateAssistantResponse(message, context = {}) {
     "Consistent, thoughtful communication builds trust long before the next donation request."
   ];
 
-  // Helper to return a calm fallback
   const fallback = (confidence = 0.75) => ({
     response: fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)],
     type: 'advice',
     confidence
   });
 
-  // If OpenAI client isn't available, immediately fallback
   if (!openai) {
     return fallback(0.8);
   }
@@ -165,7 +365,6 @@ async function generateAssistantResponse(message, context = {}) {
     };
 
   } catch (error) {
-    // 🔴 Detect rate limit explicitly
     const isRateLimit =
       error?.status === 429 ||
       error?.code === 'rate_limit_exceeded' ||
@@ -176,29 +375,52 @@ async function generateAssistantResponse(message, context = {}) {
       return fallback(0.7);
     }
 
-    // ❌ Unknown error
     console.error('OpenAI error:', error);
     return {
-      response:
-        "I’m having trouble generating a response right now. You might find insight by reviewing recent donor interactions or engagement trends.",
+      response: "I'm having trouble generating a response right now. You might find insight by reviewing recent donor interactions or engagement trends.",
       type: 'general',
       confidence: 0.6
     };
   }
 }
 
+async function generateDonorBrief({ donorId, organizationId, context }) {
+  const donor = await prisma.donor.findFirst({
+    where: { id: donorId, organizationId }
+  });
+
+  if (!donor) {
+    throw new Error('Donor not found');
+  }
+
+  const donations = await prisma.donation.findMany({
+    where: { donorId, organizationId },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  return {
+    donor,
+    stats: {
+      donationCount: donations.length,
+    },
+    activity: [],
+    aiInsights: {},
+    generatedAt: new Date().toISOString()
+  };
+}
 
 export async function POST(request) {
+  let user = null;
+  
   try {
-    // Get token from cookies using your auth library
+    // Get token from cookies
     const token = cookies().get('auth_token')?.value;
     
     if (!token) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify token using your auth library
-    let user;
+    // Verify token
     try {
       user = await verifyToken(token);
     } catch (error) {
@@ -206,25 +428,233 @@ export async function POST(request) {
       return NextResponse.json({ success: false, error: 'Invalid or expired token' }, { status: 401 });
     }
 
-    console.log('HEADERS:', Object.fromEntries(request.headers));
-
     const body = await request.json();
-    const { method, params } = body;
+    const { action, method, params } = body;
+    
+    // Use either action or method for compatibility
+    const apiMethod = action || method;
     const organizationId = user.organizationId;
+    const userId = user.id;
 
-    console.log('AI API Method:', method, 'Organization:', organizationId);
+    console.log('AI API Method:', apiMethod, 'Organization:', organizationId);
 
-    switch (method) {
+    // ============ DONOR MANAGEMENT ============
+      if (apiMethod === 'generateFakeDonors' || apiMethod === 'generateFakeDonors') {
+        const { 
+          count = 5, 
+          isSimulated = true, 
+          includeDonations = true, 
+          includeCommunications = false 
+        } = params || {};
+        
+        const donors = [];
+        
+        for (let i = 0; i < count; i++) {
+          // Generate fake donor data
+          const donorData = generateFakeDonor(organizationId, isSimulated);
+          
+          // Create donor in database with correct schema
+          const donor = await prisma.donor.create({
+            data: {
+              firstName: donorData.firstName,
+              lastName: donorData.lastName,
+              email: donorData.email,
+              phone: donorData.phone,
+              organizationId,
+              status: donorData.status || 'ACTIVE',
+              preferredContact: donorData.preferredContact || 'EMAIL',
+              relationshipStage: donorData.relationshipStage || 'NEW',
+              isSimulated,
+              notes: donorData.notes,
+              personalNotes: donorData.personalNotes || {},
+              
+              // Create address if we have one
+              ...(donorData.address && {
+                address: {
+                  create: {
+                    street: donorData.address.street || `${Math.floor(Math.random() * 9999)} Main St`,
+                    city: donorData.address.city || ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix'][Math.floor(Math.random() * 5)],
+                    state: donorData.address.state || ['NY', 'CA', 'IL', 'TX', 'AZ'][Math.floor(Math.random() * 5)],
+                    zipCode: donorData.address.zipCode || `${Math.floor(Math.random() * 90000) + 10000}`,
+                    country: 'USA'
+                  }
+                }
+              })
+            },
+            include: {
+              address: true
+            }
+          });
+          
+          donors.push(donor);
+          
+          // Create donor activity if we have the relation
+          try {
+            await prisma.donorActivity.create({
+              data: {
+                donorId: donor.id,
+                organizationId,
+                type: 'DONOR_CREATED',
+                action: 'DONOR_GENERATED',
+                title: 'AI Generated Donor',
+                description: `Generated ${donor.firstName} ${donor.lastName} via AI system`,
+                importance: 'NORMAL',
+                metadata: {
+                  isSimulated: true,
+                  generationDate: new Date().toISOString()
+                }
+              }
+            });
+          } catch (activityError) {
+            console.warn('Could not create donor activity:', activityError.message);
+          }
+
+          // Generate fake donations if requested
+          if (includeDonations) {
+            let totalAmount = 0;
+            let donationCount = 0;
+            
+            const numDonations = Math.floor(Math.random() * 3) + 1; // 1-3 donations
+            
+            for (let j = 0; j < numDonations; j++) {
+              const amount = Math.floor(Math.random() * 500) + 50; // $50-$550
+              totalAmount += amount;
+              donationCount++;
+              
+              const donation = await prisma.donation.create({
+                data: {
+                  donorId: donor.id,
+                  organizationId,
+                  amount,
+                  date: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000),
+                  paymentMethod: 'CREDIT_CARD',
+                  status: 'COMPLETED',
+                  type: 'ONE_TIME',
+                  isSimulated: true
+                }
+              });
+
+              // Create donation activity
+              try {
+                await prisma.donorActivity.create({
+                  data: {
+                    donorId: donor.id,
+                    organizationId,
+                    type: 'DONATION',
+                    action: 'DONATION_RECEIVED',
+                    title: 'New Donation',
+                    description: `Received $${amount} donation`,
+                    amount,
+                    relatedDonationId: donation.id,
+                    importance: 'HIGH',
+                    metadata: {
+                      isSimulated: true,
+                      paymentMethod: donation.paymentMethod
+                    }
+                  }
+                });
+              } catch (activityError) {
+                console.warn('Could not create donation activity:', activityError.message);
+              }
+            }
+            
+            // Update donor with donation stats
+            
+          }
+
+          // Generate fake communications if requested
+          if (includeCommunications) {
+            const numCommunications = Math.floor(Math.random() * 2) + 1; // 1-2 communications
+            
+            for (let j = 0; j < numCommunications; j++) {
+              const communicationTypes = ['EMAIL', 'PHONE_CALL', 'MEETING', 'THANK_YOU_NOTE'];
+              const type = communicationTypes[Math.floor(Math.random() * communicationTypes.length)];
+              
+              const communication = await prisma.communication.create({
+                data: {
+                  donorId: donor.id,
+                  organizationId,
+                  userId,
+                  type,
+                  direction: Math.random() > 0.5 ? 'OUTBOUND' : 'INBOUND',
+                  subject: `Follow up with ${donor.firstName}`,
+                  content: `Thank you for your continued support. We appreciate donors like you.`,
+                  status: 'SENT',
+                  sentAt: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000),
+                  isSimulated: true
+                }
+              });
+
+              // Create communication activity
+              try {
+                await prisma.donorActivity.create({
+                  data: {
+                    donorId: donor.id,
+                    organizationId,
+                    type: 'COMMUNICATION',
+                    action: `${type}_SENT`,
+                    title: `${type.replace('_', ' ')} Sent`,
+                    description: `Sent ${type.toLowerCase()} to ${donor.firstName}`,
+                    relatedCommunicationId: communication.id,
+                    importance: 'NORMAL',
+                    metadata: {
+                      isSimulated: true,
+                      communicationType: type,
+                      direction: communication.direction
+                    }
+                  }
+                });
+              } catch (activityError) {
+                console.warn('Could not create communication activity:', activityError.message);
+              }
+            }
+          }
+        }
+
+        // Create activity feed entry
+        try {
+          await prisma.activityFeed.create({
+            data: {
+              organizationId,
+              userId,
+              action: 'DONORS_GENERATED',
+              title: 'AI Generated Donors',
+              description: `Generated ${count} fake donor${count > 1 ? 's' : ''}`,
+              amount: count,
+              metadata: { 
+                count, 
+                simulated: isSimulated,
+                donations: includeDonations,
+                communications: includeCommunications,
+                donorIds: donors.map(d => d.id)
+              },
+              priority: 'NORMAL',
+              isRead: false
+            }
+          });
+        } catch (feedError) {
+          console.warn('Could not create activity feed:', feedError.message);
+        }
+
+        return NextResponse.json({
+          success: true,
+          data: { donors },
+          count: donors.length,
+          message: `Successfully generated ${donors.length} donors`
+        });
+      }
+
+    // Rest of your switch statement...
+    switch (apiMethod) {
       // ============ CHAT METHODS ============
       case 'sendMessage': {
         const { message, context } = params;
         const response = await generateAssistantResponse(message, context);
         
-        // Store in activity feed
         await prisma.activityFeed.create({
           data: {
             organizationId,
-            userId: user.id,
+            userId,
             action: 'AI_CONSULTATION',
             title: 'AI Chat Consultation',
             description: `User asked: "${message.substring(0, 100)}..."`,
@@ -239,6 +669,28 @@ export async function POST(request) {
         });
       }
 
+      case 'generateBrief': {
+        const { donorId, orgId, context } = params;
+
+        if (!donorId || !orgId) {
+          return NextResponse.json(
+            { success: false, error: 'Missing donorId or orgId' },
+            { status: 400 }
+          );
+        }
+
+        const brief = await generateDonorBrief({
+          donorId,
+          organizationId: orgId,
+          context,
+        });
+
+        return NextResponse.json({
+          success: true,
+          data: brief
+        });
+      }
+
       case 'chatWithDonor': {
         const { donorId, message } = params;
         
@@ -250,7 +702,6 @@ export async function POST(request) {
           return NextResponse.json({ success: false, error: 'Donor not found' }, { status: 404 });
         }
 
-        // Get chat history
         const history = await prisma.communication.findMany({
           where: { donorId, organizationId },
           orderBy: { createdAt: 'desc' },
@@ -260,7 +711,6 @@ export async function POST(request) {
 
         const response = await generateDonorResponse(donor, message, history);
 
-        // Store communication
         await prisma.communication.create({
           data: {
             organizationId,
@@ -271,7 +721,7 @@ export async function POST(request) {
             content: `User: ${message}\n\nAI (as ${donor.firstName}): ${response.response}`,
             status: 'SENT',
             sentAt: new Date(),
-            userId: user.id
+            userId
           }
         });
 
@@ -290,105 +740,48 @@ export async function POST(request) {
       }
 
       case 'organizationActivity': {
-          const { limit = 25 } = params || {};
+        const { limit = 25 } = params || {};
 
-          if (!organizationId) {
-            return NextResponse.json(
-              { success: false, error: 'No organization ID' },
-              { status: 400 }
-            );
-          }
+        if (!organizationId) {
+          return NextResponse.json(
+            { success: false, error: 'No organization ID' },
+            { status: 400 }
+          );
+        }
 
-          const activities = await prisma.activityFeed.findMany({
-            where: {
-              organizationId
+        const activities = await prisma.activityFeed.findMany({
+          where: { organizationId },
+          take: limit,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            donor: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true
+              }
             },
-
-            take: limit,
-
-            orderBy: {
-              createdAt: 'desc'
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
             },
-
-            include: {
-              donor: {
-                select: {
-                  id: true,
-                  firstName: true,
-                  lastName: true
-                }
-              },
-
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  email: true
-                }
-              },
-
-              donation: {
-                select: {
-                  id: true,
-                  amount: true,
-                  date: true
-                }
+            donation: {
+              select: {
+                id: true,
+                amount: true,
+                date: true
               }
             }
-          });
-
-          return NextResponse.json({
-            success: true,
-            data: activities,
-            count: activities.length
-          });
-        }
-
-
-      // ============ DONOR MANAGEMENT ============
-      case 'generateFakeDonors': {
-        const { count = 5, isSimulated = true } = params;
-        
-        const donors = [];
-        for (let i = 0; i < count; i++) {
-          const donorData = generateFakeDonor(organizationId, isSimulated);
-          const donor = await prisma.donor.create({
-            data: donorData,
-            include: { address: true }
-          });
-          donors.push(donor);
-          
-          // Create activity
-          await prisma.donorActivity.create({
-            data: {
-              donorId: donor.id,
-              organizationId,
-              type: 'DONOR_CREATED',
-              action: 'DONOR_GENERATED',
-              title: 'AI Generated Donor',
-              description: `Generated ${donor.firstName} ${donor.lastName} via AI system`,
-              importance: 'NORMAL'
-            }
-          });
-        }
-
-        await prisma.activityFeed.create({
-          data: {
-            organizationId,
-            userId: user.id,
-            action: 'DONORS_GENERATED',
-            title: 'AI Generated Donors',
-            description: `Generated ${count} fake donors`,
-            amount: count,
-            metadata: { count, simulated: isSimulated },
-            priority: 'NORMAL'
           }
         });
 
         return NextResponse.json({
           success: true,
-          data: donors,
-          count: donors.length
+          data: activities,
+          count: activities.length
         });
       }
 
@@ -406,7 +799,6 @@ export async function POST(request) {
         const donationAmount = amount || Math.floor(Math.random() * 5000) + 100;
         const paymentMethods = ['CREDIT_CARD', 'BANK_TRANSFER', 'CHECK'];
 
-        // 1️⃣ Ensure the campaign exists
         const campaignRecord = await prisma.campaign.upsert({
           where: {
             organizationId_name: {
@@ -422,7 +814,6 @@ export async function POST(request) {
           }
         });
 
-                
         const donation = await prisma.donation.create({
           data: {
             organizationId,
@@ -432,54 +823,13 @@ export async function POST(request) {
             date: new Date(),
             type: 'ONE_TIME',
             status: 'COMPLETED',
-            campaignId: campaignRecord.id  // ✅ THIS FIXES IT
+            campaignId: campaignRecord.id
           }
         });
 
-        // Update donor status
-        await prisma.donor.update({
-          where: { id: donorId },
-          data: { 
-            status: 'ACTIVE',
-            relationshipStage: 'STEWARDSHIP'
-          }
-        });
-
-        // Create activities
-        await Promise.all([
-          prisma.donorActivity.create({
-            data: {
-              donorId,
-              organizationId,
-              type: 'DONATION',
-              action: 'DONATION_RECEIVED',
-              title: 'New Donation',
-              description: `Received $${donationAmount} donation`,
-              amount: donationAmount,
-              relatedDonationId: donation.id,
-              importance: 'HIGH'
-            }
-          }),
-          prisma.activityFeed.create({
-            data: {
-              organizationId,
-              donorId,
-              userId: user.id,
-              action: 'DONATION_RECEIVED',
-              title: 'New Donation',
-              description: `${donor.firstName} ${donor.lastName} donated $${donationAmount}`,
-              amount: donationAmount,
-              donationId: donation.id,
-              metadata: { campaign, paymentMethod: donation.paymentMethod },
-              priority: 'HIGH'
-            }
-          })
-        ]);
-
-        return NextResponse.json({
-          success: true,
-          data: donation
-        });
+        // Update donor stats
+   
+   
       }
 
       case 'deleteDonor': {
@@ -499,25 +849,12 @@ export async function POST(request) {
           where: { id: donorId }
         });
 
-        await prisma.activityFeed.create({
-          data: {
-            organizationId,
-            userId: user.id,
-            action: 'DONOR_DELETED',
-            title: 'Donor Deleted',
-            description: `Deleted ${donor.firstName} ${donor.lastName} ${wasSimulated ? '(simulated)' : ''}`,
-            metadata: { donor: `${donor.firstName} ${donor.lastName}`, wasSimulated },
-            priority: 'NORMAL'
-          }
-        });
-
         return NextResponse.json({
           success: true,
           data: { wasSimulated }
         });
       }
 
-      // ============ DATA QUERIES ============
       case 'getDonors': {
         const { limit = 50, filters = {} } = params;
         
@@ -560,16 +897,6 @@ export async function POST(request) {
             communications: {
               orderBy: { sentAt: 'desc' },
               take: 10
-            },
-            pledges: {
-              where: { status: 'ACTIVE' }
-            },
-            activities: {
-              orderBy: { createdAt: 'desc' },
-              take: 20
-            },
-            assignedTo: {
-              select: { id: true, name: true, email: true }
             }
           }
         });
@@ -611,7 +938,6 @@ export async function POST(request) {
       }
 
       case 'getRecommendations': {
-        // Get donors who haven't given in 6-12 months
         const lapsedDonors = await prisma.donor.findMany({
           where: {
             organizationId,
@@ -619,7 +945,7 @@ export async function POST(request) {
             donations: {
               none: {
                 date: {
-                  gte: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) // 1 year
+                  gte: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000)
                 }
               }
             }
@@ -629,8 +955,7 @@ export async function POST(request) {
             id: true,
             firstName: true,
             lastName: true,
-
-            donations: { // ✅ Correct relation
+            donations: {
               select: {
                 date: true,
                 amount: true
@@ -658,138 +983,242 @@ export async function POST(request) {
         });
       }
 
-      // ============ SIMULATION CONTROL ============
-      case 'startSimulationFlow': {
-        const { donorCount = 50, interval = 10000 } = params;
-        
-        // Generate initial batch of simulated donors
-        const donors = [];
-        for (let i = 0; i < Math.min(donorCount, 20); i++) {
-          const donorData = generateFakeDonor(organizationId, true);
-          const donor = await prisma.donor.create({
-            data: donorData
-          });
-          donors.push(donor);
+
+        // In your POST function, replace the simulation cases:
+
+          case 'startSimulationFlow':
+          case 'startSimulation': {
+            const { 
+              donorLimit = 50, 
+              speed = 5, 
+              activityTypes = [
+                { type: 'DONATION', enabled: true },
+                { type: 'COMMUNICATION', enabled: true },
+                { type: 'MEETING', enabled: true },
+                { type: 'TASK', enabled: false }
+              ],
+              realism = 0.7,
+              organizationId: paramOrgId
+            } = params || {};
+
+            // Use organizationId from token or from params
+            const targetOrgId = organizationId || paramOrgId;
+            
+            if (!targetOrgId) {
+              return NextResponse.json({
+                success: false,
+                error: 'Organization ID is required'
+              }, { status: 400 });
+            }
+
+            // Generate simulation ID
+            const simulationId = `sim_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            
+            // Check if there's already a running simulation
+            let existingSimulation = null;
+            for (const [id, sim] of activeSimulations.entries()) {
+              if (sim.organizationId === targetOrgId && sim.status === 'running') {
+                existingSimulation = id;
+                break;
+              }
+            }
+
+            if (existingSimulation) {
+              // Stop existing simulation
+              const oldSim = activeSimulations.get(existingSimulation);
+              if (oldSim.nextTickTimeout) {
+                clearTimeout(oldSim.nextTickTimeout);
+              }
+              oldSim.status = 'stopped';
+            }
+
+            // Create new simulation config
+            const simulationConfig = {
+              organizationId: targetOrgId,
+              userId,
+              donorLimit,
+              speed: Math.min(Math.max(speed, 1), 10), // Clamp between 1-10
+              activityTypes,
+              realism: Math.min(Math.max(realism, 0.1), 1) // Clamp between 0.1-1
+            };
+
+            // Initialize simulation state
+            activeSimulations.set(simulationId, {
+              id: simulationId,
+              organizationId: targetOrgId,
+              status: 'running',
+              startedAt: new Date().toISOString(),
+              lastTickAt: null,
+              donors: [],
+              config: simulationConfig,
+              stats: {
+                activitiesGenerated: 0,
+                donationsGenerated: 0,
+                donorsCreated: 0
+              },
+              nextTickTimeout: null
+            });
+
+            // Start first tick
+            runSimulationTick(simulationId, simulationConfig);
+
+            // Log simulation start in activity feed
+            await prisma.activityFeed.create({
+              data: {
+                organizationId: targetOrgId,
+                userId,
+                action: 'SIMULATION_STARTED',
+                title: 'Simulation Started',
+                description: `Started simulation with ${donorLimit} donors, speed ${speed}x`,
+                metadata: {
+                  simulationId,
+                  config: simulationConfig,
+                  timestamp: new Date().toISOString()
+                },
+                priority: 'HIGH',
+                isRead: false
+              }
+            });
+
+            return NextResponse.json({
+              success: true,
+              data: {
+                simulationId,
+                status: 'running',
+                config: simulationConfig,
+                message: 'Simulation started successfully'
+              }
+            });
+          }
+
+          case 'stopSimulation':
+          case 'stopSimulationFlow': {
+            const { simulationId } = params || {};
+            
+            // If no specific simulation ID, stop all for this organization
+            let stoppedCount = 0;
+            
+            for (const [id, sim] of activeSimulations.entries()) {
+              if (sim.organizationId === organizationId && (!simulationId || id === simulationId)) {
+                if (sim.nextTickTimeout) {
+                  clearTimeout(sim.nextTickTimeout);
+                }
+                sim.status = 'stopped';
+                activeSimulations.delete(id);
+                stoppedCount++;
+                
+                // Log simulation stop
+                await prisma.activityFeed.create({
+                  data: {
+                    organizationId,
+                    userId,
+                    action: 'SIMULATION_STOPPED',
+                    title: 'Simulation Stopped',
+                    description: `Simulation ${id} stopped`,
+                    metadata: {
+                      simulationId: id,
+                      timestamp: new Date().toISOString(),
+                      stats: sim.stats
+                    },
+                    priority: 'NORMAL',
+                    isRead: false
+                  }
+                });
+              }
+            }
+
+            return NextResponse.json({
+              success: true,
+              data: {
+                stoppedCount,
+                message: stoppedCount > 0 
+                  ? `Stopped ${stoppedCount} simulation${stoppedCount > 1 ? 's' : ''}` 
+                  : 'No running simulations found'
+              }
+            });
+          }
+
+          case 'getSimulationStatus': {
+            const { simulationId } = params || {};
+            
+            const simulations = [];
+            
+            for (const [id, sim] of activeSimulations.entries()) {
+              if (sim.organizationId === organizationId && (!simulationId || id === simulationId)) {
+                simulations.push({
+                  id,
+                  status: sim.status,
+                  startedAt: sim.startedAt,
+                  lastTickAt: sim.lastTickAt,
+                  donorCount: sim.donors?.length || 0,
+                  config: sim.config,
+                  stats: sim.stats,
+                  error: sim.error
+                });
+              }
+            }
+
+            return NextResponse.json({
+              success: true,
+              data: {
+                simulations,
+                count: simulations.length
+              }
+            });
+          }
+
+              
+
+
+            default:
+              return NextResponse.json({
+                success: false,
+                error: `Unknown method: ${apiMethod}`
+              }, { status: 400 });
+          }
+        } catch (error) {
+          console.error('API Error:', error);
+          return NextResponse.json({
+            success: false,
+            error: error.message || 'Internal server error'
+          }, { status: 500 });
         }
-
-        await prisma.activityFeed.create({
-          data: {
-            organizationId,
-            userId: user.id,
-            action: 'SIMULATION_STARTED',
-            title: 'AI Simulation Started',
-            description: `Started donor simulation with ${donorCount} target donors`,
-            metadata: { donorCount, interval },
-            priority: 'HIGH'
-          }
-        });
-
-        return NextResponse.json({
-          success: true,
-          data: {
-            simulationId: `sim_${Date.now()}`,
-            donorCount: donors.length,
-            status: 'running'
-          }
-        });
       }
 
-      case 'stopSimulation': {
-        await prisma.activityFeed.create({
-          data: {
-            organizationId,
-            userId: user.id,
-            action: 'SIMULATION_STOPPED',
-            title: 'AI Simulation Stopped',
-            description: 'Stopped donor simulation',
-            priority: 'NORMAL'
-          }
-        });
 
-        return NextResponse.json({
-          success: true,
-          data: { message: 'Simulation stopped' }
-        });
-      }
-
-      default:
-        return NextResponse.json({
-          success: false,
-          error: `Unknown method: ${method}`
-        }, { status: 400 });
-    }
-  } catch (error) {
-    console.log('Cookies:', cookies().getAll());
-    console.error('API Error:', error);
-    return NextResponse.json({
-      success: false,
-      error: error.message || 'Internal server error'
-    }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
-  }
-}
 
 export async function GET(request) {
   try {
-    // Get token from cookies
     const token = cookies().get('auth_token')?.value;
     
-    if (!token && process.env.NODE_ENV === 'production') {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    // For development, allow without token but with a warning
     let user = null;
     if (token) {
       try {
         user = await verifyToken(token);
       } catch (error) {
         console.error('Token verification error:', error);
-        if (process.env.NODE_ENV === 'production') {
-          return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 401 });
-        }
       }
     }
-
-    console.log('User:', user);
-    console.log('ORG:', request.headers.get('x-org-id'));
 
     const url = new URL(request.url);
     const method = url.searchParams.get('method');
-    const params = {};
-
-    for (const [key, value] of url.searchParams.entries()) {
-      if (key !== 'method') {
-        try {
-          params[key] = JSON.parse(value);
-        } catch {
-          params[key] = value;
+    
+    if (method === 'health') {
+      return NextResponse.json({
+        success: true,
+        data: {
+          status: 'healthy',
+          timestamp: new Date().toISOString(),
+          version: '1.0.0',
+          authenticated: !!user
         }
-      }
+      });
     }
 
-    switch (method) {
-      case 'health':
-        return NextResponse.json({
-          success: true,
-          data: {
-            status: 'healthy',
-            timestamp: new Date().toISOString(),
-            version: '1.0.0',
-            authenticated: !!user
-          }
-        });
-
-      default:
-        return NextResponse.json({
-          success: false,
-          error: `GET not supported for method: ${method}. Use POST instead.`
-        }, { status: 405 });
-    }
+    return NextResponse.json({
+      success: false,
+      error: `GET not supported for method: ${method}. Use POST instead.`
+    }, { status: 405 });
   } catch (error) {
     console.error('GET API Error:', error);
     return NextResponse.json({

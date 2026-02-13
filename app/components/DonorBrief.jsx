@@ -1,7 +1,7 @@
-// components/DonorBrief.jsx
+// components/DonorBrief.jsx - COMPLETE CORRECTED VERSION
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAI } from '../providers/AIProvider';
 import { 
   DocumentTextIcon, 
@@ -17,42 +17,44 @@ import {
   XMarkIcon,
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
-// At the top of DonorBrief.jsx, add:
 import './DonorBrief.css';
 
-export default function DonorBrief({ donorId, organizationId, onClose, isOpen = false }) {
+export default function DonorBrief({ donor, onClose, isOpen = false }) {
+  const donorId = donor?.id;
+  const organizationId = donor?.organizationId;
+
   const { apiClient } = useAI();
   const [brief, setBrief] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeSection, setActiveSection] = useState('overview');
 
-  const generateBrief = async () => {
-  if (!donorId || !organizationId) {
-    console.error('Missing required params:', { donorId, organizationId });
-    setError('Missing donor ID or organization ID');
-    setLoading(false);
-    return;
-  }
+  // Wrap generateBrief in useCallback to prevent recreation on every render
+  const generateBrief = useCallback(async () => {
+    if (!donorId || !organizationId) {
+      console.error('Missing required params:', { donorId, organizationId });
+      setError('Missing donor ID or organization ID');
+      setLoading(false);
+      return;
+    }
 
-  setLoading(true);
-  setError(null);
+    setLoading(true);
+    setError(null);
     
     try {
-      // Single consolidated API call using the new 'generateBrief' method
       console.log('Testing API directly...');
-      const response = await apiClient.fetchData('generateBrief', { 
-        donorId,
-        orgId: organizationId,
-        context: 'meeting_preparation'
-      });
+        const response = await apiClient.generateBrief(
+          donorId,
+          organizationId,
+          'meeting_preparation'
+        );
+
       
       if (!response.success) {
         throw new Error(response.error || 'Failed to generate donor brief');
       }
       
       if (response.data) {
-        // Use the data from the API
         const fullBrief = {
           donor: response.data.donor || {
             id: donorId,
@@ -102,12 +104,11 @@ export default function DonorBrief({ donorId, organizationId, onClose, isOpen = 
     } finally {
       setLoading(false);
     }
-  };
+  }, [donorId, organizationId, apiClient]);
 
   const createFallbackBrief = (errorMessage = '') => {
     console.log('Creating fallback brief for donor:', donorId);
     
-    // Mock data for testing
     const fallbackBrief = {
       donor: {
         id: donorId,
@@ -218,15 +219,13 @@ export default function DonorBrief({ donorId, organizationId, onClose, isOpen = 
   };
 
   // Debug function to test API directly
-  const testAPIDirectly = async () => {
+  const testAPIDirectly = useCallback(async () => {
     try {
       console.log('Testing API directly with:', { donorId, organizationId });
       
-      // Test both donor API and AI API
       const donorResponse = await fetch(`/api/donors/${donorId}`);
       const donorData = await donorResponse.json();
       
-      // Test AI API
       const aiResponse = await fetch('/api/ai', {
         method: 'POST',
         headers: {
@@ -249,26 +248,31 @@ export default function DonorBrief({ donorId, organizationId, onClose, isOpen = 
       console.error('Direct API test failed:', error);
       return null;
     }
-  };
+  }, [donorId, organizationId]);
 
   useEffect(() => {
-    console.log('DonorBrief mounted with:', { 
-      donorId, 
-      organizationId, 
-      isOpen,
-      hasApiClient: !!apiClient 
-    });
+
+    console.log('DonorBrief debug:', {
+    isOpen,
+    donorId,
+    organizationId,
+    loading, brief, error
+  });
+
+  if (!isOpen) return;    
+
+  if (!donorId || !organizationId) {
+    setLoading(false);
+    setError('Missing donor or organization');
+    return;
+  }
+
+    generateBrief();
     
-    if (isOpen && donorId) {
-      // Generate brief immediately
-      generateBrief();
-      
-      // Optional: Also test the API directly for debugging
-      if (process.env.NODE_ENV === 'development') {
-        testAPIDirectly();
-      }
+    if (process.env.NODE_ENV === 'development') {
+      testAPIDirectly();
     }
-  }, [isOpen, donorId, organizationId]);
+  }, [isOpen, donorId, organizationId, generateBrief, testAPIDirectly]);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
@@ -342,7 +346,6 @@ export default function DonorBrief({ donorId, organizationId, onClose, isOpen = 
     );
   }
 
-  // Check if brief exists and has donor property
   if (!brief || !brief.donor) {
     return (
       <div className="donor-brief-modal">
@@ -373,8 +376,7 @@ export default function DonorBrief({ donorId, organizationId, onClose, isOpen = 
     );
   }
 
-  // Add safe access to donor properties
-  const donorName = brief.donor?.name || 'Donor';
+  const donorName = donor.firstName || 'Donor';
   const donorEmail = brief.donor?.email || 'No email';
   const donorStatus = brief.donor?.status || 'UNKNOWN';
   const donorStage = brief.donor?.relationshipStage || 'NEW';

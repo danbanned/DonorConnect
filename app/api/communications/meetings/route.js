@@ -149,6 +149,14 @@ export async function POST(req) {
 
   const body = await req.json();
 
+   // ADD DEBUG LOGGING
+  console.log('=== BACKEND RECEIVED ===');
+  console.log('Body:', body);
+  console.log('donorId:', body.donorId);
+  console.log('title:', body.title);
+  console.log('startTime:', body.startTime);
+  console.log('=====================');
+
   const {
     donorId,
     title,
@@ -235,7 +243,7 @@ export async function POST(req) {
         organizationId,
         donorId,
 
-        action: 'CREATE', // ✅ ADD THIS
+        action: 'MEETING_SCHEDULED',
 
         title: `Meeting scheduled with ${donor.firstName} ${donor.lastName}`,
 

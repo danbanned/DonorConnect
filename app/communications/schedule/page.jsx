@@ -100,15 +100,77 @@ function ScheduleContent() {
     setSelectedDonor(donor);
   }
 
-  // Handle meeting scheduled callback
-  const handleMeetingScheduled = async (meeting) => {
-    // Refresh meetings list
-    await loadMeetings()
-    // Switch back to list view
-    router.push('/communications/schedule?view=list')
+  // Handle meeting scheduled callback - FIXED VERSION
+  const handleMeetingScheduled = async (formData) => {
+    try {
+      console.log('ScheduleMeetingForm sent:', formData);
+      
+      // Transform the data to match backend expectations
+      const apiData = {
+        donorId: formData.donorId || selectedDonorId,
+        title: formData.title,
+        // Transform startsAt to startTime
+        startTime: formData.startsAt || formData.startTime,
+        duration: formData.duration || 30,
+        meetingType: formData.meetingType || 'VIRTUAL',
+        notes: formData.notes,
+        description: formData.description || '',
+        status: 'SCHEDULED'
+      };
+
+      // Clean up data - remove undefined fields and endTime if present
+      Object.keys(apiData).forEach(key => {
+        if (apiData[key] === undefined || apiData[key] === null) {
+          delete apiData[key];
+        }
+      });
+      
+      // Remove endTime if present (backend calculates it)
+      if (apiData.endTime) {
+        delete apiData.endTime;
+      }
+
+      console.log('Transformed data for API:', apiData);
+
+      // Validate required fields
+      if (!apiData.donorId) {
+        throw new Error('Donor ID is required');
+      }
+      if (!apiData.title) {
+        throw new Error('Meeting title is required');
+      }
+      if (!apiData.startTime) {
+        throw new Error('Start time is required');
+      }
+
+      const response = await fetch('/api/communications/meetings', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(apiData),
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to schedule meeting');
+      }
+
+      alert('Meeting scheduled successfully!');
+      
+      // Refresh meetings list
+      await loadMeetings();
+      // Switch back to list view
+      router.push('/communications/schedule?view=list');
+      
+    } catch (error) {
+      console.error('Failed to schedule meeting:', error);
+      alert(error.message || 'Failed to schedule meeting');
+    }
   }
 
-  // Create Zoom meeting and save to database
+  // Create Zoom meeting and save to database - CORRECTED VERSION
   const createZoomMeeting = async () => {
     try {
       setCreatingZoom(true)
@@ -120,14 +182,34 @@ function ScheduleContent() {
         selectedDonorForMeeting = donors[0];
       }
       
-      // If still no donor, create a generic one
-      const donorName = selectedDonorForMeeting 
-        ? `${selectedDonorForMeeting.firstName} ${selectedDonorForMeeting.lastName}`
-        : 'Donor';
-      const donorId = selectedDonorForMeeting?.id || 'demo-donor-id';
+      // Validate donor selection
+      if (!selectedDonorForMeeting) {
+        alert('Please select a valid donor first');
+        setCreatingZoom(false);
+        return;
+      }
+      
+      const donorName = `${selectedDonorForMeeting.firstName} ${selectedDonorForMeeting.lastName}`;
+      const donorId = selectedDonorForMeeting.id;
       
       const topic = `Meeting with ${donorName}`;
       const startTime = new Date(Date.now() + 86400000).toISOString(); // Tomorrow
+      
+      // DEBUG LOGGING
+      console.log('=== DEBUG Meeting Data ===');
+      console.log('donorId:', donorId);
+      console.log('donorName:', donorName);
+      console.log('startTime:', startTime);
+      console.log('isValid startTime:', !isNaN(new Date(startTime).getTime()));
+      console.log('======================');
+      
+      // Validate required fields
+      if (!donorId) {
+        throw new Error('Missing donor ID');
+      }
+      if (!startTime || isNaN(new Date(startTime).getTime())) {
+        throw new Error('Invalid start time');
+      }
       
       try {
         // 1. Create Zoom meeting via Zoom API
@@ -150,25 +232,31 @@ function ScheduleContent() {
           throw new Error(zoomResult?.error || 'Zoom API failed');
         }
 
+        // Prepare meeting data
+        const meetingData = {
+          donorId: donorId,
+          title: topic.trim(),
+          description: 'Quick Zoom meeting created from schedule page',
+          startTime: startTime,
+          duration: 30,
+          meetingType: 'VIRTUAL',
+          zoomMeetingId: zoomResult.meeting?.id,
+          zoomJoinUrl: zoomResult.meeting?.join_url,
+          zoomStartUrl: zoomResult.meeting?.start_url,
+          notes: 'Auto-generated quick Zoom meeting',
+          status: 'SCHEDULED'
+        };
+
+        // Log what we're sending
+        console.log('Sending meeting data:', meetingData);
+        
         // 2. Save to database using meetings API
         const meetingResponse = await fetch('/api/communications/meetings', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            donorId,
-            title: topic,
-            description: 'Quick Zoom meeting created from schedule page',
-            startTime: startTime,
-            duration: 30,
-            meetingType: 'VIRTUAL', // ✅ CORRECT FIELD
-            zoomMeetingId: zoomResult.meeting.id,
-            zoomJoinUrl: zoomResult.meeting.join_url,
-            zoomStartUrl: zoomResult.meeting.start_url,
-            notes: 'Auto-generated quick Zoom meeting',
-            status: 'SCHEDULED'
-          }),
+          body: JSON.stringify(meetingData),
         });
 
         const meetingResult = await meetingResponse.json();
@@ -184,21 +272,24 @@ function ScheduleContent() {
         // If Zoom fails, still create a meeting without Zoom link
         console.log('Zoom failed, creating meeting without Zoom:', zoomError.message);
         
+        // Prepare meeting data without Zoom info
+        const meetingData = {
+          donorId: donorId,
+          title: 'Quick Meeting',
+          description: 'Meeting created from schedule page',
+          startTime: startTime,
+          duration: 30,
+          meetingType: 'VIRTUAL',
+          notes: 'Auto-generated meeting (Zoom not configured)',
+          status: 'SCHEDULED'
+        };
+        
         const meetingResponse = await fetch('/api/communications/meetings', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            donorId,
-            title: 'Quick Meeting',
-            description: 'Meeting created from schedule page',
-            startTime: startTime,
-            duration: 30,
-            meetingType: 'VIRTUAL', // ✅ CORRECT FIELD
-            notes: 'Auto-generated meeting (Zoom not configured)',
-            status: 'SCHEDULED'
-          }),
+          body: JSON.stringify(meetingData),
         });
 
         const meetingResult = await meetingResponse.json();

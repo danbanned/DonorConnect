@@ -128,6 +128,11 @@ class AIDataClient {
     return this.fetchData('deleteDonor', { donorId }, { usePost: true });
   }
 
+  // ✅ ADD THIS METHOD
+  async getSimulationStatus(params = {}) {
+    return this.fetchData('getSimulationStatus', params, { usePost: true });
+  }
+
   async startSimulationFlow(options = {}) {
     return this.fetchData('startSimulationFlow', options, { usePost: true });
   }
@@ -152,10 +157,21 @@ class AIDataClient {
     return this.fetchData('getRecommendations', { limit }, { usePost: true });
   }
 
+      async generateBrief(donorId, organizationId, context = 'meeting_preparation') {
+      return this.fetchData(
+        'generateBrief',
+        { donorId, orgId: organizationId, context },
+        { usePost: true }
+      );
+    }
+
+
   async checkHealth() {
     return this.fetchData('health', {}, { usePost: false });
   }
 }
+
+
 
 // ==================== CHAT ENGINE ====================
 class ChatEngine {
@@ -388,6 +404,15 @@ export function AIProvider({ children }) {
   const [authError, setAuthError] = useState(null);
   const [user, setUser] = useState(null);
   const [isAuthChecked, setIsAuthChecked] = useState(false);
+  const [simulationPollInterval, setSimulationPollInterval] = useState(null);
+
+  useEffect(() => {
+  return () => {
+    if (simulationPollInterval) {
+      clearInterval(simulationPollInterval);
+    }
+  };
+}, [simulationPollInterval]);
 
   const [status, setStatus] = useState({
     simulation: { isRunning: false, isPaused: false, donorCount: 0 },
@@ -449,6 +474,17 @@ export function AIProvider({ children }) {
       }
     };
   }, [user, isAuthChecked]);
+
+   // ✅ ADD THIS METHOD to your AIProvider
+  const getSimulationStatus = async (params = {}) => {
+    try {
+      const response = await apiClient.getSimulationStatus(params);
+      return response;
+    } catch (error) {
+      console.error('Failed to get simulation status:', error);
+      return { success: false, error: error.message };
+    }
+  };
 
   const initializeSystem = async () => {
     try {
@@ -632,26 +668,75 @@ export function AIProvider({ children }) {
   };
 
   // ============ SIMULATION CONTROL ============
-  const startSimulation = async (options = {}) => {
+  // In AIProvider.jsx, update the startSimulation method:
+const startSimulation = async (options = {}) => {
+  try {
+    setIsLoading(true)
+    
+    // Call the backend API through the apiClient
+    const response = await apiClient.startSimulationFlow(options)
+    
+    if (response.success) {
+      setStatus(prev => ({
+        ...prev,
+        simulation: {
+          ...prev.simulation,
+          isRunning: true,
+          isPaused: false,
+          donorCount: response.data.donorCount || options.donorLimit || 0,
+          simulationId: response.data.simulationId
+        }
+      }))
+      
+      // Start polling for simulation status
+      startSimulationStatusPolling(response.data.simulationId)
+    }
+    
+    return response
+  } catch (error) {
+    console.error('Failed to start simulation:', error)
+    return { success: false, error: error.message }
+  } finally {
+    setIsLoading(false)
+  }
+}
+
+// Add status polling
+const startSimulationStatusPolling = (simulationId) => {
+  const pollInterval = setInterval(async () => {
     try {
-      const response = await simulationEngine.current.start(options);
-      if (response.success) {
+      // Use the context method instead of direct apiClient
+      const response = await getSimulationStatus({ simulationId })
+      
+      if (response.success && response.data?.simulations?.length > 0) {
+        const sim = response.data.simulations[0]
+        
         setStatus(prev => ({
           ...prev,
           simulation: {
             ...prev.simulation,
-            isRunning: true,
-            isPaused: false,
-            donorCount: response.data.donorCount
+            isRunning: sim.status === 'running',
+            isPaused: sim.status === 'paused',
+            donorCount: sim.donorCount || prev.simulation.donorCount,
+            stats: sim.stats,
+            lastTickAt: sim.lastTickAt
           }
-        }));
+        }))
+        
+        // If simulation stopped on backend, update local state and stop polling
+        if (sim.status !== 'running' && prev.status.simulation.isRunning) {
+          clearInterval(pollInterval)
+          setSimulationPollInterval(null)
+        }
       }
-      return response;
     } catch (error) {
-      console.error('Failed to start simulation:', error);
-      throw error;
+      console.error('Failed to poll simulation status:', error)
     }
-  };
+  }, 3000)
+  
+  setSimulationPollInterval(pollInterval)
+}
+
 
   const pauseSimulation = async () => {
     const response = simulationEngine.current.pause();
@@ -680,19 +765,42 @@ export function AIProvider({ children }) {
   };
 
   const stopSimulation = async () => {
-    const response = simulationEngine.current.stop();
+  try {
+    setIsLoading(true)
+    
+    // Clear polling interval
+    if (simulationPollInterval) {
+      clearInterval(simulationPollInterval)
+      setSimulationPollInterval(null)
+    }
+    
+    const response = await apiClient.stopSimulation()
+    
     setStatus(prev => ({
       ...prev,
       simulation: {
         isRunning: false,
         isPaused: false,
-        donorCount: 0
+        donorCount: 0,
+        simulationId: null,
+        stats: null
       }
-    }));
-    return response;
-  };
+    }))
+    
+    return response
+  } catch (error) {
+    console.error('Failed to stop simulation:', error)
+    return { success: false, error: error.message }
+  } finally {
+    setIsLoading(false)
+  }
+}
 
   // ============ DATA QUERIES ============
+  const generateBrief = async (donorId, organizationId, context) => {
+  return apiClient.generateBrief(donorId, organizationId, context);
+};
+
   const getDonors = async (limit = 50, filters = {}) => {
     return apiClient.getDonors(limit, filters);
   };
@@ -742,12 +850,14 @@ export function AIProvider({ children }) {
     generateDonation,
     deleteDonor,
     getDonors,
+    generateBrief,
     
     // Simulation
     startSimulation,
     pauseSimulation,
     resumeSimulation,
     stopSimulation,
+    getSimulationStatus,
     
     // Data
     getRecentActivities,

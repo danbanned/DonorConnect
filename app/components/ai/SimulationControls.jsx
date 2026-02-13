@@ -1,7 +1,7 @@
 // app/components/ai/SimulationControls.jsx
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react'; // Added useRef here
+import React, { useState, useEffect, useRef } from 'react';
 import { useAI } from '../../providers/AIProvider';
 import {
   PlayIcon,
@@ -29,51 +29,130 @@ export default function SimulationControls({
   bulkCreating = false,
   bulkProgress = null,
   simulationSettings = null,
-  onSettingsChange = null
+  onSettingsChange = null,
+  organizationId // Add this prop
 }) {
   const { 
     status,
-    getSimulationStats 
+    getSimulationStatus, 
   } = useAI();
-  
+
+
   const [simulationStats, setSimulationStats] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [orgId, setOrgId] = useState(null);
+
+  // Get organization ID from props or localStorage
+  useEffect(() => {
+    if (organizationId) {
+      setOrgId(organizationId);
+    } else {
+      const storedOrgId = localStorage.getItem('currentOrgId');
+      if (storedOrgId && storedOrgId !== 'default-org') {
+        setOrgId(storedOrgId);
+      }
+    }
+  }, [organizationId]);
 
   // Use a ref to track previous settings and prevent unnecessary updates
   const prevSettingsRef = useRef(simulationSettings);
   
-  // Use settings from props only - don't create separate local state
-  const [localSettings, setLocalSettings] = useState(() => {
-    // Default settings - MUST match Dashboard defaults exactly
-    const defaults = {
-      speed: 'normal',
-      donorCount: 20,
-      activityTypes: ['donations', 'communications', 'profile_updates'],
-      realism: 'high',
-      autoGenerate: true,
-      autoSave: false
-    };
+  // Default settings - MUST match what backend expects
+  const defaultSettings = {
+    speed: 5, // Changed to numeric to match backend
+    donorCount: 20,
+    activityTypes: [
+      { type: 'DONATION', enabled: true },
+      { type: 'COMMUNICATION', enabled: true },
+      { type: 'MEETING', enabled: true },
+      { type: 'TASK', enabled: false }
+    ],
+    realism: 0.7, // Changed to numeric to match backend
+    autoGenerate: true,
+    autoSave: false
+  };
 
-    // Only use simulationSettings if it's different from defaults
-    // This prevents the initial render loop
-    if (simulationSettings && 
-        JSON.stringify(simulationSettings) !== JSON.stringify(defaults)) {
-      return simulationSettings;
+  // Local settings state
+  const [localSettings, setLocalSettings] = useState(() => {
+    // Try to load from localStorage first
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('simulationSettings');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {
+          console.error('Failed to parse saved settings:', e);
+        }
+      }
     }
-    
-    return defaults;
+    return defaultSettings;
   });
 
+  // Convert frontend speed/realism to backend format
+  const getBackendSettings = () => {
+    let speedValue = 5; // default normal
+    
+    if (localSettings.speed === 'slow') speedValue = 1;
+    else if (localSettings.speed === 'normal') speedValue = 5;
+    else if (localSettings.speed === 'fast') speedValue = 10;
+    else if (typeof localSettings.speed === 'number') speedValue = localSettings.speed;
+    
+    let realismValue = 0.7; // default high
+    
+    if (localSettings.realism === 'low') realismValue = 0.3;
+    else if (localSettings.realism === 'medium') realismValue = 0.5;
+    else if (localSettings.realism === 'high') realismValue = 0.8;
+    else if (typeof localSettings.realism === 'number') realismValue = localSettings.realism;
+    
+    // Convert activity types array to backend format
+    let activityTypesArray = [];
+    
+    if (Array.isArray(localSettings.activityTypes)) {
+      // Check if it's already in backend format (objects with type/enabled)
+      if (localSettings.activityTypes.length > 0 && typeof localSettings.activityTypes[0] === 'object') {
+        activityTypesArray = localSettings.activityTypes;
+      } else {
+        // Convert from simple array to backend format
+        const typeMap = {
+          'donations': 'DONATION',
+          'communications': 'COMMUNICATION',
+          'profile_updates': 'PROFILE_UPDATE',
+          'meetings': 'MEETING',
+          'tasks': 'TASK'
+        };
+        
+        activityTypesArray = [
+          { type: 'DONATION', enabled: localSettings.activityTypes.includes('donations') },
+          { type: 'COMMUNICATION', enabled: localSettings.activityTypes.includes('communications') },
+          { type: 'MEETING', enabled: localSettings.activityTypes.includes('meetings') },
+          { type: 'TASK', enabled: localSettings.activityTypes.includes('tasks') }
+        ];
+      }
+    }
+    
+    return {
+      donorLimit: localSettings.donorCount,
+      speed: speedValue,
+      activityTypes: activityTypesArray,
+      realism: realismValue,
+      organizationId: orgId
+    };
+  };
 
-  // and it's different from our current state
+  // Save settings to localStorage when they change
   useEffect(() => {
-    // Skip if simulationSettings is null or unchanged
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('simulationSettings', JSON.stringify(localSettings));
+    }
+  }, [localSettings]);
+
+  // Update from parent props if provided
+  useEffect(() => {
     if (!simulationSettings || 
         JSON.stringify(simulationSettings) === JSON.stringify(prevSettingsRef.current)) {
       return;
     }
     
-    // Only update if there's a meaningful difference
     if (JSON.stringify(simulationSettings) !== JSON.stringify(localSettings)) {
       console.log('Settings updated from parent:', simulationSettings);
       setLocalSettings(simulationSettings);
@@ -81,28 +160,10 @@ export default function SimulationControls({
     }
   }, [simulationSettings, localSettings]);
 
-    const organizationId = localStorage.getItem('currentOrgId') || 'default-org';
-
-
-  // Always notify parent when settings change
-  // Always notify parent when settings change
-  const updateSettings = (newSettings) => {
-    console.log('Updating settings:', newSettings);
-    setLocalSettings(newSettings);
-    
-    // Immediately notify parent
-    if (onSettingsChange && 
-        JSON.stringify(newSettings) !== JSON.stringify(prevSettingsRef.current)) {
-      onSettingsChange(newSettings);
-      prevSettingsRef.current = newSettings;
-    }
-  };
-
   // Load initial stats
   useEffect(() => {
     loadStats();
     
-    // Set up interval to update stats every 5 seconds
     const interval = setInterval(() => {
       if (status?.simulation?.isRunning) {
         loadStats();
@@ -112,28 +173,54 @@ export default function SimulationControls({
     return () => clearInterval(interval);
   }, [status?.simulation?.isRunning]);
 
-  const loadStats = async () => {
-    try {
-      const stats = await getSimulationStats();
-      if (stats) {
-        setSimulationStats(stats);
-      }
-    } catch (error) {
-      console.error('Error loading simulation stats:', error);
+const loadStats = async () => {
+  try {
+    // getSimulationStatus is now available from useAI()
+    const response = await getSimulationStatus();
+    
+    if (response.success) {
+      // Extract stats from the response
+      const simulations = response.data?.simulations || [];
+      const activeSim = simulations[0] || {};
+      
+      setSimulationStats({
+        activeDonors: activeSim.donorCount || simulatedDonors.length || 0,
+        totalDonations: activeSim.stats?.donationsGenerated || 0,
+        totalActivities: activeSim.stats?.activitiesGenerated || getSimulatedActivitiesCount(),
+        speed: activeSim.config?.speed || localSettings.speed,
+        status: activeSim.status,
+        startedAt: activeSim.startedAt
+      });
+    }
+  } catch (error) {
+    console.error('Error loading simulation stats:', error);
+  }
+};
+
+  const updateSettings = (newSettings) => {
+    console.log('Updating settings:', newSettings);
+    setLocalSettings(newSettings);
+    
+    if (onSettingsChange && 
+        JSON.stringify(newSettings) !== JSON.stringify(prevSettingsRef.current)) {
+      onSettingsChange(newSettings);
+      prevSettingsRef.current = newSettings;
     }
   };
 
   const handleStartSimulation = async () => {
+    if (!orgId) {
+      console.error('No organization ID available');
+      return;
+    }
+    
     setIsLoading(true);
     try {
+      const backendSettings = getBackendSettings();
+      console.log('Starting simulation with settings:', backendSettings);
+      
       if (onStartSimulation) {
-        await onStartSimulation({
-          donorLimit: localSettings.donorCount,
-          speed: localSettings.speed,
-          activityTypes: localSettings.activityTypes,
-          realism: localSettings.realism,
-          organizationId
-        });
+        await onStartSimulation(backendSettings);
       }
     } catch (error) {
       console.error('Failed to start simulation:', error);
@@ -169,12 +256,17 @@ export default function SimulationControls({
   };
 
   const handleGenerateTestData = async () => {
+    if (!orgId) {
+      console.error('No organization ID available');
+      return;
+    }
+    
     setIsLoading(true);
     try {
       if (onGenerateTestData) {
         await onGenerateTestData({
           count: localSettings.donorCount,
-          organizationId,
+          organizationId: orgId,
           autoSave: localSettings.autoSave
         });
       }
@@ -200,6 +292,8 @@ export default function SimulationControls({
     return simulatedActivities.filter(activity => activity.isSimulated).length;
   };
 
+  const isSimulationRunning = status?.simulation?.isRunning || false;
+
   return (
     <div className="simulation-controls">
       <div className="simulation-header">
@@ -208,9 +302,14 @@ export default function SimulationControls({
           <h3>AI Donor Simulation</h3>
         </div>
         <div className="simulation-status">
-          <div className={`status-indicator ${status?.simulation?.isRunning ? 'running' : 'stopped'}`}>
-            {status?.simulation?.isRunning ? 'Running' : 'Stopped'}
+          <div className={`status-indicator ${isSimulationRunning ? 'running' : 'stopped'}`}>
+            {isSimulationRunning ? 'Running' : 'Stopped'}
           </div>
+          {!orgId && (
+            <div className="status-warning">
+              No organization selected
+            </div>
+          )}
           {simulatedDonors.length > 0 && (
             <div className="generated-donors-badge">
               <UserGroupIcon className="badge-icon" />
@@ -234,7 +333,7 @@ export default function SimulationControls({
           <div className="bulk-manager-actions">
             <button 
               onClick={handleBulkCreate}
-              disabled={bulkCreating}
+              disabled={bulkCreating || !orgId}
               className={`btn-bulk ${bulkCreating ? 'creating' : ''}`}
             >
               {bulkCreating ? (
@@ -330,7 +429,7 @@ export default function SimulationControls({
         <div className="action-buttons">
           <button 
             onClick={handleStartSimulation}
-            disabled={isLoading || status?.simulation?.isRunning}
+            disabled={isLoading || isSimulationRunning || !orgId}
             className="btn-start"
           >
             <PlayIcon className="btn-icon" />
@@ -339,7 +438,7 @@ export default function SimulationControls({
           
           <button 
             onClick={handlePauseSimulation}
-            disabled={isLoading || !status?.simulation?.isRunning}
+            disabled={isLoading || !isSimulationRunning}
             className="btn-pause"
           >
             <PauseIcon className="btn-icon" />
@@ -348,7 +447,7 @@ export default function SimulationControls({
           
           <button 
             onClick={handleStopSimulation}
-            disabled={isLoading || !status?.simulation?.isRunning}
+            disabled={isLoading || !isSimulationRunning}
             className="btn-stop"
           >
             <StopIcon className="btn-icon" />
@@ -358,7 +457,7 @@ export default function SimulationControls({
         
         <button 
           onClick={handleGenerateTestData}
-          disabled={isLoading}
+          disabled={isLoading || !orgId}
           className="btn-generate"
         >
           <ArrowPathIcon className="btn-icon" />
@@ -378,7 +477,7 @@ export default function SimulationControls({
             <select 
               value={localSettings.speed}
               onChange={(e) => updateSettings({...localSettings, speed: e.target.value})}
-              disabled={status?.simulation?.isRunning}
+              disabled={isSimulationRunning}
             >
               <option value="slow">Slow (1x)</option>
               <option value="normal">Normal (5x)</option>
@@ -391,7 +490,7 @@ export default function SimulationControls({
             <select 
               value={localSettings.donorCount}
               onChange={(e) => updateSettings({...localSettings, donorCount: parseInt(e.target.value)})}
-              disabled={status?.simulation?.isRunning}
+              disabled={isSimulationRunning}
             >
               <option value="5">5 Donors</option>
               <option value="10">10 Donors</option>
@@ -406,11 +505,11 @@ export default function SimulationControls({
             <select 
               value={localSettings.realism}
               onChange={(e) => updateSettings({...localSettings, realism: e.target.value})}
-              disabled={status?.simulation?.isRunning}
+              disabled={isSimulationRunning}
             >
-              <option value="low">Low (Simple)</option>
-              <option value="medium">Medium (Balanced)</option>
-              <option value="high">High (Realistic)</option>
+              <option value="low">Low (30%)</option>
+              <option value="medium">Medium (50%)</option>
+              <option value="high">High (80%)</option>
             </select>
           </div>
           
@@ -420,7 +519,7 @@ export default function SimulationControls({
                 type="checkbox"
                 checked={localSettings.autoGenerate}
                 onChange={(e) => updateSettings({...localSettings, autoGenerate: e.target.checked})}
-                disabled={status?.simulation?.isRunning}
+                disabled={isSimulationRunning}
               />
               Auto-generate data
             </label>
@@ -432,7 +531,7 @@ export default function SimulationControls({
                 type="checkbox"
                 checked={localSettings.autoSave}
                 onChange={(e) => updateSettings({...localSettings, autoSave: e.target.checked})}
-                disabled={status?.simulation?.isRunning}
+                disabled={isSimulationRunning}
               />
               Auto-save to database
             </label>
@@ -442,23 +541,26 @@ export default function SimulationControls({
         <div className="activity-types">
           <label>Activity Types to Simulate:</label>
           <div className="activity-checkboxes">
-            {['donations', 'communications', 'profile_updates'].map((type) => (
-              <div key={type} className="activity-checkbox">
+            {[
+              { id: 'donations', label: 'Donations', type: 'DONATION' },
+              { id: 'communications', label: 'Communications', type: 'COMMUNICATION' },
+              { id: 'meetings', label: 'Meetings', type: 'MEETING' },
+              { id: 'tasks', label: 'Tasks', type: 'TASK' }
+            ].map((activity) => (
+              <div key={activity.id} className="activity-checkbox">
                 <label>
                   <input 
                     type="checkbox"
-                    checked={localSettings.activityTypes.includes(type)}
+                    checked={localSettings.activityTypes.includes(activity.id)}
                     onChange={(e) => {
                       const newTypes = e.target.checked
-                        ? [...localSettings.activityTypes, type]
-                        : localSettings.activityTypes.filter(t => t !== type);
+                        ? [...localSettings.activityTypes, activity.id]
+                        : localSettings.activityTypes.filter(t => t !== activity.id);
                       updateSettings({...localSettings, activityTypes: newTypes});
                     }}
-                    disabled={status?.simulation?.isRunning}
+                    disabled={isSimulationRunning}
                   />
-                  {type.split('_').map(word => 
-                    word.charAt(0).toUpperCase() + word.slice(1)
-                  ).join(' ')}
+                  {activity.label}
                 </label>
               </div>
             ))}

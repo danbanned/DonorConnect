@@ -88,12 +88,16 @@ const simulationEventEmitter = new SimulationEventEmitter()
 export default function DashboardPage() {
   const router = useRouter()
   const { 
-    aiSystem, 
-    status: aiStatus, 
-    apiClient,
-    isSimulationRunning,
-    simulationStats
-  } = useAI()
+  startSimulation, 
+  stopSimulation, 
+  pauseSimulation,
+  resumeSimulation,
+  isSimulationRunning,
+  simulationStats,
+  aiSystem,
+  status: aiStatus, 
+  apiClient
+} = useAI()
 
   const [timeframe, setTimeframe] = useState('year')
   const [activityFeed, setActivityFeed] = useState([])
@@ -106,6 +110,7 @@ export default function DashboardPage() {
   const [simulationEvents, setSimulationEvents] = useState([])
   const [localSettings, setLocalSettings] = useState(null)
   const [isClient, setIsClient] = useState(false)
+  const [orgId, setOrgId] = useState(null)
   
   // Initialize client-side state
   useEffect(() => {
@@ -185,10 +190,9 @@ export default function DashboardPage() {
   // Simulate generating donor data (for testing)
   const simulateDonorGeneration = useCallback(async (count = 10) => {
     try {
-      const orgId = localStorage.getItem('currentOrgId') || 'default-org'
       
       // Generate fake donor data through your AI API
-      const result = await apiClient.fetchData('generateFakeDonorData', {
+      const result = await apiClient.fetchData('generateFakeDonors', {
         count,
         includeCommunications: false,
         includeDonations: true
@@ -225,7 +229,6 @@ export default function DashboardPage() {
     setBulkProgress({ status: 'preparing', total: donorsToCreate.length })
 
     try {
-      const orgId = localStorage.getItem('currentOrgId') || 'default-org'
       
       // Prepare donors for bulk creation
       const preparedDonors = prepareDonorsForBulk(donorsToCreate)
@@ -488,12 +491,21 @@ export default function DashboardPage() {
         status: donor.status || 'ACTIVE',
         relationshipStage: donor.relationshipStage || 'NEW',
         notes: donor.notes || donor.personalNotes?.notes || '',
-        organizationId: donor.organizationId,
+        organizationId: donor.organizationId || null,
         createdAt: donor.createdAt ? new Date(donor.createdAt) : new Date(),
         updatedAt: donor.updatedAt ? new Date(donor.updatedAt) : new Date()
       }
     })
   }, [donors, donations])
+
+    useEffect(() => {
+      const organizeId = donors?.[0]?.organizationId
+
+      if (organizeId) {
+        setOrgId(organizeId)
+      }
+    }, [donors])
+
 
   // Helper functions
   const formatCurrency = (amount) => {
@@ -669,13 +681,12 @@ export default function DashboardPage() {
   // Test function to manually trigger donor generation
   const handleTestDonorGeneration = useCallback(async (count = null) => {
     try {
-      const orgId = localStorage.getItem('currentOrgId') || 'default-org'
       const donorCount = count || localSettings?.donorCount || 10
       
       console.log(`🔮 Generating ${donorCount} donors...`)
       
       // Generate fake donor data through your AI API
-      const result = await apiClient.fetchData('generateFakeDonorData', {
+      const result = await apiClient.fetchData('generateFakeDonors', {
         count: donorCount,
         includeCommunications: false,
         includeDonations: true
@@ -761,37 +772,28 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* Simulation Panel */}
-      {showSimulationPanel && isClient && (
-        <div className={styles.simulationPanel}>
-          <SimulationControls 
-            simulatedDonors={simulatedDonors}
-            simulatedActivities={simulatedActivities.filter(a => a.isSimulated)}
-            onStartSimulation={async (settings) => {
-              console.log('Start simulation:', settings)
-            }}
-            onStopSimulation={async () => {
-              console.log('Stop simulation')
-            }}
-            onPauseSimulation={async () => {
-              console.log('Pause simulation')
-            }}
-            onGenerateTestData={async (settings) => {
-              // Simplified version for debugging
-              console.log('Generate test data with settings:', settings)
-              const count = settings?.count || localSettings?.donorCount || 10
-              await handleTestDonorGeneration(count)
-            }}
-            onBulkCreate={handleBulkCreateDonors}
-            bulkCreating={bulkCreating}
-            bulkProgress={bulkProgress}
-            simulationSettings={localSettings}
-            onSettingsChange={(newSettings) => {
-              setLocalSettings(newSettings)
-            }}
-          />
-        </div>
-      )}
+    {/* Simulation Panel */}
+    {showSimulationPanel && isClient && (
+      <div className={styles.simulationPanel}>
+        <SimulationControls 
+          simulatedDonors={simulatedDonors}
+          simulatedActivities={simulatedActivities.filter(a => a.isSimulated)}
+          onStartSimulation={startSimulation}  // ✅ Just pass the handler, don't wrap it
+          onStopSimulation={stopSimulation}    // ✅ Just pass the handler
+          onPauseSimulation={pauseSimulation}  // ✅ Just pass the handler
+          onGenerateTestData={async (settings) => {
+            const count = settings?.count || localSettings?.donorCount || 10
+            await handleTestDonorGeneration(count)
+          }}
+          onBulkCreate={handleBulkCreateDonors}
+          bulkCreating={bulkCreating}
+          bulkProgress={bulkProgress}
+          simulationSettings={localSettings}
+          onSettingsChange={setLocalSettings}
+          organizationId={orgId}
+        />
+      </div>
+    )}  
 
       {/* Bulk Donor Manager */}
       {simulatedDonors.length > 0 && (
