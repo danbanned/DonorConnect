@@ -1,0 +1,1037 @@
+/* ============================================
+   CampaignDetail.css
+   Styles for Campaign Details Page
+   Matches campaigns/page.jsx styling
+   ============================================ */
+
+/* --------------------------------------------
+   Layout & Container
+-------------------------------------------- */
+.campaign-detail-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+  min-height: 100vh;
+  background: #f9fafb;
+}
+
+/* --------------------------------------------
+   Loading & Error States
+-------------------------------------------- */
+.loading-container,
+.error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+  border: 1px solid #e5e7eb;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 1rem;
+}
+
+.spinner-small {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #e5e7eb;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  margin-right: 0.5rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+.error-icon {
+  width: 48px;
+  height: 48px;
+  color: #ef4444;
+  margin-bottom: 1rem;
+}
+
+.error-container h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 0.5rem;
+}
+
+.error-container p {
+  color: #6b7280;
+  margin-bottom: 1.5rem;
+}
+
+/* --------------------------------------------
+   Header
+-------------------------------------------- */
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #6b7280;
+  font-size: 0.875rem;
+  text-decoration: none;
+  transition: color 0.2s;
+  width: fit-content;
+}
+
+.back-link:hover {
+  color: #3b82f6;
+}
+
+.back-link .icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.title-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.campaign-type-icon-large {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.campaign-type-icon-large svg {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.title-with-status {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.title-with-status h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+  letter-spacing: -0.025em;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+/* --------------------------------------------
+   Buttons - Matching campaigns/page.jsx
+-------------------------------------------- */
+.btn-primary,
+.btn-secondary,
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: #3b82f6;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #2563eb;
+}
+
+.btn-primary:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: white;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.btn-secondary:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.btn-secondary:disabled {
+  background: #f3f4f6;
+  color: #9ca3af;
+  border-color: #e5e7eb;
+  cursor: not-allowed;
+}
+
+.btn-danger {
+  background: #ef4444;
+  color: white;
+}
+
+.btn-danger:hover {
+  background: #dc2626;
+}
+
+.btn-danger:disabled {
+  background: #fca5a5;
+  cursor: not-allowed;
+}
+
+.icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* --------------------------------------------
+   Status Badges - Matching campaigns/page.jsx
+-------------------------------------------- */
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  width: fit-content;
+}
+
+.status-active {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-draft {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.status-completed {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.status-archived {
+  background: #e5e7eb;
+  color: #6b7280;
+}
+
+/* --------------------------------------------
+   Stats Grid - Matching campaigns/page.jsx
+-------------------------------------------- */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.stat-icon {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stat-icon svg {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.stat-content {
+  flex: 1;
+}
+
+.stat-label {
+  display: block;
+  font-size: 0.75rem;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  margin-bottom: 0.25rem;
+}
+
+.stat-value {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.2;
+}
+
+/* --------------------------------------------
+   Progress Section
+-------------------------------------------- */
+.progress-section {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.progress-header h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.progress-percentage {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #3b82f6;
+}
+
+.progress-bar-large {
+  height: 0.75rem;
+  background: #e5e7eb;
+  border-radius: 9999px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.progress-fill-large {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.3s ease;
+}
+
+.progress-details {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.progress-detail {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.detail-label {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.detail-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+/* --------------------------------------------
+   Info Grid
+-------------------------------------------- */
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.info-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.info-card h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 1rem 0;
+}
+
+.info-card h3 .icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: #3b82f6;
+}
+
+.description-card p {
+  color: #374151;
+  line-height: 1.6;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.date-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.date-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.date-label {
+  font-size: 0.875rem;
+  color: #6b7280;
+  min-width: 80px;
+}
+
+.date-value {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #111827;
+}
+
+.days-remaining {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: #fef3c7;
+  color: #92400e;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  width: fit-content;
+}
+
+.days-remaining.completed {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.days-remaining .icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.quick-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.quick-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px dashed #e5e7eb;
+}
+
+.quick-stat:last-child {
+  border-bottom: none;
+}
+
+.quick-stat .stat-label {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.quick-stat .stat-number {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+/* --------------------------------------------
+   Charts Section - Matching campaigns/page.jsx
+-------------------------------------------- */
+.charts-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.chart-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.chart-header h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.chart-subtitle {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.chart-container {
+  height: 300px;
+  width: 100%;
+}
+
+.pie-chart-container {
+  height: 250px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.no-chart-data {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 250px;
+  color: #9ca3af;
+  text-align: center;
+}
+
+.no-data-icon {
+  width: 3rem;
+  height: 3rem;
+  margin-bottom: 0.5rem;
+  color: #d1d5db;
+}
+
+/* --------------------------------------------
+   Recent Donations Section
+-------------------------------------------- */
+.recent-donations-section {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.section-header h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.view-all-link {
+  color: #3b82f6;
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+
+.view-all-link:hover {
+  text-decoration: underline;
+}
+
+.loading-small {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 2rem;
+  color: #6b7280;
+}
+
+/* --------------------------------------------
+   Donations Table - Matching campaigns/page.jsx
+-------------------------------------------- */
+.donations-table-container {
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+
+.donations-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.donations-table th {
+  background: #f9fafb;
+  color: #374151;
+  font-weight: 600;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.donations-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  color: #374151;
+}
+
+.donations-table tr:last-child td {
+  border-bottom: none;
+}
+
+.donations-table tr:hover td {
+  background: #f9fafb;
+}
+
+.donor-link {
+  color: #3b82f6;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.donor-link:hover {
+  text-decoration: underline;
+}
+
+.amount-cell {
+  font-weight: 600;
+  color: #111827;
+}
+
+.status-badge-small {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.688rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-completed {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-failed {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.status-refunded {
+  background: #e5e7eb;
+  color: #4b5563;
+}
+
+/* --------------------------------------------
+   Empty Donations
+-------------------------------------------- */
+.empty-donations {
+  text-align: center;
+  padding: 3rem;
+  color: #6b7280;
+}
+
+.empty-icon {
+  width: 3rem;
+  height: 3rem;
+  color: #d1d5db;
+  margin-bottom: 1rem;
+}
+
+.empty-donations p {
+  margin-bottom: 1.5rem;
+}
+
+/* --------------------------------------------
+   Pagination - Matching campaigns/page.jsx
+-------------------------------------------- */
+.pagination-small {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.pagination-btn-small {
+  padding: 0.375rem 0.75rem;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pagination-btn-small:hover:not(:disabled) {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.pagination-btn-small:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page-info-small {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+/* --------------------------------------------
+   Modals - Matching campaigns/page.jsx
+-------------------------------------------- */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  background: white;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.campaign-modal {
+  max-width: 700px;
+}
+
+.delete-modal {
+  max-width: 400px;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 10;
+}
+
+.modal-header h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  padding: 0.5rem;
+  border-radius: 6px;
+  color: #6b7280;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.close-button:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.close-button .icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* --------------------------------------------
+   Forms - Matching campaigns/page.jsx
+-------------------------------------------- */
+.modal-form {
+  padding: 1.5rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.form-group.full-width {
+  grid-column: span 2;
+}
+
+.form-group label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #374151;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+  padding: 0.625rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: #111827;
+  background: white;
+  transition: all 0.2s;
+  width: 100%;
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.25rem;
+  padding-right: 2rem;
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+/* --------------------------------------------
+   Delete Modal
+-------------------------------------------- */
+.delete-content {
+  padding: 2rem 1.5rem;
+  text-align: center;
+}
+
+.delete-icon {
+  width: 3rem;
+  height: 3rem;
+  color: #ef4444;
+  margin-bottom: 1rem;
+}
+
+.delete-content p {
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.delete-content strong {
+  color: #111827;
+}
+
+.warning-text {
+  font-size: 0.75rem;
+  color: #ef4444;
+  font-weight: 500;
+}
+
+.delete-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+/* --------------------------------------------
+   Responsive Design
+-------------------------------------------- */
+@media (max-width: 1024px) {
+  .charts-section {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .campaign-detail-page {
+    padding: 1rem;
+  }
+
+  .detail-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+
+  .title-section {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .header-actions {
+    flex-wrap: wrap;
+  }
+
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .progress-details {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-group.full-width {
+    grid-column: span 1;
+  }
+
+  .modal-content {
+    max-width: 100%;
+    margin: 1rem;
+  }
+
+  .donations-table {
+    font-size: 0.75rem;
+  }
+
+  .donations-table th,
+  .donations-table td {
+    padding: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .title-with-status h1 {
+    font-size: 1.5rem;
+  }
+
+  .delete-actions {
+    flex-direction: column;
+  }
+
+  .delete-actions .btn-secondary,
+  .delete-actions .btn-danger {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .pagination-small {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}

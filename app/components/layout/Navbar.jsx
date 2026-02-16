@@ -38,6 +38,8 @@ const navigation = [
   { name: 'Communications', href: '/communications', icon: EnvelopeIcon },
   { name: 'Insights', href: '/insights', icon: ChartBarIcon },
   { name: 'AI Dashboard', href: '/dashboard/AiDashboard', icon: SparklesIcon },
+  { name: 'Campaigns', href: '/campaigns', icon: ClockIcon },
+
 ]
 
 export default function Navbar() {
