@@ -3,18 +3,24 @@ export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
 import prisma from '../../../lib/db'
+import { cookies } from 'next/headers'
+import { verifyToken } from '../../../lib/auth'
+import { hasPermission } from '../../../lib/access-control'
 
 export async function GET(request) {
   try {
-    const headers = request.headers
-    const organizationId = headers.get('x-organization-id')
-
-    if (!organizationId) {
+    const token = cookies().get('auth_token')?.value
+    if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const user = await verifyToken(token)
+    if (!user?.orgId || !hasPermission(user, 'view_audit_logs')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     const logs = await prisma.auditLog.findMany({
-      where: { organizationId },
+      where: { organizationId: user.orgId },
       orderBy: { createdAt: 'desc' },
       take: 100
     })

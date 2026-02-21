@@ -1,0 +1,50 @@
+.section {
+  padding: 96px 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.card {
+  background: var(--dc-card);
+  border: 1px solid var(--dc-border);
+  border-radius: 12px;
+  padding: 1.15rem;
+}
+
+.stars {
+  margin-bottom: 0.5rem;
+}
+
+.quote {
+  font-style: italic;
+  color: #334155;
+}
+
+.name {
+  font-weight: 700;
+  margin-bottom: 0.1rem;
+}
+
+.role {
+  color: #64748b;
+  font-size: 0.92rem;
+}
+
+.link {
+  color: var(--dc-accent);
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .section {
+    padding: 48px 0;
+  }
+}

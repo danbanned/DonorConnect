@@ -36,14 +36,21 @@ export async function GET(request) {
 
     // Authentication
     const token = cookies().get('auth_token')?.value
-    let user = null
-    
-    if (token) {
-      try {
-        user = await verifyToken(token)
-      } catch (error) {
-        console.error('Token verification error:', error)
-      }
+    if (!token) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    let user
+    try {
+      user = await verifyToken(token)
+    } catch {
+      return NextResponse.json(
+        { success: false, error: 'Invalid token' },
+        { status: 401 }
+      )
     }
 
     const { searchParams } = new URL(request.url)
@@ -56,7 +63,21 @@ export async function GET(request) {
     const donorIdsParam = searchParams.get('donorIds')
     const donorId = searchParams.get('donorId')
     const campaignId = searchParams.get('campaignId')
-    const organizationId = searchParams.get('organizationId') || user?.organizationId
+    const requestedOrganizationId = searchParams.get('organizationId')
+    const organizationId = user?.orgId
+    if (!organizationId) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    if (requestedOrganizationId && requestedOrganizationId !== organizationId) {
+      return NextResponse.json(
+        { success: false, error: 'Forbidden organization scope' },
+        { status: 403 }
+      )
+    }
     const status = searchParams.get('status')
     const type = searchParams.get('type')
     const minAmount = searchParams.get('minAmount')
@@ -155,6 +176,7 @@ export async function GET(request) {
       minAmount,
       maxAmount,
       includeSimulated,
+      assignedToUserId: user.role === 'viewer' ? user.userId : null,
       sortBy,
       sortOrder
     }
@@ -264,12 +286,19 @@ export async function POST(request) {
     }
 
     // Use organization from authenticated user if not provided
-    const organizationId = data.organizationId || user.organizationId
+    const organizationId = user.orgId
 
     if (!organizationId) {
       return NextResponse.json(
         { success: false, error: 'organizationId is required' },
         { status: 400 }
+      )
+    }
+
+    if (data.organizationId && data.organizationId !== organizationId) {
+      return NextResponse.json(
+        { success: false, error: 'Forbidden organization scope' },
+        { status: 403 }
       )
     }
 
@@ -377,7 +406,7 @@ export async function PUT(request) {
     }
 
     const data = await request.json()
-    const organizationId = user.organizationId
+    const organizationId = user.orgId
 
     // Update the donation
     const donation = await updateDonation(id, organizationId, data)
@@ -460,7 +489,7 @@ export async function DELETE(request) {
       )
     }
 
-    const organizationId = user.organizationId
+    const organizationId = user.orgId
 
     // Delete the donation
     const donation = await deleteDonation(id, organizationId)

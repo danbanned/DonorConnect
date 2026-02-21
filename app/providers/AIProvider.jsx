@@ -26,6 +26,13 @@ async function getSession() {
   }
 }
 
+function redirectToLoginSafely() {
+  if (typeof window === 'undefined') return
+  const publicAuthRoutes = ['/login', '/sign-in', '/register', '/forgot-password', '/reset-password']
+  if (publicAuthRoutes.includes(window.location.pathname)) return
+  window.location.assign('/login')
+}
+
 
 class AIDataClient {
   constructor(baseUrl = '/api/ai') {
@@ -41,7 +48,7 @@ class AIDataClient {
       if (!session?.user) {
         // Clear any existing auth token
         document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-        window.location.href = '/login';
+        redirectToLoginSafely();
         return { success: false, error: 'Not authenticated', requiresAuth: true };
       }
       
@@ -59,7 +66,7 @@ class AIDataClient {
         if (response.status === 401) {
           // Clear auth token and redirect
           document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-          window.location.href = '/login';
+          redirectToLoginSafely();
           return { success: false, error: 'Unauthorized', requiresAuth: true };
         }
 
@@ -87,7 +94,7 @@ class AIDataClient {
 
         if (response.status === 401) {
           document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-          window.location.href = '/login';
+          redirectToLoginSafely();
           return { success: false, error: 'Unauthorized', requiresAuth: true };
         }
         

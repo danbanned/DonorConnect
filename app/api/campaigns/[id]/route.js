@@ -23,7 +23,13 @@ export async function GET(request, { params }) {
       }, { status: 401 })
     }
 
-    const organizationId = user.organizationId
+    const organizationId = user.orgId
+    if (!organizationId) {
+      return NextResponse.json({
+        success: false,
+        error: 'Unauthorized organization scope'
+      }, { status: 401 })
+    }
     const { id } = params
 
     const campaign = await prisma.campaign.findFirst({
@@ -122,7 +128,13 @@ export async function PUT(request, { params }) {
       }, { status: 401 })
     }
 
-    const organizationId = user.organizationId
+    const organizationId = user.orgId
+    if (!organizationId) {
+      return NextResponse.json({
+        success: false,
+        error: 'Unauthorized organization scope'
+      }, { status: 401 })
+    }
     const { id } = params
     const data = await request.json()
 
@@ -207,7 +219,13 @@ export async function DELETE(request, { params }) {
       }, { status: 401 })
     }
 
-    const organizationId = user.organizationId
+    const organizationId = user.orgId
+    if (!organizationId) {
+      return NextResponse.json({
+        success: false,
+        error: 'Unauthorized organization scope'
+      }, { status: 401 })
+    }
     const { id } = params
 
     // Verify campaign exists

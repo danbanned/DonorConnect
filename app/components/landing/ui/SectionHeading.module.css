@@ -1,0 +1,26 @@
+.headingWrap {
+  text-align: center;
+  max-width: 720px;
+  margin: 0 auto 2rem;
+}
+
+.eyebrow {
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dc-primary);
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+}
+
+.title {
+  color: var(--dc-text);
+  font-size: clamp(1.7rem, 2.6vw, 2.35rem);
+  margin-bottom: 0.75rem;
+}
+
+.description {
+  color: #475569;
+  font-size: 1.05rem;
+  margin: 0;
+}

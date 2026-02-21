@@ -7,6 +7,7 @@ import jwt from 'jsonwebtoken'
 import validator from 'validator'
 import prisma from '../../../../lib/db'
 import { sendWelcomeEmail, sendAdminNotification } from '../../../../lib/api/email.js'
+import { toUserContext } from '../../../../lib/access-control'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production'
 
@@ -277,11 +278,13 @@ export async function POST(request) {
     const response = NextResponse.json({
       success: true,
       message: 'Registration successful! Your account has been created.',
-      user: {
+      user: toUserContext({
         id: result.user.id,
+        userId: result.user.id,
         email: result.user.email,
         name: result.user.name,
         role: result.user.role,
+        organizationId: result.organization.id,
         organization: {
           id: result.organization.id,
           name: result.organization.name,
@@ -290,7 +293,7 @@ export async function POST(request) {
           trialEndsAt: result.organization.trialEndsAt,
           createdAt: result.organization.createdAt
         }
-      },
+      }),
       nextSteps: [
         'Check your email for a welcome message',
         'Complete your profile setup',

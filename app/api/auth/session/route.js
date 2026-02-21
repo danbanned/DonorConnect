@@ -4,12 +4,9 @@ export const runtime = 'nodejs'
 
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import jwt from 'jsonwebtoken';
 import prisma from '../../../../lib/db'
-
-
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+import { verifyToken } from '../../../../lib/auth'
+import { toUserContext } from '../../../../lib/access-control'
 
 export async function GET(request) {
   try {
@@ -20,12 +17,10 @@ export async function GET(request) {
       return NextResponse.json({ user: null });
     }
     
-    // Verify token
-    let decoded;
+    let verifiedUser
     try {
-      decoded = jwt.verify(token, JWT_SECRET);
+      verifiedUser = await verifyToken(token)
     } catch (error) {
-      // Token is invalid or expired
       return NextResponse.json({ user: null });
     }
     
@@ -58,14 +53,19 @@ export async function GET(request) {
     
     // Return user data (without sensitive info)
     const user = session.user;
+    const contextUser = toUserContext({
+      ...verifiedUser,
+      id: user.id,
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      organizationId: user.organizationId,
+      organization: user.organization
+    })
+
     return NextResponse.json({
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        organization: user.organization
-      },
+      user: contextUser,
       lastActivityAt: session.lastActivityAt
     });
     

@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs' // Change from 'bcrypt' to 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import validator from 'validator'
 import prisma from '../../../../lib/db'
+import { toUserContext } from '../../../../lib/access-control'
 
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production'
@@ -170,13 +171,15 @@ export async function POST(request) {
     // Create response
     const response = NextResponse.json({
       success: true,
-      user: {
+      user: toUserContext({
         id: user.id,
+        userId: user.id,
         email: user.email,
         name: user.name,
         role: user.role,
+        organizationId: user.organizationId,
         organization: user.organization
-      }
+      })
     })
 
     // Set cookies
@@ -252,13 +255,15 @@ export async function GET(request) {
     // Return user information including login name (email)
     return NextResponse.json({
       success: true,
-      user: {
+      user: toUserContext({
         id: user.id,
-        email: user.email, // This is the login name
+        userId: user.id,
+        email: user.email,
         name: user.name,
         role: user.role,
+        organizationId: user.organization?.id,
         organization: user.organization
-      }
+      })
     })
 
   } catch (error) {

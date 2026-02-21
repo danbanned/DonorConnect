@@ -3,8 +3,30 @@
 
 import { createContext, useContext, useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
+import { hasPermission, isAdminRole } from '../../lib/access-control'
 
 const AuthContext = createContext({})
+const PUBLIC_ROUTES = ['/', '/login', '/register', '/forgot-password', '/reset-password']
+
+function getPostLoginRoute(user) {
+  if (!user) return '/login'
+  return '/dashboard'
+}
+
+function canAccessPath(user, pathname) {
+  if (PUBLIC_ROUTES.includes(pathname)) return true
+  if (!user) return false
+
+  if (pathname.startsWith('/settings')) {
+    return hasPermission(user, 'access_settings')
+  }
+
+  if (pathname.startsWith('/admin')) {
+    return isAdminRole(user.role)
+  }
+
+  return true
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
@@ -18,9 +40,7 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     // Check session on route changes (except for public routes)
-    if (!['/login', '/register', '/forgot-password', '/reset-password'].includes(pathname)) {
-      checkSession()
-    }
+    checkSession()
   }, [pathname])
 
   const checkSession = async () => {
@@ -30,11 +50,21 @@ export function AuthProvider({ children }) {
       
       if (response.ok && data.user) {
         setUser(data.user)
+
+        if (PUBLIC_ROUTES.includes(pathname) && pathname !== '/') {
+          router.push(getPostLoginRoute(data.user))
+          return
+        }
+
+        if (!canAccessPath(data.user, pathname)) {
+          router.push(getPostLoginRoute(data.user))
+          return
+        }
       } else {
         setUser(null)
         
         // Redirect to login if on protected page
-        if (!['/login', '/register', '/forgot-password', '/reset-password'].includes(pathname)) {
+        if (!PUBLIC_ROUTES.includes(pathname)) {
           router.push(`/login?redirect=${encodeURIComponent(pathname)}`)
         }
       }
@@ -58,6 +88,7 @@ export function AuthProvider({ children }) {
 
       if (response.ok) {
         setUser(data.user)
+        router.push(getPostLoginRoute(data.user))
         return { success: true, user: data.user }
       } else {
         return { success: false, error: data.error }

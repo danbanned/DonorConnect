@@ -1,0 +1,40 @@
+.strip {
+  padding: 2.6rem 0;
+  background: var(--dc-card);
+  border-top: 1px solid var(--dc-border);
+  border-bottom: 1px solid var(--dc-border);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+}
+
+.item {
+  text-align: center;
+  padding: 1rem;
+}
+
+.value {
+  color: var(--dc-primary);
+  font-size: clamp(2.1rem, 5vw, 4.1rem);
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 0.45rem;
+}
+
+.label {
+  color: #334155;
+  text-transform: uppercase;
+  font-weight: 600;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,148 @@
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  background: linear-gradient(90deg, #0b4f6c 0%, #0e5c7d 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 20px rgba(2, 30, 43, 0.2);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 76px;
+  gap: 1rem;
+}
+
+.logoWrap {
+  display: flex;
+  flex-direction: column;
+  color: #ffffff;
+}
+
+.logo {
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  font-size: 1.02rem;
+}
+
+.tagline {
+  font-size: 0.74rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.dropdown {
+  position: relative;
+}
+
+.navLink {
+  color: rgba(255, 255, 255, 0.92);
+  font-weight: 600;
+  font-size: 0.92rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 0.38rem 0.72rem;
+}
+
+.navButton {
+  background: transparent;
+  cursor: pointer;
+}
+
+.navLink:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+.dropdownMenu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 220px;
+  background: #ffffff;
+  border: 1px solid var(--dc-border);
+  border-radius: 12px;
+  box-shadow: 0 14px 28px rgba(2, 30, 43, 0.2);
+  padding: 0.45rem;
+  z-index: 70;
+}
+
+.dropdownOpen {
+  display: block;
+}
+
+.dropdownItem {
+  display: block;
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  color: #1f2937;
+}
+
+.dropdownItem:hover {
+  background: #eef6fb;
+}
+
+.loginBtn {
+  border-color: rgba(255, 255, 255, 0.4) !important;
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.loginBtn:hover {
+  background: rgba(255, 255, 255, 0.16) !important;
+}
+
+.signupBtn {
+  font-weight: 800 !important;
+  letter-spacing: 0.02em;
+  box-shadow: 0 8px 20px rgba(255, 107, 74, 0.35);
+}
+
+.menuBtn {
+  display: none;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-radius: 8px;
+  padding: 0.45rem 0.65rem;
+}
+
+@media (max-width: 900px) {
+  .menuBtn {
+    display: block;
+  }
+
+  .nav {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 76px;
+    background: linear-gradient(180deg, #0f5f7f 0%, #0b4f6c 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 1rem 4%;
+  }
+
+  .dropdownMenu {
+    position: static;
+    box-shadow: none;
+    border: 1px solid rgba(203, 213, 225, 0.7);
+    margin-top: 0.35rem;
+  }
+
+  .open {
+    display: flex;
+  }
+}
