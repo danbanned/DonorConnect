@@ -1,0 +1,53 @@
+.hero {
+  background: radial-gradient(circle at 75% 10%, rgba(255, 179, 71, 0.15), transparent 45%);
+  padding: 96px 0;
+  text-align: center;
+}
+
+.title {
+  color: var(--dc-text);
+  font-size: clamp(2.2rem, 5vw, 3.4rem);
+  max-width: 900px;
+  margin: 0 auto 1rem;
+  line-height: 1.1;
+}
+
+.subtitle {
+  color: #334155;
+  font-size: 1.12rem;
+  max-width: 640px;
+  margin: 0 auto 1.5rem;
+}
+
+.actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.85rem;
+  margin-bottom: 1.6rem;
+}
+
+.badges {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.badge {
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--dc-border);
+  border-radius: 999px;
+  color: #64748b;
+  background: #fff;
+}
+
+@media (max-width: 768px) {
+  .hero {
+    padding: 64px 0;
+    text-align: left;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+}

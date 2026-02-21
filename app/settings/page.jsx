@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../providers/AuthProvider'
+import { hasPermission, isAdminRole } from '../../lib/access-control'
 import {
   UserCircleIcon,
   LockClosedIcon,
@@ -32,7 +33,7 @@ import {
 
 export default function SettingsPage() {
   const router = useRouter()
-  const { user, logout } = useAuth()
+  const { user, logout, loading: authLoading } = useAuth()
   
   const [activeTab, setActiveTab] = useState('account')
   const [loading, setLoading] = useState(true)
@@ -828,7 +829,10 @@ export default function SettingsPage() {
             profilePicture: profileData.profilePicture,
             role: profileData.role || ''
           })
-          setIsAdmin(profileData.role === 'ADMIN')
+          setIsAdmin(
+            isAdminRole(profileData.role) ||
+            hasPermission(profileData, 'manage_users')
+          )
         }
         
         // Fetch sessions
@@ -1028,6 +1032,15 @@ export default function SettingsPage() {
       <div style={styles.loadingContainer}>
         <div style={styles.spinner}></div>
         <p>Loading settings...</p>
+      </div>
+    )
+  }
+
+  if (!authLoading && user && !hasPermission(user, 'access_settings')) {
+    return (
+      <div style={styles.loadingContainer}>
+        <h2>Access denied</h2>
+        <p>You do not have permission to view settings.</p>
       </div>
     )
   }

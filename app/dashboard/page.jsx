@@ -30,7 +30,9 @@ import { useRouter } from 'next/navigation'
 import { useDonors } from '../hooks/useDonor'
 import { useDonations } from '../hooks/usedonation'
 import { useAI } from '../providers/AIProvider'
+import { useAuth } from '../providers/AuthProvider'
 import { bulkCreateDonors, prepareDonorsForBulk } from '../../utils/bulkDonorCreator'
+import { hasAnyPermission } from '../../lib/access-control'
 
 // Chart imports
 import { 
@@ -87,6 +89,7 @@ const simulationEventEmitter = new SimulationEventEmitter()
 
 export default function DashboardPage() {
   const router = useRouter()
+  const { user } = useAuth()
   const { 
   startSimulation, 
   stopSimulation, 
@@ -111,6 +114,11 @@ export default function DashboardPage() {
   const [localSettings, setLocalSettings] = useState(null)
   const [isClient, setIsClient] = useState(false)
   const [orgId, setOrgId] = useState(null)
+  const canUseAdminTools = hasAnyPermission(user, [
+    'view_admin_dashboard',
+    'manage_org_data',
+    'manage_users'
+  ])
   
   // Initialize client-side state
   useEffect(() => {
@@ -738,18 +746,20 @@ export default function DashboardPage() {
         <div className={styles.headerTop}>
           <h1 className={styles.dashboardTitle}>Dashboard</h1>
           <div className={styles.headerActions}>
-            <button 
-              onClick={() => setShowSimulationPanel(!showSimulationPanel)}
-              className={`${styles.simulationToggle} ${isSimulationRunning ? styles.simulationRunning : ''}`}
-            >
-              <BoltIcon className={styles.simulationToggleIcon} />
-              {isSimulationRunning ? 'Simulation Running' : 'AI Simulation'}
-              {simulatedDonors.length > 0 && (
-                <span className={styles.simulationBadge}>
-                  {simulatedDonors.length} new
-                </span>
-              )}
-            </button>
+            {canUseAdminTools && (
+              <button 
+                onClick={() => setShowSimulationPanel(!showSimulationPanel)}
+                className={`${styles.simulationToggle} ${isSimulationRunning ? styles.simulationRunning : ''}`}
+              >
+                <BoltIcon className={styles.simulationToggleIcon} />
+                {isSimulationRunning ? 'Simulation Running' : 'AI Simulation'}
+                {simulatedDonors.length > 0 && (
+                  <span className={styles.simulationBadge}>
+                    {simulatedDonors.length} new
+                  </span>
+                )}
+              </button>
+            )}
                       
             {/* Debug button for testing - optional */}
             {process.env.NODE_ENV === 'development' && (
@@ -767,13 +777,13 @@ export default function DashboardPage() {
           Welcome back! {donationStats.totalDonors > 0 
             ? `You have ${donationStats.totalDonors} donors, received ${formatCurrency(donationStats.yearToDate)} this year.`
             : 'Welcome to your donor management system.'}
-          {isSimulationRunning && ' AI simulation is active.'}
-          {simulatedDonors.length > 0 && ` ${simulatedDonors.length} simulated donors ready to import.`}
+          {canUseAdminTools && isSimulationRunning && ' AI simulation is active.'}
+          {canUseAdminTools && simulatedDonors.length > 0 && ` ${simulatedDonors.length} simulated donors ready to import.`}
         </p>
       </div>
 
     {/* Simulation Panel */}
-    {showSimulationPanel && isClient && (
+    {canUseAdminTools && showSimulationPanel && isClient && (
       <div className={styles.simulationPanel}>
         <SimulationControls 
           simulatedDonors={simulatedDonors}
@@ -796,7 +806,7 @@ export default function DashboardPage() {
     )}  
 
       {/* Bulk Donor Manager */}
-      {simulatedDonors.length > 0 && (
+      {canUseAdminTools && simulatedDonors.length > 0 && (
         <BulkDonorManager 
           simulatedDonors={simulatedDonors}
           onBulkCreate={handleBulkCreateDonors}

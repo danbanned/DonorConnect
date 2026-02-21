@@ -24,7 +24,8 @@ import {
   CheckIcon,
   ClockIcon,
   CurrencyDollarIcon as DollarIcon,
-  Cog6ToothIcon
+  Cog6ToothIcon,
+  MegaphoneIcon
 } from '@heroicons/react/24/outline'
 import { useCurrentAccount } from '../../hooks/useCurrentAccount.js'
 import { useAI } from '../../providers/AIProvider.jsx'
@@ -37,6 +38,7 @@ const navigation = [
   { name: 'Donations', href: '/donations', icon: CurrencyDollarIcon },
   { name: 'Communications', href: '/communications', icon: EnvelopeIcon },
   { name: 'Insights', href: '/insights', icon: ChartBarIcon },
+  { name: 'Marketing', href: '/marketing', icon: MegaphoneIcon },
   { name: 'AI Dashboard', href: '/dashboard/AiDashboard', icon: SparklesIcon },
   { name: 'Campaigns', href: '/campaigns', icon: ClockIcon },
 

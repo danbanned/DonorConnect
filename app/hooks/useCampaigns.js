@@ -85,12 +85,6 @@ export function useCampaigns(initialFilters = {}) {
           hasNextPage: false,
           hasPrevPage: false
         })
-        
-        // Update filters with any new values
-        setFilters(prev => ({
-          ...prev,
-          ...customFilters
-        }))
       } else {
         throw new Error(data.error || 'Failed to fetch campaigns')
       }
