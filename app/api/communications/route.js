@@ -1,14 +1,22 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { cookies } from 'next/headers'
+import { verifyToken } from '../../../lib/auth'
+import prisma from '../../../lib/db'
 import { sendEmail } from '../../../lib/api/email'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-
-const prisma = new PrismaClient()
-
 export async function GET(request) {
   try {
+    const token = cookies().get('auth_token')?.value
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const user = await verifyToken(token)
+    if (!user?.orgId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '50')
@@ -39,7 +47,9 @@ export async function GET(request) {
     }
 
     // Build where clause
-    let where = {}
+    let where = {
+      organizationId: user.orgId
+    }
     
     if (Object.keys(dateFilter).length > 0) {
       where.sentAt = dateFilter
@@ -51,6 +61,10 @@ export async function GET(request) {
     
     if (donorId) {
       where.donorId = donorId
+    }
+
+    if (user.role === 'viewer') {
+      where.donor = { assignedToId: user.userId }
     }
 
     // Get communications
@@ -117,6 +131,15 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
+    const token = cookies().get('auth_token')?.value
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const user = await verifyToken(token)
+    if (!user?.orgId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const data = await request.json()
     
     // Validate required fields
@@ -128,8 +151,12 @@ export async function POST(request) {
     }
 
     // Get donor information for email
-    const donor = await prisma.donor.findUnique({
-      where: { id: data.donorId },
+    const donor = await prisma.donor.findFirst({
+      where: {
+        id: data.donorId,
+        organizationId: user.orgId,
+        ...(user.role === 'viewer' ? { assignedToId: user.userId } : {})
+      },
       select: { email: true, firstName: true, lastName: true },
     })
 
@@ -144,8 +171,8 @@ export async function POST(request) {
     const communication = await prisma.communication.create({
       data: {
         ...data,
-        organizationId: 'test-org',
-        userId: 'test-user', // In real app, get from session
+        organizationId: user.orgId,
+        userId: user.userId,
         status: data.status || 'DRAFT',
         sentAt: data.status === 'SENT' ? new Date() : null,
       },

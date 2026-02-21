@@ -197,7 +197,8 @@ export default function CommunicationsPage() {
       const res = await fetch(`/api/communications?donorId=${donorId}`)
       if (res.ok) {
         const data = await res.json()
-        setMessages(data.length > 0 ? data : getSampleMessages())
+        const comms = data?.communications || []
+        setMessages(comms.length > 0 ? comms : getSampleMessages())
       }
     } catch (error) {
       console.error('Error loading messages:', error)
@@ -262,7 +263,8 @@ export default function CommunicationsPage() {
         // Refresh communications list
         const commsRes = await fetch(`/api/communications?timeframe=${safeTimeframe}`)
         if (commsRes.ok) {
-          setCommunications(await commsRes.json())
+          const commsData = await commsRes.json()
+          setCommunications(commsData.communications || [])
         }
       }
     } catch (error) {
@@ -312,7 +314,8 @@ export default function CommunicationsPage() {
       // Refresh communications
       const commsRes = await fetch(`/api/communications?timeframe=${safeTimeframe}`)
       if (commsRes.ok) {
-        setCommunications(await commsRes.json())
+        const commsData = await commsRes.json()
+        setCommunications(commsData.communications || [])
       }
       
       // Close schedule modal
@@ -583,7 +586,8 @@ export default function CommunicationsPage() {
         // Refresh communications
         const commsRes = await fetch(`/api/communications?timeframe=${safeTimeframe}`)
         if (commsRes.ok) {
-          setCommunications(await commsRes.json())
+          const commsData = await commsRes.json()
+          setCommunications(commsData.communications || [])
         }
       }
     } catch (error) {

@@ -2,13 +2,28 @@ import { NextResponse } from 'next/server'
 import { prisma } from '../../../lib/db'
 import { verifyToken } from '../../../lib/auth'
 import { cookies } from 'next/headers'
+import { hasAnyPermission } from '../../../lib/access-control'
 
 /**
  * GET /api/donors
  */
 export async function GET() {
   try {
+    const token = cookies().get('auth_token')?.value
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const user = await verifyToken(token)
+    if (!user?.orgId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const donors = await prisma.donor.findMany({
+      where: {
+        organizationId: user.orgId,
+        ...(user.role === 'viewer' ? { assignedToId: user.userId } : {})
+      },
       orderBy: { lastName: 'asc' },
     })
 
@@ -33,8 +48,12 @@ export async function POST(req) {
     }
 
     const user = await verifyToken(token)
-    const organizationId = user.organizationId ?? null
+    const organizationId = user.orgId ?? null
     const body = await req.json()
+
+    if (!hasAnyPermission(user, ['create_donors', 'manage_org_data'])) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
 
     if (!body.firstName || !body.lastName || !body.email) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })

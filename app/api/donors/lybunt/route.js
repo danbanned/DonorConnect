@@ -2,20 +2,23 @@ import { NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
+import { cookies } from 'next/headers'
+import { verifyToken } from '../../../../lib/auth'
 
 
 const prisma = new PrismaClient()
 
 export async function GET(req) {
   try {
-    const { searchParams } = new URL(req.url)
-    const organizationId = searchParams.get('organizationId')
+    const token = cookies().get('auth_token')?.value
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
+    const user = await verifyToken(token)
+    const organizationId = user?.orgId
     if (!organizationId) {
-      return NextResponse.json(
-        { error: 'organizationId is required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const now = new Date()
@@ -30,6 +33,7 @@ export async function GET(req) {
     const lybuntDonors = await prisma.donor.findMany({
       where: {
         organizationId,
+        ...(user.role === 'viewer' ? { assignedToId: user.userId } : {}),
         donations: {
           some: {
             date: {

@@ -1,0 +1,56 @@
+.section {
+  padding: 96px 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  align-items: stretch;
+}
+
+.chartCard,
+.copy {
+  border: 1px solid var(--dc-border);
+  border-radius: 16px;
+  padding: 1.4rem;
+  background: #fff;
+}
+
+.barWrap {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.85rem;
+  height: 180px;
+  margin-bottom: 0.8rem;
+}
+
+.barOne,
+.barTwo {
+  width: 70px;
+  border-radius: 10px 10px 0 0;
+}
+
+.barOne {
+  height: 58%;
+  background: #7dd3fc;
+}
+
+.barTwo {
+  height: 86%;
+  background: var(--dc-primary);
+}
+
+.copy p {
+  color: #475569;
+}
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .section {
+    padding: 48px 0;
+  }
+}

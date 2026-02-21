@@ -67,7 +67,13 @@ export async function GET(request) {
       }, { status: 401 })
     }
 
-    const organizationId = user.organizationId
+    const organizationId = user.orgId
+    if (!organizationId) {
+      return NextResponse.json({
+        success: false,
+        error: 'Unauthorized organization scope'
+      }, { status: 401 })
+    }
     const { searchParams } = new URL(request.url)
 
     // Parse query parameters
@@ -208,7 +214,13 @@ export async function POST(request) {
       }, { status: 401 })
     }
 
-    const organizationId = user.organizationId
+    const organizationId = user.orgId
+    if (!organizationId) {
+      return NextResponse.json({
+        success: false,
+        error: 'Unauthorized organization scope'
+      }, { status: 401 })
+    }
     const data = await request.json()
 
     // Validation

@@ -1,0 +1,51 @@
+.section {
+  padding: 96px 0;
+}
+
+.wrap {
+  background: #fff;
+  border: 1px solid var(--dc-border);
+  border-radius: 16px;
+  padding: 2rem;
+}
+
+.tabs,
+.amounts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 1rem 0;
+}
+
+.tabs button,
+.amounts button {
+  border: 1px solid var(--dc-border);
+  border-radius: 999px;
+  background: #fff;
+  padding: 0.5rem 0.95rem;
+}
+
+.active,
+.activeAmount {
+  border-color: var(--dc-primary);
+  color: var(--dc-primary);
+  font-weight: 700;
+}
+
+.smartAsk {
+  background: #f1f5f9;
+  border: 1px solid var(--dc-border);
+  border-radius: 12px;
+  padding: 1rem;
+  margin: 1rem 0 1.2rem;
+}
+
+.smartAsk p {
+  margin: 0.45rem 0 0;
+}
+
+@media (max-width: 768px) {
+  .section {
+    padding: 48px 0;
+  }
+}

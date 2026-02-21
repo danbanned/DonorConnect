@@ -26,7 +26,13 @@ export async function GET(req) {
   const limit = Number(searchParams.get('limit') || 50);
   const page = Number(searchParams.get('page') || 1);
 
-  const organizationId = user.organizationId;
+  const organizationId = user.orgId;
+  if (!organizationId) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    );
+  }
 
   try {
     const where = {
@@ -173,8 +179,14 @@ export async function POST(req) {
     status = 'SCHEDULED',
   } = body;
 
-  const userId = user.id;
-  const organizationId = user.organizationId;
+  const userId = user.userId;
+  const organizationId = user.orgId;
+  if (!organizationId) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    );
+  }
 
   if (!donorId || !title || !startTime) {
     return NextResponse.json(
